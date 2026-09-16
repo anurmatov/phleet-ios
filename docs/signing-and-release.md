@@ -43,10 +43,17 @@ script under `env -i` and asserts it exits 1 naming exactly these eight.
 
 1. Check out, then **check the inputs** — nothing is created before this passes
 2. Bootstrap the pinned toolchain
-3. Create a temporary keychain, import the certificate and profile, write the `.p8`
-4. Generate `ExportOptions.plist` at run time from `DEVELOPMENT_TEAM` (method
-   `app-store-connect`, destination `upload`). It is git-ignored and scanned for
-5. Archive with `CODE_SIGN_STYLE=manual` and the build number from the run number
+3. Create a temporary keychain, import the certificate, write the `.p8`, and install the
+   provisioning profile. The profile's `UUID` and `Name` are decoded out of it with
+   `security cms -D` rather than assumed: Xcode only finds a profile installed under its own
+   `$UUID.mobileprovision`, and manual signing references it by `Name`
+4. Generate `ExportOptions.plist` at run time (method `app-store-connect`, destination
+   `upload`, `signingStyle` manual) including a `provisioningProfiles` entry mapping
+   `com.anvarlab.phleet` to that profile name. It is git-ignored and scanned for
+5. Archive with `CODE_SIGN_STYLE=manual`, `CODE_SIGN_IDENTITY="Apple Distribution"`,
+   `PROVISIONING_PROFILE_SPECIFIER` set to the decoded name, and the build number from the run
+   number. Manual signing selects nothing on its own — if the identity and profile are not
+   handed to `xcodebuild` explicitly, both the archive and the export fail
 6. Export and upload to App Store Connect with the API key
 7. **Delete the keychain, the key, the profile and the export options** in an `if: always()`
    step, so a failed run leaves nothing behind

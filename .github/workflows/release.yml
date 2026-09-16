@@ -58,9 +58,30 @@ jobs:
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
           security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
 
+          # A provisioning profile has to be installed under its own UUID for Xcode to find it,
+          # and manual signing needs the profile's Name to reference it by. Both live inside the
+          # signed profile, so decode it and read them out rather than guessing.
+          PROFILE="$RUNNER_TEMP/profile.mobileprovision"
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          printf '%s' "$PROVISIONING_PROFILE" | base64 --decode > "$PROFILE"
+          security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
+
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")"
+          if [ -z "$PROFILE_UUID" ] || [ -z "$PROFILE_NAME" ]; then
+            echo "error: could not read UUID and Name from the provisioning profile" >&2
+            exit 1
+          fi
+
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILE_DIR"
-          printf '%s' "$PROVISIONING_PROFILE" | base64 --decode > "$PROFILE_DIR/phleet-release.mobileprovision"
+          cp "$PROFILE" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+          rm -f "$PROFILE" "$PROFILE_PLIST"
+
+          # Not echoed anywhere: the decoded plist carries the profile's entitlements and
+          # certificate, and GITHUB_ENV keeps these out of the log.
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
 
           KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
           printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
@@ -84,6 +105,11 @@ jobs:
           	<string>$DEVELOPMENT_TEAM</string>
           	<key>signingStyle</key>
           	<string>manual</string>
+          	<key>provisioningProfiles</key>
+          	<dict>
+          		<key>com.anvarlab.phleet</key>
+          		<string>$PROFILE_NAME</string>
+          	</dict>
           	<key>uploadSymbols</key>
           	<true/>
           </dict>
@@ -102,6 +128,8 @@ jobs:
             -archivePath "$RUNNER_TEMP/Phleet.xcarchive" \
             CODE_SIGN_STYLE=manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
             CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
             archive
 
@@ -124,6 +152,9 @@ jobs:
           set +e
           [ -n "${RELEASE_KEYCHAIN:-}" ] && security delete-keychain "$RELEASE_KEYCHAIN"
           rm -f "${ASC_KEY_PATH:-}" "$RUNNER_TEMP/distribution.p12"
-          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/phleet-release.mobileprovision"
+          rm -f "$RUNNER_TEMP/profile.mobileprovision" "$RUNNER_TEMP/profile.plist"
+          if [ -n "${PROFILE_UUID:-}" ]; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          fi
           rm -f ExportOptions.plist
           exit 0
