@@ -134,12 +134,18 @@ destination_for() {
 from_xcrun() {
     local tmp status=0
     tmp="$(mktemp -t simctl-list.XXXXXX)"
-    trap 'rm -f "$tmp"' RETURN
+
     if ! xcrun simctl list --json > "$tmp" 2>/dev/null; then
+        rm -f "$tmp"
         printf 'error: `xcrun simctl list --json` failed\n' >&2
         return 1
     fi
+
+    # Cleaned up explicitly rather than with `trap ... RETURN`: bash pops the function's locals
+    # before running a RETURN trap, so the trap body referenced an unbound $tmp and `set -u`
+    # killed the script after a successful pick.
     destination_for "$tmp" || status=$?
+    rm -f "$tmp"
     return $status
 }
 
