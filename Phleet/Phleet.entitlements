@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<!-- Static declaration only. No code in this slice calls
+	     registerForRemoteNotifications(), and the app contacts no Apple service. -->
+	<key>aps-environment</key>
+	<string>development</string>
+</dict>
+</plist>

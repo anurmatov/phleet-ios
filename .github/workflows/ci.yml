@@ -1,0 +1,59 @@
+name: CI
+
+# Builds and tests with zero secrets, on purpose. If this workflow ever needs a repository
+# secret, a signing identity, or a provisioning profile, something has gone wrong: it must pass
+# on a pull request from a fork, where secrets are unavailable by design.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Simulator build and test
+    # D9. Pinned image, never macos-latest: a floating label silently changes the Xcode and the
+    # installed simulator runtimes underneath the build. Moving the pin is a deliberate edit
+    # here, in release.yml, and in scripts/bootstrap.sh, recorded in docs/development.md.
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Bootstrap toolchain
+        # Verifies the pinned Xcode and fetches the hash-verified XcodeGen. Logs sw_vers,
+        # xcodebuild -version and the verified sha256 so the toolchain that produced this run
+        # is auditable afterwards.
+        run: ./scripts/bootstrap.sh
+
+      - name: Script self-tests
+        # Runs before the gates themselves, so a gate that has stopped being able to fail is
+        # caught here rather than passing silently for months.
+        run: make selftest
+
+      - name: Invariant scan
+        run: make lint
+
+      - name: Generate project
+        run: make generate
+
+      - name: Build and test
+        run: make test
+
+      - name: Upload result bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Phleet-xcresult
+          path: build/Phleet.xcresult
+          if-no-files-found: error
+          retention-days: 14

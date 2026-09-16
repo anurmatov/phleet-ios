@@ -1,0 +1,18 @@
+// Template for Config/Signing.local.xcconfig.
+//
+// Copy this file to Signing.local.xcconfig and fill in your own values. The copy is
+// git-ignored and must never be committed; the placeholders below are not real values
+// and this file must keep it that way.
+//
+//     cp Config/Signing.example.xcconfig Config/Signing.local.xcconfig
+//
+// Config/Base.xcconfig picks the local file up automatically via `#include?`.
+
+// Your Apple Developer team identifier, e.g. a ten-character alphanumeric string.
+DEVELOPMENT_TEAM = REPLACE_WITH_YOUR_TEAM_ID
+
+// The provisioning profile to sign with, by name.
+PROVISIONING_PROFILE_SPECIFIER = REPLACE_WITH_YOUR_PROFILE_NAME
+
+// The signing identity. "Apple Development" is the usual value for a local build.
+CODE_SIGN_IDENTITY = Apple Development

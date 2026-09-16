@@ -1,0 +1,138 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "a11y.enrollment.placeholder.body" : {
+      "comment" : "Spoken label for the whole enrollment-unavailable message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrollment is not available yet. Connecting to a Fleet arrives in a later release. This build is the foundation only and ships with no server configured."
+          }
+        }
+      }
+    },
+    "a11y.enrollment.placeholder.dismiss" : {
+      "comment" : "Spoken label for the button that closes the enrollment placeholder.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "a11y.root.connectFleet" : {
+      "comment" : "Spoken label for the enrollment entry point.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect a Fleet"
+          }
+        }
+      }
+    },
+    "a11y.root.purpose" : {
+      "comment" : "Spoken label for the one-line purpose statement.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A native iOS client for a Fleet server you supply."
+          }
+        }
+      }
+    },
+    "a11y.root.title" : {
+      "comment" : "Spoken label for the product name. Pinned to the product name exactly.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phleet"
+          }
+        }
+      }
+    },
+    "enrollment.placeholder.body" : {
+      "comment" : "Explains that enrollment has not shipped yet, without implying a failure.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to a Fleet arrives in a later release. Nothing has gone wrong — this build is the foundation only, and ships with no server configured."
+          }
+        }
+      }
+    },
+    "enrollment.placeholder.dismiss" : {
+      "comment" : "Button that closes the enrollment placeholder.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "enrollment.placeholder.title" : {
+      "comment" : "Headline of the enrollment placeholder.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrollment is not available yet"
+          }
+        }
+      }
+    },
+    "root.connectFleet" : {
+      "comment" : "Entry point that presents the enrollment placeholder.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect a Fleet"
+          }
+        }
+      }
+    },
+    "root.purpose" : {
+      "comment" : "One-line statement of what the app is for.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A native iOS client for a Fleet server you supply."
+          }
+        }
+      }
+    },
+    "root.title" : {
+      "comment" : "The product name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phleet"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

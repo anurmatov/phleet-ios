@@ -1,0 +1,91 @@
+{
+  "runtimes" : [
+    {
+      "identifier" : "com.apple.CoreSimulator.SimRuntime.iOS-16-4",
+      "version" : "16.4",
+      "isAvailable" : true
+    },
+    {
+      "identifier" : "com.apple.CoreSimulator.SimRuntime.iOS-17-5",
+      "version" : "17.5",
+      "isAvailable" : true
+    },
+    {
+      "identifier" : "com.apple.CoreSimulator.SimRuntime.iOS-18-2",
+      "version" : "18.2",
+      "isAvailable" : true
+    },
+    {
+      "identifier" : "com.apple.CoreSimulator.SimRuntime.watchOS-11-2",
+      "version" : "11.2",
+      "isAvailable" : true
+    }
+  ],
+  "devices" : {
+    "com.apple.CoreSimulator.SimRuntime.iOS-16-4" : [
+      {
+        "udid" : "00000000-0000-0000-0000-000000000801",
+        "name" : "iPhone 99",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-99"
+      }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.iOS-17-5" : [
+      {
+        "udid" : "00000000-0000-0000-0000-000000000701",
+        "name" : "iPhone 15 Pro",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-15-Pro"
+      }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.iOS-18-2" : [
+      {
+        "udid" : "00000000-0000-0000-0000-000000000001",
+        "name" : "iPhone 9",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-9"
+      },
+      {
+        "udid" : "00000000-0000-0000-0000-000000000002",
+        "name" : "iPad Pro 13-inch",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPad-Pro-13-inch"
+      },
+      {
+        "udid" : "00000000-0000-0000-0000-000000000003",
+        "name" : "iPhone 16 Pro",
+        "isAvailable" : false,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+      },
+      {
+        "udid" : "00000000-0000-0000-0000-000000000011",
+        "name" : "iPhone 16 Pro",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+      },
+      {
+        "udid" : "00000000-0000-0000-0000-000000000012",
+        "name" : "iPhone 16 Pro",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-16-Pro"
+      }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.watchOS-11-2" : [
+      {
+        "udid" : "00000000-0000-0000-0000-000000000601",
+        "name" : "Apple Watch Series 10",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.Apple-Watch-Series-10"
+      }
+    ],
+    "com.apple.CoreSimulator.SimRuntime.iOS-not-a-version" : [
+      {
+        "udid" : "00000000-0000-0000-0000-000000000501",
+        "name" : "iPhone 17 Pro Max",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro-Max"
+      }
+    ]
+  },
+  "pairs" : {}
+}
