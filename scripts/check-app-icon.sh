@@ -14,8 +14,18 @@
 #   2. That file exists inside the icon set.
 #   3. It is a real PNG, by signature and IHDR, not something merely named .png.
 #   4. It is exactly 1024x1024.
-#   5. It carries no alpha channel. App Store Connect rejects an icon with one, so an RGBA file
-#      would trade the rejection this gate fixes for a different rejection at the same stage.
+#   5. It can carry no transparency in any form. App Store Connect rejects a transparent icon, so
+#      accepting one would trade the rejection this gate fixes for a different rejection at the
+#      same stage.
+#
+# Point 5 is an ALLOWLIST plus a chunk scan, and both halves are load-bearing. An earlier revision
+# denylisted PNG colour types 4 and 8-bit-grey-alpha/RGBA only, which is the obvious reading of
+# "no alpha channel" and is wrong: a palette image (colour type 3) has no alpha CHANNEL and is
+# still transparent if it carries a tRNS chunk. A fully transparent 1024x1024 palette+tRNS PNG
+# passed that gate while this header, the PR description and docs/signing-and-release.md all
+# claimed it could not. So the colour type must now be one of the two that cannot carry alpha
+# (0 grey, 2 truecolour), and tRNS is rejected wherever it appears -- including on those two
+# types, where it marks one grey level or one RGB value fully transparent.
 #
 # Runs on bash and python3 only, like every other gate here, so it works identically on a
 # contributor's Linux box and on the macOS runner.
@@ -43,17 +53,32 @@ import sys
 
 iconset, required = sys.argv[1], int(sys.argv[2])
 
+# Every reason is collected and printed, not just the first. A palette+tRNS file breaks two rules
+# at once, and reporting only one of them hides half of what is wrong with it.
+reasons = []
+
+
+def fail(message):
+    reasons.append(message)
+
+
+def finish():
+    for message in reasons:
+        print(message)
+    raise SystemExit(1 if reasons else 0)
+
+
 contents = os.path.join(iconset, "Contents.json")
 if not os.path.isfile(contents):
-    print(f"{iconset}: Contents.json is missing")
-    raise SystemExit(1)
+    fail(f"{iconset}: Contents.json is missing")
+    finish()
 
 try:
     with open(contents, "rb") as handle:
         manifest = json.load(handle)
 except (ValueError, OSError) as error:
-    print(f"{contents}: unreadable ({error})")
-    raise SystemExit(1)
+    fail(f"{contents}: unreadable ({error})")
+    finish()
 
 wanted = f"{required}x{required}"
 entries = [
@@ -61,46 +86,66 @@ entries = [
     if image.get("size") == wanted and image.get("idiom") == "universal"
 ]
 if not entries:
-    print(f"{contents}: no universal {wanted} entry")
-    raise SystemExit(1)
+    fail(f"{contents}: no universal {wanted} entry")
+    finish()
 
 filename = (entries[0].get("filename") or "").strip()
 if not filename:
     # The exact state that produced the 90713/90022 rejection: the entry is present and looks
     # populated, but names no file, so actool compiles an empty set without complaining.
-    print(f"{contents}: the {wanted} entry names no file")
-    raise SystemExit(1)
+    fail(f"{contents}: the {wanted} entry names no file")
+    finish()
 
 path = os.path.join(iconset, filename)
 if not os.path.isfile(path):
-    print(f"{path}: referenced by Contents.json but not present")
-    raise SystemExit(1)
+    fail(f"{path}: referenced by Contents.json but not present")
+    finish()
 
 with open(path, "rb") as handle:
-    head = handle.read(33)
+    blob = handle.read()
 
-if head[:8] != b"\x89PNG\r\n\x1a\n":
-    print(f"{path}: not a PNG (bad signature)")
-    raise SystemExit(1)
+if blob[:8] != b"\x89PNG\r\n\x1a\n":
+    fail(f"{path}: not a PNG (bad signature)")
+    finish()
 
-# IHDR is required by the spec to be the first chunk, so its position is fixed.
-if len(head) < 33 or head[12:16] != b"IHDR":
-    print(f"{path}: not a PNG (missing IHDR)")
-    raise SystemExit(1)
+# Walk the chunk stream rather than reading a fixed prefix: tRNS can sit anywhere between IHDR
+# and IDAT, so a prefix read cannot see it.
+chunks = []
+offset = 8
+while offset + 8 <= len(blob):
+    (length,) = struct.unpack(">I", blob[offset:offset + 4])
+    tag = blob[offset + 4:offset + 8]
+    payload = blob[offset + 8:offset + 8 + length]
+    if len(payload) != length:
+        fail(f"{path}: truncated PNG chunk {tag.decode('ascii', 'replace')}")
+        finish()
+    chunks.append((tag, payload))
+    offset += 12 + length
+    if tag == b"IEND":
+        break
 
-width, height = struct.unpack(">II", head[16:24])
-colour_type = head[25]
+if not chunks or chunks[0][0] != b"IHDR" or len(chunks[0][1]) != 13:
+    fail(f"{path}: not a PNG (missing IHDR)")
+    finish()
+
+width, height, _depth, colour_type = struct.unpack(">IIBB", chunks[0][1][:10])
 
 if (width, height) != (required, required):
-    print(f"{path}: is {width}x{height}, expected {required}x{required}")
-    raise SystemExit(1)
+    fail(f"{path}: is {width}x{height}, expected {required}x{required}")
 
-# Colour types 4 (grey+alpha) and 6 (RGBA) carry an alpha channel.
-if colour_type in (4, 6):
-    print(f"{path}: has an alpha channel (PNG colour type {colour_type})")
-    raise SystemExit(1)
+# ALLOWLIST, not a denylist. 0 is greyscale and 2 is truecolour; those are the only two PNG
+# colour types with no alpha channel. 3 (palette), 4 (grey+alpha) and 6 (RGBA) are all rejected,
+# and anything else is a colour type this gate has never been reasoned about.
+if colour_type not in (0, 2):
+    fail(f"{path}: PNG colour type {colour_type} can carry transparency; only 0 and 2 cannot")
 
-raise SystemExit(0)
+# tRNS makes an image transparent WITHOUT an alpha channel: a transparent palette index on type
+# 3, or a single fully transparent grey/RGB value on types 0 and 2. It is rejected wherever it
+# appears, which is why this is checked even when the colour type is already allowed.
+if any(tag == b"tRNS" for tag, _ in chunks):
+    fail(f"{path}: carries a tRNS transparency chunk")
+
+finish()
 PY
 }
 
@@ -113,7 +158,9 @@ check_icon() {
         return 0
     fi
 
-    printf 'FAIL  %s\n' "$reason" >&2
+    while IFS= read -r line; do
+        [ -n "$line" ] && printf 'FAIL  %s\n' "$line" >&2
+    done <<< "$reason"
     printf 'error: the app icon set is not usable; App Store Connect will reject the upload.\n' >&2
     printf 'Regenerate with scripts/make-app-icon.py; see docs/signing-and-release.md\n' >&2
     return 1
@@ -153,11 +200,19 @@ self_test() {
         esac
     }
 
-    expect_fail no-filename   "names no file"
-    expect_fail absent-file   "not present"
-    expect_fail not-a-png     "bad signature"
-    expect_fail wrong-size    "expected 1024x1024"
-    expect_fail has-alpha     "alpha channel"
+    expect_fail no-filename      "names no file"
+    expect_fail absent-file      "not present"
+    expect_fail not-a-png        "bad signature"
+    expect_fail wrong-size       "expected 1024x1024"
+    expect_fail has-alpha        "colour type 6 can carry transparency"
+
+    # The two transparency forms that have no alpha channel. palette-trns is a FULLY TRANSPARENT
+    # 1024x1024 icon that an earlier revision of this gate accepted; truecolour-trns proves the
+    # tRNS rule still fires on a colour type the allowlist permits, so the two rules are shown to
+    # be independent rather than one masking the other.
+    expect_fail palette-trns     "colour type 3 can carry transparency"
+    expect_fail palette-trns     "tRNS transparency chunk"
+    expect_fail truecolour-trns  "tRNS transparency chunk"
 
     if [ "$failures" -ne 0 ]; then
         printf 'check-app-icon.sh --self-test: %d assertion(s) failed\n' "$failures" >&2

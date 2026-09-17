@@ -73,10 +73,20 @@ expensive place in the pipeline to find out.
 
 `scripts/check-app-icon.sh` moves the failure to the front. It asserts that `Contents.json` names
 a file, that the file exists, that it really is a PNG by signature and `IHDR`, that it is exactly
-1024×1024, and that it carries **no alpha channel** — an icon with one is rejected at the same
-stage, so accepting RGBA would trade this rejection for a different one. The same gate runs in
-pull-request CI via `make lint`, so a change that breaks the icon fails in seconds instead of on
+1024×1024, and that it carries **no transparency in any form** — a transparent icon is rejected at
+the same stage, so accepting one would trade this rejection for a different one. The same gate runs
+in pull-request CI via `make lint`, so a change that breaks the icon fails in seconds instead of on
 the next release.
+
+"No transparency" is an allowlist plus a chunk scan, and the distinction matters. An earlier
+revision of the gate said "no alpha channel" and implemented it as a denylist of the colour types
+that have one. That is the obvious reading and it is wrong: a palette image has no alpha *channel*
+and is still transparent if it carries a `tRNS` chunk, and a fully transparent 1024×1024
+palette+`tRNS` PNG passed the gate while this paragraph claimed it could not. The gate now requires
+PNG colour type 0 or 2 — the only two that cannot carry alpha — and rejects `tRNS` wherever it
+appears, including on those two types, where it marks one grey level or one RGB value fully
+transparent. `tests/fixtures/appicon/palette-trns/` is that transparent icon, kept as a fixture so
+the hole cannot reopen.
 
 ### Why no artifact
 

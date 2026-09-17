@@ -255,11 +255,13 @@ def chunk(tag: bytes, payload: bytes) -> bytes:
 
 
 def encode_png(rgb: bytes, size: int) -> bytes:
-    """8-bit truecolour, NO alpha channel.
+    """8-bit truecolour, no alpha channel and no transparency chunk.
 
-    Colour type 2 is not a stylistic choice. App Store Connect rejects an app icon that carries
-    an alpha channel, so emitting RGBA here would trade the rejection this issue fixes for a
-    different one. scripts/check-app-icon.sh asserts the colour type for that reason.
+    Colour type 2 is not a stylistic choice. App Store Connect rejects a transparent app icon, so
+    emitting RGBA here would trade the rejection this issue fixes for a different one. Nothing
+    below writes a tRNS chunk either: on colour type 2 that would mark one RGB value fully
+    transparent without any alpha channel being involved, which is the form that slipped past an
+    earlier revision of the gate. scripts/check-app-icon.sh asserts both.
     """
     raw = bytearray()
     stride = size * 3
