@@ -35,13 +35,13 @@ check_inputs() {
     for name in $REQUIRED_INPUTS; do
         value="${!name:-}"
         # Whitespace-only counts as missing: an empty secret is a common way for this to go
-        # wrong quietly, and it is not a usable value.
-        case "$value" in
-            ''|' '|'  '|'   ')
-                printf '%s\n' "$name"
-                missing=$((missing + 1))
-                ;;
-        esac
+        # wrong quietly, and it is not a usable value. Stripping every [[:space:]] character
+        # and testing what is left covers tabs, newlines and runs of any length -- enumerating
+        # a few literal space patterns would let a tab through as if it were a real value.
+        if [ -z "${value//[[:space:]]/}" ]; then
+            printf '%s\n' "$name"
+            missing=$((missing + 1))
+        fi
     done
 
     if [ "$missing" -ne 0 ]; then

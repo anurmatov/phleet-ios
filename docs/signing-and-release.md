@@ -83,7 +83,10 @@ account has to do them.
 ### Apple
 
 - [ ] App Store Connect API key created, with a role that can upload builds
-- [ ] Distribution certificate and an App Store provisioning profile for `com.anvarlab.phleet`
+- [ ] An **Apple Distribution** certificate and an App Store provisioning profile for
+      `com.anvarlab.phleet`. The certificate type matters: the archive step passes
+      `CODE_SIGN_IDENTITY="Apple Distribution"`, so a legacy `iPhone Distribution` identity
+      fails to match
 - [ ] The app record exists in App Store Connect
 - [ ] An APNs key exists for later slices — **it is not used by any code in this repository yet**
 

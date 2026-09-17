@@ -55,5 +55,8 @@ jobs:
         with:
           name: Phleet-xcresult
           path: build/Phleet.xcresult
-          if-no-files-found: error
+          # warn, not error: this step is `if: always()`, so it also runs when the job failed
+          # before xcodebuild produced a bundle. Erroring there adds a second red step that
+          # reports a missing artifact instead of the failure that actually stopped the job.
+          if-no-files-found: warn
           retention-days: 14
