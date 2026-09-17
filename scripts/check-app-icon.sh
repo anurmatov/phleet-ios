@@ -19,7 +19,7 @@
 #      same stage.
 #
 # Point 5 is an ALLOWLIST plus a chunk scan, and both halves are load-bearing. An earlier revision
-# denylisted PNG colour types 4 and 8-bit-grey-alpha/RGBA only, which is the obvious reading of
+# denylisted PNG colour types 4 and 6 (grey+alpha and RGBA) only, which is the obvious reading of
 # "no alpha channel" and is wrong: a palette image (colour type 3) has no alpha CHANNEL and is
 # still transparent if it carries a tRNS chunk. A fully transparent 1024x1024 palette+tRNS PNG
 # passed that gate while this header, the PR description and docs/signing-and-release.md all
