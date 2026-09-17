@@ -42,24 +42,41 @@ script under `env -i` and asserts it exits 1 naming exactly these eight.
 ## What the release job does
 
 1. Check out, then **check the inputs** — nothing is created before this passes
-2. Bootstrap the pinned toolchain
-3. Create a temporary keychain, import the certificate, write the `.p8`, and install the
+2. **Check the app icon** — see below; also before anything is created
+3. Bootstrap the pinned toolchain
+4. Create a temporary keychain, import the certificate, write the `.p8`, and install the
    provisioning profile. The profile's `UUID` and `Name` are decoded out of it with
    `security cms -D` rather than assumed: Xcode only finds a profile installed under its own
    `$UUID.mobileprovision`, and manual signing references it by `Name`
-4. Generate `ExportOptions.plist` at run time (method `app-store-connect`, destination
+5. Generate `ExportOptions.plist` at run time (method `app-store-connect`, destination
    `upload`, `signingStyle` manual) including a `provisioningProfiles` entry mapping
    `com.anvarlab.phleet` to that profile name. It is git-ignored and scanned for
-5. Archive with `CODE_SIGN_STYLE=manual`, `CODE_SIGN_IDENTITY="Apple Distribution"`,
+6. Archive with `CODE_SIGN_STYLE=manual`, `CODE_SIGN_IDENTITY="Apple Distribution"`,
    `PROVISIONING_PROFILE_SPECIFIER` set to the decoded name, and the build number from the run
    number. Manual signing selects nothing on its own — if the identity and profile are not
    handed to `xcodebuild` explicitly, both the archive and the export fail
-6. Export and upload to App Store Connect with the API key
-7. **Delete the keychain, the key, the profile and the export options** in an `if: always()`
+7. Export and upload to App Store Connect with the API key
+8. **Delete the keychain, the key, the profile and the export options** in an `if: always()`
    step, so a failed run leaves nothing behind
 
 It is `workflow_dispatch`-only, it **uploads no artifact of any kind**, and it never falls back
 to automatic signing or continues unsigned.
+
+### Why the icon is checked before the toolchain
+
+The first real release run archived and signed cleanly and was then rejected by App Store
+Connect: `90713` for a missing `CFBundleIconName` and `90022` for a missing 120×120 icon. The
+project already declared `ASSETCATALOG_COMPILER_APPICON_NAME`, but the icon set referenced no
+file, so `actool` compiled an empty set, emitted no icon metadata, and nothing in the build said
+so. Neither archiving nor signing can catch that — only the upload can, which is the most
+expensive place in the pipeline to find out.
+
+`scripts/check-app-icon.sh` moves the failure to the front. It asserts that `Contents.json` names
+a file, that the file exists, that it really is a PNG by signature and `IHDR`, that it is exactly
+1024×1024, and that it carries **no alpha channel** — an icon with one is rejected at the same
+stage, so accepting RGBA would trade this rejection for a different one. The same gate runs in
+pull-request CI via `make lint`, so a change that breaks the icon fails in seconds instead of on
+the next release.
 
 ### Why no artifact
 

@@ -36,6 +36,13 @@ jobs:
       - name: Check release inputs
         run: ./scripts/check-release-inputs.sh
 
+      # Before the toolchain, for the same reason as the step above. A missing or malformed app
+      # icon is not caught by archiving or signing -- it is caught by App Store Connect, after a
+      # distribution certificate has been imported and an archive built and uploaded. Checking
+      # here costs a second and moves that failure to the front of the job.
+      - name: Check app icon
+        run: ./scripts/check-app-icon.sh
+
       - name: Bootstrap toolchain
         run: ./scripts/bootstrap.sh
 

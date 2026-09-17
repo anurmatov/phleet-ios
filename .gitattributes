@@ -6,3 +6,8 @@
 
 # Fixtures are byte-sensitive; keep them out of language statistics.
 tests/fixtures/** linguist-vendored=true
+
+# The app icon is a generated binary; its source is scripts/make-app-icon.py. Marking it binary
+# keeps a diff from printing 32 KB of bytes, and -diff/-merge stops a merge tool from producing
+# a corrupt PNG by interleaving two versions of it.
+*.png binary -diff -merge

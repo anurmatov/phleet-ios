@@ -67,9 +67,10 @@ move. When that happens:
 ```
 ./scripts/bootstrap.sh   # verify Xcode, fetch and hash-verify XcodeGen into .tools/
 make generate            # project.yml -> Phleet.xcodeproj  (git-ignored)
-make lint                # tracked-file invariant scan
+make lint                # tracked-file invariant scan + app icon gate
 make selftest            # run every gating script against its fixtures
 make test                # build and test on the selected simulator
+make icon                # regenerate the committed app icon (only when the artwork changes)
 make clean               # remove build/, the generated project, DerivedData
 ```
 
@@ -101,11 +102,31 @@ Every gating script takes injected input, so none of them needs the real environ
 ./scripts/select-simulator.sh --simctl-json FILE       # one-shot against your own document
 ./scripts/check-no-private-values.sh --self-test       # against tests/fixtures/scanner/
 ./scripts/check-release-inputs.sh --self-test          # runs itself under env -i
+./scripts/check-app-icon.sh --self-test                # against tests/fixtures/appicon/
+./scripts/check-app-icon.sh DIR                        # one-shot against your own icon set
 ```
 
 Each self-test asserts both directions — the passing case and the case that must fail. A check
 that can only go green is not a check, and `make selftest` runs before the gates themselves in
 CI so a gate that has stopped being able to fail is caught rather than trusted.
+
+## The app icon is generated, and the generator is the source
+
+`Phleet/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` is committed, because
+Xcode needs the file to exist when it compiles the asset catalog. It is produced by
+[`scripts/make-app-icon.py`](../scripts/make-app-icon.py), which is committed next to it.
+
+That is deliberate. A binary with no source is not reviewable: nobody can tell a considered mark
+from a placeholder, and nobody can change it without opening a design tool. The generator draws
+the mark from signed distance fields using only the standard library, so a reviewer can read what
+every shape is, change a number, run `make icon`, and get a byte-identical result for the same
+input. Three consecutive runs produce the same sha256.
+
+The mark derives from the public Phleet identity — a monochrome lowercase wordmark over a subtle
+agent-node network. The full wordmark cannot survive a square crop; at the 40pt Spotlight size
+"phleet" is six letters across forty pixels and becomes texture. So the icon is the wordmark's
+initial, a lowercase `p` in the same heavy geometric monochrome, with two network edges
+terminating on its bowl so the letterform is part of the graph rather than sitting beside one.
 
 ## Two details that look like mistakes and are not
 

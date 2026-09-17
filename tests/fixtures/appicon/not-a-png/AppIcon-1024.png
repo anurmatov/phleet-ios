@@ -1,0 +1,2 @@
+This file is deliberately not a PNG. The gate must reject it on the signature, not on
+the .png extension, because an extension is not evidence of a file format.

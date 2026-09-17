@@ -1,0 +1,293 @@
+#!/usr/bin/env python3
+"""Generate the Phleet app icon as a deterministic 1024x1024 opaque PNG.
+
+The icon is committed, not built during CI -- Xcode needs the file to exist. This script is
+committed alongside it so the artwork has provenance: a reviewer can read what every shape is,
+change a number, re-run, and get a byte-identical result for the same input. An opaque binary
+with no source is not reviewable.
+
+Derivation (see issue #3). The public Phleet identity is a monochrome lowercase wordmark over a
+subtle agent-node network. The full wide wordmark cannot survive a square crop -- at the 40pt
+Spotlight size "phleet" is six letters across roughly 40 pixels and becomes texture. So the mark
+here is the wordmark's initial, a lowercase 'p', drawn in the same heavy geometric monochrome and
+placed in the same node network. The bowl of the 'p' is drawn as a ring and two network edges
+terminate on it, so the letterform and the graph motif are the same object rather than two ideas
+sharing a canvas.
+
+Palette is taken from the hero verbatim: #ffffff field, #111111 mark, #dddddd edges, #222222
+nodes, #eeeeee dot grid.
+
+No third-party dependency: shapes are signed distance fields evaluated per pixel and the PNG is
+written with zlib from the standard library. Anti-aliasing is exact-ish coverage from the
+distance, which is why the curves are clean without supersampling.
+
+Usage:
+    scripts/make-app-icon.py [output.png]
+"""
+
+from __future__ import annotations
+
+import math
+import struct
+import sys
+import zlib
+
+SIZE = 1024
+
+WHITE = (0xFF, 0xFF, 0xFF)
+MARK = (0x11, 0x11, 0x11)
+NODE = (0x22, 0x22, 0x22)
+EDGE = (0xDD, 0xDD, 0xDD)
+GRID = (0xEE, 0xEE, 0xEE)
+
+# --- geometry -------------------------------------------------------------------------------
+# One canvas unit is one pixel at 1024. Apple's guidance is to keep the mark inside roughly the
+# central 80%; everything below sits within 104..920.
+
+STEM_X = 323.0          # centre of the vertical stroke
+STEM_TOP = 248.0
+STEM_BOTTOM = 770.0     # past the baseline: a lowercase 'p' has a descender
+STROKE = 100.0          # stroke weight, shared by the stem and the bowl
+
+BOWL_CX = 531.0
+BOWL_CY = 422.0
+BOWL_R = 170.0          # radius of the ring's centre line
+
+# Outer silhouette of the bowl, used both to draw it and to stop network edges at its edge.
+BOWL_OUTER = BOWL_R + STROKE / 2.0
+
+# These values put the glyph's bounding box at x[273, 751], y[198, 820] -- centred on 512
+# horizontally and a shade above centre vertically, which is where a descender wants to sit.
+#
+# The hero's accent rule under the wordmark is deliberately NOT reproduced. At 1024 it reads;
+# at the 40pt Spotlight size it is two pixels of detached grey under the glyph, which is noise
+# rather than identity. The node network already carries the derivation.
+
+# Agent nodes. Deliberately asymmetric, like the hero's scattered clusters, and kept clear of
+# the letterform so the 'p' stays legible when the icon is 40 pixels wide.
+NODES = [
+    (168.0, 196.0, 15.0),
+    (330.0, 132.0, 11.0),
+    (846.0, 232.0, 15.0),
+    (908.0, 430.0, 11.0),
+    (800.0, 742.0, 15.0),
+    (196.0, 636.0, 11.0),
+]
+
+# Edges. The two that terminate on the bowl are what makes the letterform part of the graph
+# rather than decoration sitting next to one.
+EDGES = [
+    (168.0, 196.0, 330.0, 132.0),
+    (168.0, 196.0, 196.0, 636.0),
+    (846.0, 232.0, 908.0, 430.0),
+    (846.0, 232.0, 800.0, 742.0),
+    (908.0, 430.0, 800.0, 742.0),
+    (330.0, 132.0, 846.0, 232.0),
+]
+
+# Edges that terminate ON the bowl, wiring the letterform into the graph. They stop at the
+# bowl's outer silhouette rather than at its centre: the mark is painted after the network and
+# covers the stroke, but nothing covers the counter, so an edge aimed at the centre draws a
+# grey hairline straight across the white inside of the 'p'.
+BOWL_EDGES = [
+    (846.0, 232.0),
+    (196.0, 636.0),
+]
+EDGE_W = 3.0
+
+GRID_PITCH = 80.0
+GRID_R = 2.4
+
+
+def clamp01(value: float) -> float:
+    return 0.0 if value < 0.0 else (1.0 if value > 1.0 else value)
+
+
+def coverage(distance: float) -> float:
+    """Pixel coverage from a signed distance, negative inside.
+
+    The 0.5-pixel ramp either side of the boundary is the whole anti-aliasing story; it is why
+    this renders clean curves from one sample per pixel instead of a supersampling grid.
+    """
+    return clamp01(0.5 - distance)
+
+
+class Canvas:
+    def __init__(self, size: int, background: tuple[int, int, int]) -> None:
+        self.size = size
+        self.pixels = [[float(c) for c in background] for _ in range(size * size)]
+
+    def paint(self, bounds, sdf, colour) -> None:
+        """Composite `colour` over the canvas wherever `sdf` reports coverage.
+
+        `bounds` restricts evaluation to the shape's bounding box. Without it this is a million
+        pixels times every shape, which turns a one-second script into a minute-long one.
+        """
+        x0, y0, x1, y1 = bounds
+        x0 = max(0, int(math.floor(x0)))
+        y0 = max(0, int(math.floor(y0)))
+        x1 = min(self.size - 1, int(math.ceil(x1)))
+        y1 = min(self.size - 1, int(math.ceil(y1)))
+        cr, cg, cb = colour
+
+        for py in range(y0, y1 + 1):
+            row = py * self.size
+            sample_y = py + 0.5
+            for px in range(x0, x1 + 1):
+                alpha = coverage(sdf(px + 0.5, sample_y))
+                if alpha <= 0.0:
+                    continue
+                pixel = self.pixels[row + px]
+                inverse = 1.0 - alpha
+                pixel[0] = pixel[0] * inverse + cr * alpha
+                pixel[1] = pixel[1] * inverse + cg * alpha
+                pixel[2] = pixel[2] * inverse + cb * alpha
+
+    def to_rgb_bytes(self) -> bytes:
+        out = bytearray()
+        for pixel in self.pixels:
+            out.append(int(pixel[0] + 0.5))
+            out.append(int(pixel[1] + 0.5))
+            out.append(int(pixel[2] + 0.5))
+        return bytes(out)
+
+
+# --- signed distance fields -----------------------------------------------------------------
+
+
+def sdf_capsule(ax: float, ay: float, bx: float, by: float, half_width: float):
+    """A segment with round caps. Used for the stem, the edges and the accent rule."""
+    dx, dy = bx - ax, by - ay
+    length_sq = dx * dx + dy * dy
+
+    def field(x: float, y: float) -> float:
+        px, py = x - ax, y - ay
+        t = 0.0 if length_sq == 0.0 else clamp01((px * dx + py * dy) / length_sq)
+        qx, qy = px - t * dx, py - t * dy
+        return math.hypot(qx, qy) - half_width
+
+    return field
+
+
+def sdf_disc(cx: float, cy: float, radius: float):
+    def field(x: float, y: float) -> float:
+        return math.hypot(x - cx, y - cy) - radius
+
+    return field
+
+
+def sdf_ring(cx: float, cy: float, radius: float, half_width: float):
+    def field(x: float, y: float) -> float:
+        return abs(math.hypot(x - cx, y - cy) - radius) - half_width
+
+    return field
+
+
+def render() -> Canvas:
+    canvas = Canvas(SIZE, WHITE)
+    half = STROKE / 2.0
+
+    # Dot grid, first and faintest, exactly as the hero layers it.
+    steps = int(SIZE / GRID_PITCH)
+    for iy in range(steps + 1):
+        for ix in range(steps + 1):
+            cx = GRID_PITCH * ix + GRID_PITCH / 2.0
+            cy = GRID_PITCH * iy + GRID_PITCH / 2.0
+            if cx > SIZE or cy > SIZE:
+                continue
+            canvas.paint(
+                (cx - GRID_R - 1, cy - GRID_R - 1, cx + GRID_R + 1, cy + GRID_R + 1),
+                sdf_disc(cx, cy, GRID_R),
+                GRID,
+            )
+
+    # Network edges, then nodes on top so an edge never crosses a node's face.
+    for ax, ay, bx, by in EDGES:
+        canvas.paint(
+            (min(ax, bx) - EDGE_W - 1, min(ay, by) - EDGE_W - 1,
+             max(ax, bx) + EDGE_W + 1, max(ay, by) + EDGE_W + 1),
+            sdf_capsule(ax, ay, bx, by, EDGE_W / 2.0),
+            EDGE,
+        )
+
+    for ax, ay in BOWL_EDGES:
+        dx, dy = BOWL_CX - ax, BOWL_CY - ay
+        length = math.hypot(dx, dy)
+        bx = ax + dx / length * (length - BOWL_OUTER)
+        by = ay + dy / length * (length - BOWL_OUTER)
+        canvas.paint(
+            (min(ax, bx) - EDGE_W - 1, min(ay, by) - EDGE_W - 1,
+             max(ax, bx) + EDGE_W + 1, max(ay, by) + EDGE_W + 1),
+            sdf_capsule(ax, ay, bx, by, EDGE_W / 2.0),
+            EDGE,
+        )
+
+    for cx, cy, r in NODES:
+        canvas.paint((cx - r - 1, cy - r - 1, cx + r + 1, cy + r + 1), sdf_disc(cx, cy, r), NODE)
+
+    # The letterform, last, so it sits above the network at full strength.
+    canvas.paint(
+        (STEM_X - half - 1, STEM_TOP - half - 1, STEM_X + half + 1, STEM_BOTTOM + half + 1),
+        sdf_capsule(STEM_X, STEM_TOP + half, STEM_X, STEM_BOTTOM - half, half),
+        MARK,
+    )
+
+    outer = BOWL_OUTER
+    canvas.paint(
+        (BOWL_CX - outer - 1, BOWL_CY - outer - 1, BOWL_CX + outer + 1, BOWL_CY + outer + 1),
+        sdf_ring(BOWL_CX, BOWL_CY, BOWL_R, half),
+        MARK,
+    )
+
+    return canvas
+
+
+# --- PNG ------------------------------------------------------------------------------------
+
+
+def chunk(tag: bytes, payload: bytes) -> bytes:
+    return (
+        struct.pack(">I", len(payload))
+        + tag
+        + payload
+        + struct.pack(">I", zlib.crc32(tag + payload) & 0xFFFFFFFF)
+    )
+
+
+def encode_png(rgb: bytes, size: int) -> bytes:
+    """8-bit truecolour, NO alpha channel.
+
+    Colour type 2 is not a stylistic choice. App Store Connect rejects an app icon that carries
+    an alpha channel, so emitting RGBA here would trade the rejection this issue fixes for a
+    different one. scripts/check-app-icon.sh asserts the colour type for that reason.
+    """
+    raw = bytearray()
+    stride = size * 3
+    for y in range(size):
+        raw.append(0)  # filter: None
+        raw.extend(rgb[y * stride:(y + 1) * stride])
+
+    header = struct.pack(">IIBBBBB", size, size, 8, 2, 0, 0, 0)
+    return (
+        b"\x89PNG\r\n\x1a\n"
+        + chunk(b"IHDR", header)
+        + chunk(b"IDAT", zlib.compress(bytes(raw), 9))
+        + chunk(b"IEND", b"")
+    )
+
+
+def main(argv: list[str]) -> int:
+    destination = (
+        argv[1]
+        if len(argv) > 1
+        else "Phleet/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+    )
+    png = encode_png(render().to_rgb_bytes(), SIZE)
+    with open(destination, "wb") as handle:
+        handle.write(png)
+    print(f"wrote {destination} ({len(png)} bytes, {SIZE}x{SIZE}, no alpha)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(sys.argv))
