@@ -2,6 +2,7 @@
 # are the same commands.
 #
 # `lint` and `selftest` need only bash and python3 and run anywhere.
+# `icon` regenerates the committed app icon; it needs only python3 and is not part of a build.
 # `generate`, `build` and `test` need macOS with the pinned Xcode (see docs/development.md).
 
 SHELL := /bin/bash
@@ -22,7 +23,7 @@ XCODEBUILD_FLAGS := \
     CODE_SIGN_IDENTITY="" \
     CURRENT_PROJECT_VERSION=$(BUILD_NUMBER)
 
-.PHONY: all generate build test lint selftest clean
+.PHONY: all generate build test lint selftest icon clean
 
 all: lint selftest generate test
 
@@ -49,11 +50,20 @@ test: generate
 
 lint:
 	./scripts/check-no-private-values.sh
+	./scripts/check-app-icon.sh
 
 selftest:
 	./scripts/select-simulator.sh --self-test
 	./scripts/check-no-private-values.sh --self-test
 	./scripts/check-release-inputs.sh --self-test
+	./scripts/check-app-icon.sh --self-test
+
+# The icon is committed, because Xcode needs the file to exist at build time. This target
+# regenerates it from scripts/make-app-icon.py so the artwork stays reviewable as source: change
+# a number, re-run, get a byte-identical result. Run it only when the artwork changes.
+icon:
+	python3 scripts/make-app-icon.py
+	./scripts/check-app-icon.sh
 
 clean:
 	rm -rf build "$(PROJECT)" DerivedData

@@ -39,9 +39,10 @@ exact pins and how each one fails closed). There are no Swift package dependenci
 ```
 ./scripts/bootstrap.sh   # verify the pinned Xcode, fetch + hash-verify the pinned XcodeGen
 make generate            # produce Phleet.xcodeproj from project.yml (never committed)
-make lint                # tracked-file invariant scan
+make lint                # tracked-file invariant scan + app icon gate
 make selftest            # exercise every gating script against fixtures
 make test                # build and test on a simulator chosen by a deterministic rule
+make icon                # regenerate the committed app icon from its generator
 ```
 
 `Phleet.xcodeproj` is generated from [`project.yml`](project.yml) and is not committed. Do not hand-edit
@@ -55,7 +56,7 @@ a `.pbxproj`; change `project.yml` and regenerate.
 | `PhleetTests/` | app-hosted unit tests |
 | `PhleetUITests/` | one launch smoke test |
 | `Config/` | `.xcconfig` build settings; local signing overrides are git-ignored |
-| `scripts/` | build-gate scripts, each with a `--self-test` mode |
+| `scripts/` | build-gate scripts, each with a `--self-test` mode, plus the app-icon generator |
 | `tests/fixtures/` | synthetic inputs for the script self-tests |
 | `docs/` | toolchain, signing/release, and architecture notes |
 

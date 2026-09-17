@@ -67,9 +67,10 @@ move. When that happens:
 ```
 ./scripts/bootstrap.sh   # verify Xcode, fetch and hash-verify XcodeGen into .tools/
 make generate            # project.yml -> Phleet.xcodeproj  (git-ignored)
-make lint                # tracked-file invariant scan
+make lint                # tracked-file invariant scan + app icon gate
 make selftest            # run every gating script against its fixtures
 make test                # build and test on the selected simulator
+make icon                # regenerate the committed app icon (only when the artwork changes)
 make clean               # remove build/, the generated project, DerivedData
 ```
 
@@ -101,11 +102,42 @@ Every gating script takes injected input, so none of them needs the real environ
 ./scripts/select-simulator.sh --simctl-json FILE       # one-shot against your own document
 ./scripts/check-no-private-values.sh --self-test       # against tests/fixtures/scanner/
 ./scripts/check-release-inputs.sh --self-test          # runs itself under env -i
+./scripts/check-app-icon.sh --self-test                # against tests/fixtures/appicon/
+./scripts/check-app-icon.sh DIR                        # one-shot against your own icon set
 ```
 
 Each self-test asserts both directions — the passing case and the case that must fail. A check
 that can only go green is not a check, and `make selftest` runs before the gates themselves in
 CI so a gate that has stopped being able to fail is caught rather than trusted.
+
+## The app icon is generated, and the generator is the source
+
+`Phleet/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` is committed, because
+Xcode needs the file to exist when it compiles the asset catalog. It is produced by
+[`scripts/make-app-icon.py`](../scripts/make-app-icon.py), which is committed next to it.
+
+That is deliberate. A binary with no source is not reviewable: nobody can tell a considered mark
+from a placeholder, and nobody can change it without opening a design tool. The generator draws
+the mark from signed distance fields using only the standard library, so a reviewer can read what
+every shape is, change a number, run `make icon`, and get a byte-identical result for the same
+input. Three consecutive runs produce the same sha256.
+
+The mark is **confluence**: coordinated agents acting as one fleet. Three agents enter from the
+left, their paths converge at a single junction, and beyond it there is one body moving as a unit.
+
+The idea is the silhouette, not decoration laid over it — remove an agent and the mark changes
+shape. That distinction is the whole reason this is the second design. The first put an agent-node
+network over a letterform, where the concept elements were roughly 8% of the ink at 52% contrast;
+at 40×40 the letter read fine and the idea was simply not there. **A concept that only survives at
+1024 has not been shown to work**, which is why `check-app-icon.sh` renders the icon down to 40×40
+and counts connected regions of ink rather than trusting the 1024 master to speak for it.
+
+Two numbers worth keeping in mind if the geometry is ever edited. Everything is sized against the
+40×40 rendering, not the 1024 one: at actool's 25.6:1 ratio the agent discs are 6.1 px, the trunk
+5.9 px and the tributaries 3.6 px. And where separate elements must *read* as separate, the gap
+between them needs to be at least 2 px at 40×40 — about 51 px at 1024. Gaps thinner than that grey
+out through the downsample and the elements merge, which is a failure the eye does not catch on a
+1024 master.
 
 ## Two details that look like mistakes and are not
 
