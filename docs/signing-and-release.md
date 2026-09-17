@@ -73,8 +73,10 @@ expensive place in the pipeline to find out.
 
 `scripts/check-app-icon.sh` moves the failure to the front. It asserts that `Contents.json` names
 a file, that the file exists, that it really is a PNG by signature and `IHDR`, that it is exactly
-1024×1024, and that it carries **no transparency in any form** — a transparent icon is rejected at
-the same stage, so accepting one would trade this rejection for a different one. The same gate runs
+1024×1024, that it carries **no transparency in any form** — a transparent icon is rejected at the
+same stage, so accepting one would trade this rejection for a different one — and that the mark
+**still holds together at 40×40**, by decoding it, box-filtering through actool's 25.6:1 ratio and
+counting connected regions of ink against a committed expected count. The same gate runs
 in pull-request CI via `make lint`, so a change that breaks the icon fails in seconds instead of on
 the next release.
 
@@ -87,6 +89,12 @@ PNG colour type 0 or 2 — the only two that cannot carry alpha — and rejects 
 appears, including on those two types, where it marks one grey level or one RGB value fully
 transparent. `tests/fixtures/appicon/palette-trns/` is that transparent icon, kept as a fixture so
 the hole cannot reopen.
+
+The 40×40 region count is there because "valid PNG of the right size" says nothing about whether
+the artwork survives being seen. Thin strokes grey out and fragment at icon size, and a mark that
+breaks into specks there passes every other check in this gate. `tests/fixtures/appicon/fragmented/`
+is a perfectly valid 1024×1024 opaque PNG that is three disconnected pieces at 40×40, kept so the
+rule is one that has been watched failing rather than one merely written down.
 
 ### Why no artifact
 

@@ -122,11 +122,22 @@ the mark from signed distance fields using only the standard library, so a revie
 every shape is, change a number, run `make icon`, and get a byte-identical result for the same
 input. Three consecutive runs produce the same sha256.
 
-The mark derives from the public Phleet identity — a monochrome lowercase wordmark over a subtle
-agent-node network. The full wordmark cannot survive a square crop; at the 40pt Spotlight size
-"phleet" is six letters across forty pixels and becomes texture. So the icon is the wordmark's
-initial, a lowercase `p` in the same heavy geometric monochrome, with two network edges
-terminating on its bowl so the letterform is part of the graph rather than sitting beside one.
+The mark is **confluence**: coordinated agents acting as one fleet. Three agents enter from the
+left, their paths converge at a single junction, and beyond it there is one body moving as a unit.
+
+The idea is the silhouette, not decoration laid over it — remove an agent and the mark changes
+shape. That distinction is the whole reason this is the second design. The first put an agent-node
+network over a letterform, where the concept elements were roughly 8% of the ink at 52% contrast;
+at 40×40 the letter read fine and the idea was simply not there. **A concept that only survives at
+1024 has not been shown to work**, which is why `check-app-icon.sh` renders the icon down to 40×40
+and counts connected regions of ink rather than trusting the 1024 master to speak for it.
+
+Two numbers worth keeping in mind if the geometry is ever edited. Everything is sized against the
+40×40 rendering, not the 1024 one: at actool's 25.6:1 ratio the agent discs are 6.1 px, the trunk
+5.9 px and the tributaries 3.6 px. And where separate elements must *read* as separate, the gap
+between them needs to be at least 2 px at 40×40 — about 51 px at 1024. Gaps thinner than that grey
+out through the downsample and the elements merge, which is a failure the eye does not catch on a
+1024 master.
 
 ## Two details that look like mistakes and are not
 

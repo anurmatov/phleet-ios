@@ -17,6 +17,14 @@
 #   5. It can carry no transparency in any form. App Store Connect rejects a transparent icon, so
 #      accepting one would trade the rejection this gate fixes for a different rejection at the
 #      same stage.
+#   6. The mark still holds together at 40x40. The icon is decoded, box-filtered down through
+#      actool's 25.6:1 ratio to the Spotlight size, thresholded, and its connected regions of ink
+#      are counted; the expected count is committed below.
+#
+# Point 6 exists because "valid PNG of the right size" says nothing about whether the artwork
+# survives being seen. Thin strokes grey out and fragment at 40x40, and a mark that breaks into
+# specks there is a failure the other five checks cannot see. The first icon proposed for this app
+# was rejected for exactly that class of problem.
 #
 # Point 5 is an ALLOWLIST plus a chunk scan, and both halves are load-bearing. An earlier revision
 # denylisted PNG colour types 4 and 6 (grey+alpha and RGBA) only, which is the obvious reading of
@@ -42,16 +50,27 @@ DEFAULT_ICONSET="Phleet/Resources/Assets.xcassets/AppIcon.appiconset"
 FIXTURE_DIR="tests/fixtures/appicon"
 REQUIRED_SIZE=1024
 
+# The size the icon is judged at: iOS Spotlight, and the smallest actool derives from the 1024
+# master. 1024/40 is 25.6, so the downsample below is a true box filter, not integer decimation.
+JUDGE_SIZE=40
+
+# The mark is ONE connected body at 40x40: three agent paths converging into a single trunk. If a
+# stroke ever thins enough to grey out and break, this count rises and the gate fails -- which is
+# the whole point, because nothing else here can see that happen.
+EXPECTED_INK_REGIONS=1
+
 # The inspection is a here-doc rather than a separate file so the gate is one reviewable unit.
 # It prints a single machine-readable reason on failure and nothing on success.
 inspect() {
-    python3 - "$1" "$REQUIRED_SIZE" <<'PY'
+    python3 - "$1" "$REQUIRED_SIZE" "$JUDGE_SIZE" "$EXPECTED_INK_REGIONS" <<'PY'
 import json
 import os
 import struct
 import sys
+import zlib
 
 iconset, required = sys.argv[1], int(sys.argv[2])
+judge_size, expected_regions = int(sys.argv[3]), int(sys.argv[4])
 
 # Every reason is collected and printed, not just the first. A palette+tRNS file breaks two rules
 # at once, and reporting only one of them hides half of what is wrong with it.
@@ -145,6 +164,87 @@ if colour_type not in (0, 2):
 if any(tag == b"tRNS" for tag, _ in chunks):
     fail(f"{path}: carries a tRNS transparency chunk")
 
+# Anything above is fatal for the rendering check below, which needs a decodable image.
+if reasons:
+    finish()
+
+bit_depth = chunks[0][1][8]
+interlace = chunks[0][1][12]
+
+# Both are required for the decode below to be well defined, and both are what the generator
+# writes and what actool expects. Failing loudly beats a check that quietly does not run.
+if bit_depth != 8:
+    fail(f"{path}: bit depth {bit_depth}; the 40x40 check decodes 8-bit images only")
+if interlace != 0:
+    fail(f"{path}: interlaced; the 40x40 check decodes non-interlaced images only")
+if reasons:
+    finish()
+
+channels = 1 if colour_type == 0 else 3
+stride = width * channels
+raw = zlib.decompress(b"".join(p for t, p in chunks if t == b"IDAT"))
+
+# Undo the per-scanline filters. All five types appear in real PNGs, and treating an unexpected
+# one as "no filter" would silently produce garbage that the region count would then measure.
+rows, previous, offset = [], bytearray(stride), 0
+for y in range(height):
+    ftype = raw[offset]; offset += 1
+    line = bytearray(raw[offset:offset + stride]); offset += stride
+    for i in range(stride):
+        a = line[i - channels] if i >= channels else 0
+        b = previous[i]
+        c = previous[i - channels] if i >= channels else 0
+        if ftype == 0:   line[i] = line[i]
+        elif ftype == 1: line[i] = (line[i] + a) & 0xFF
+        elif ftype == 2: line[i] = (line[i] + b) & 0xFF
+        elif ftype == 3: line[i] = (line[i] + ((a + b) >> 1)) & 0xFF
+        elif ftype == 4:
+            pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+            line[i] = (line[i] + (a if pa <= pb and pa <= pc else (b if pb <= pc else c))) & 0xFF
+        else:
+            print(f"{path}: unknown PNG filter type {ftype} on row {y}")
+            raise SystemExit(1)
+    rows.append(line); previous = line
+
+# Box-filter to the judging size. Buckets are computed per source pixel rather than by integer
+# decimation, because 1024/40 is 25.6 and dropping the remainder would ignore the last 24 columns.
+total = [0] * (judge_size * judge_size)
+count = [0] * (judge_size * judge_size)
+for y in range(height):
+    by = y * judge_size // height
+    line = rows[y]
+    for x in range(width):
+        cell = by * judge_size + x * judge_size // width
+        total[cell] += line[x * channels]
+        count[cell] += 1
+
+ink = [total[i] // count[i] < 128 for i in range(judge_size * judge_size)]
+
+# Count connected regions, 8-connected.
+seen = [False] * len(ink)
+found = 0
+for start in range(len(ink)):
+    if not ink[start] or seen[start]:
+        continue
+    found += 1
+    stack = [start]
+    seen[start] = True
+    while stack:
+        cell = stack.pop()
+        cy, cx = divmod(cell, judge_size)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                ny, nx = cy + dy, cx + dx
+                if 0 <= ny < judge_size and 0 <= nx < judge_size:
+                    neighbour = ny * judge_size + nx
+                    if ink[neighbour] and not seen[neighbour]:
+                        seen[neighbour] = True
+                        stack.append(neighbour)
+
+if found != expected_regions:
+    fail(f"{path}: {found} connected ink region(s) at {judge_size}x{judge_size}, "
+         f"expected {expected_regions}; the mark does not hold together at icon size")
+
 finish()
 PY
 }
@@ -213,6 +313,10 @@ self_test() {
     expect_fail palette-trns     "colour type 3 can carry transparency"
     expect_fail palette-trns     "tRNS transparency chunk"
     expect_fail truecolour-trns  "tRNS transparency chunk"
+
+    # A valid 1024x1024 opaque PNG that nonetheless falls apart at icon size. Without this the
+    # region count is an assertion nobody has ever seen fail.
+    expect_fail fragmented       "connected ink region"
 
     if [ "$failures" -ne 0 ]; then
         printf 'check-app-icon.sh --self-test: %d assertion(s) failed\n' "$failures" >&2

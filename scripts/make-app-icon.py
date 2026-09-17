@@ -1,25 +1,30 @@
 #!/usr/bin/env python3
 """Generate the Phleet app icon as a deterministic 1024x1024 opaque PNG.
 
-The icon is committed, not built during CI -- Xcode needs the file to exist. This script is
-committed alongside it so the artwork has provenance: a reviewer can read what every shape is,
-change a number, re-run, and get a byte-identical result for the same input. An opaque binary
-with no source is not reviewable.
+The icon is committed, because Xcode needs the file to exist when it compiles the asset catalog.
+This script is committed alongside it and is the SOURCE of that file: `make icon` regenerates it
+byte-identically. That is not a convenience — with a generator present and no such guarantee,
+`make icon` would silently replace an approved icon with a different one and every check would
+still pass, because the gate gates validity, not identity.
 
-Derivation (see issue #3). The public Phleet identity is a monochrome lowercase wordmark over a
-subtle agent-node network. The full wide wordmark cannot survive a square crop -- at the 40pt
-Spotlight size "phleet" is six letters across roughly 40 pixels and becomes texture. So the mark
-here is the wordmark's initial, a lowercase 'p', drawn in the same heavy geometric monochrome and
-placed in the same node network. The bowl of the 'p' is drawn as a ring and two network edges
-terminate on it, so the letterform and the graph motif are the same object rather than two ideas
-sharing a canvas.
+Concept: **confluence** — coordinated agents acting as one fleet.
 
-Palette is taken from the hero verbatim: #ffffff field, #111111 mark, #dddddd edges, #222222
-nodes, #eeeeee dot grid.
+Three agents enter from the left, their paths converge at a single junction, and beyond it there
+is one body moving as a unit. The idea is the silhouette, not decoration laid over it: remove an
+agent and the mark changes shape. That is the correction from the first attempt, which put an
+agent-node network over a letterform where the concept was ~8% of the ink and therefore invisible
+at 40x40 — the size the icon is seen at most.
+
+Two measured constraints the geometry has to satisfy, both verified by scripts/check-app-icon.sh
+rather than asserted here:
+
+  * Everything survives actool's 25.6:1 downsample to 40x40. Strokes and discs are sized so the
+    mark stays one connected body at that size instead of breaking into specks.
+  * The file carries no transparency in any form.
 
 No third-party dependency: shapes are signed distance fields evaluated per pixel and the PNG is
-written with zlib from the standard library. Anti-aliasing is exact-ish coverage from the
-distance, which is why the curves are clean without supersampling.
+written with zlib from the standard library. Anti-aliasing is coverage derived from the distance,
+which is why the curves are clean without supersampling.
 
 Usage:
     scripts/make-app-icon.py [output.png]
@@ -42,61 +47,19 @@ GRID = (0xEE, 0xEE, 0xEE)
 
 # --- geometry -------------------------------------------------------------------------------
 # One canvas unit is one pixel at 1024. Apple's guidance is to keep the mark inside roughly the
-# central 80%; everything below sits within 104..920.
-
-STEM_X = 323.0          # centre of the vertical stroke
-STEM_TOP = 248.0
-STEM_BOTTOM = 770.0     # past the baseline: a lowercase 'p' has a descender
-STROKE = 100.0          # stroke weight, shared by the stem and the bowl
-
-BOWL_CX = 531.0
-BOWL_CY = 422.0
-BOWL_R = 170.0          # radius of the ring's centre line
-
-# Outer silhouette of the bowl, used both to draw it and to stop network edges at its edge.
-BOWL_OUTER = BOWL_R + STROKE / 2.0
-
-# These values put the glyph's bounding box at x[273, 751], y[198, 820] -- centred on 512
-# horizontally and a shade above centre vertically, which is where a descender wants to sit.
+# central 80%; the bounding box below is x[118, 912], y[208, 816].
 #
-# The hero's accent rule under the wordmark is deliberately NOT reproduced. At 1024 it reads;
-# at the 40pt Spotlight size it is two pixels of detached grey under the glyph, which is noise
-# rather than identity. The node network already carries the derivation.
+# Every number here was chosen against the 40x40 rendering, not the 1024 one. At 25.6:1 the disc
+# diameter is 6.1 px, the trunk 5.9 px and the tributaries 3.6 px — all comfortably above the
+# point where a shape greys out and fragments.
 
-# Agent nodes. Deliberately asymmetric, like the hero's scattered clusters, and kept clear of
-# the letterform so the 'p' stays legible when the icon is 40 pixels wide.
-NODES = [
-    (168.0, 196.0, 15.0),
-    (330.0, 132.0, 11.0),
-    (846.0, 232.0, 15.0),
-    (908.0, 430.0, 11.0),
-    (800.0, 742.0, 15.0),
-    (196.0, 636.0, 11.0),
-]
+AGENTS = [(196.0, 286.0), (196.0, 512.0), (196.0, 738.0)]
+AGENT_R = 78.0          # the agents themselves
+TRIBUTARY = 92.0        # each agent's path into the junction
 
-# Edges. The two that terminate on the bowl are what makes the letterform part of the graph
-# rather than decoration sitting next to one.
-EDGES = [
-    (168.0, 196.0, 330.0, 132.0),
-    (168.0, 196.0, 196.0, 636.0),
-    (846.0, 232.0, 908.0, 430.0),
-    (846.0, 232.0, 800.0, 742.0),
-    (908.0, 430.0, 800.0, 742.0),
-    (330.0, 132.0, 846.0, 232.0),
-]
-
-# Edges that terminate ON the bowl, wiring the letterform into the graph. They stop at the
-# bowl's outer silhouette rather than at its centre: the mark is painted after the network and
-# covers the stroke, but nothing covers the counter, so an edge aimed at the centre draws a
-# grey hairline straight across the white inside of the 'p'.
-BOWL_EDGES = [
-    (846.0, 232.0),
-    (196.0, 636.0),
-]
-EDGE_W = 3.0
-
-GRID_PITCH = 80.0
-GRID_R = 2.4
+JUNCTION = (600.0, 512.0)
+TRUNK_END = (836.0, 512.0)
+TRUNK = 152.0           # deliberately heavier than a tributary: this is the one body, not a fourth path
 
 
 def clamp01(value: float) -> float:
@@ -176,68 +139,34 @@ def sdf_disc(cx: float, cy: float, radius: float):
     return field
 
 
-def sdf_ring(cx: float, cy: float, radius: float, half_width: float):
-    def field(x: float, y: float) -> float:
-        return abs(math.hypot(x - cx, y - cy) - radius) - half_width
-
-    return field
-
-
 def render() -> Canvas:
     canvas = Canvas(SIZE, WHITE)
-    half = STROKE / 2.0
+    jx, jy = JUNCTION
 
-    # Dot grid, first and faintest, exactly as the hero layers it.
-    steps = int(SIZE / GRID_PITCH)
-    for iy in range(steps + 1):
-        for ix in range(steps + 1):
-            cx = GRID_PITCH * ix + GRID_PITCH / 2.0
-            cy = GRID_PITCH * iy + GRID_PITCH / 2.0
-            if cx > SIZE or cy > SIZE:
-                continue
-            canvas.paint(
-                (cx - GRID_R - 1, cy - GRID_R - 1, cx + GRID_R + 1, cy + GRID_R + 1),
-                sdf_disc(cx, cy, GRID_R),
-                GRID,
-            )
-
-    # Network edges, then nodes on top so an edge never crosses a node's face.
-    for ax, ay, bx, by in EDGES:
+    # Tributaries first. Each agent's path runs into the one junction; drawing them before the
+    # trunk and the agents means the joins are covered rather than showing as seams.
+    for ax, ay in AGENTS:
         canvas.paint(
-            (min(ax, bx) - EDGE_W - 1, min(ay, by) - EDGE_W - 1,
-             max(ax, bx) + EDGE_W + 1, max(ay, by) + EDGE_W + 1),
-            sdf_capsule(ax, ay, bx, by, EDGE_W / 2.0),
-            EDGE,
+            (min(ax, jx) - TRIBUTARY, min(ay, jy) - TRIBUTARY,
+             max(ax, jx) + TRIBUTARY, max(ay, jy) + TRIBUTARY),
+            sdf_capsule(ax, ay, jx, jy, TRIBUTARY / 2.0),
+            MARK,
         )
 
-    for ax, ay in BOWL_EDGES:
-        dx, dy = BOWL_CX - ax, BOWL_CY - ay
-        length = math.hypot(dx, dy)
-        bx = ax + dx / length * (length - BOWL_OUTER)
-        by = ay + dy / length * (length - BOWL_OUTER)
-        canvas.paint(
-            (min(ax, bx) - EDGE_W - 1, min(ay, by) - EDGE_W - 1,
-             max(ax, bx) + EDGE_W + 1, max(ay, by) + EDGE_W + 1),
-            sdf_capsule(ax, ay, bx, by, EDGE_W / 2.0),
-            EDGE,
-        )
-
-    for cx, cy, r in NODES:
-        canvas.paint((cx - r - 1, cy - r - 1, cx + r + 1, cy + r + 1), sdf_disc(cx, cy, r), NODE)
-
-    # The letterform, last, so it sits above the network at full strength.
+    # The trunk: past the junction there is one body, not three.
     canvas.paint(
-        (STEM_X - half - 1, STEM_TOP - half - 1, STEM_X + half + 1, STEM_BOTTOM + half + 1),
-        sdf_capsule(STEM_X, STEM_TOP + half, STEM_X, STEM_BOTTOM - half, half),
+        (min(jx, TRUNK_END[0]) - TRUNK, jy - TRUNK, max(jx, TRUNK_END[0]) + TRUNK, jy + TRUNK),
+        sdf_capsule(jx, jy, TRUNK_END[0], TRUNK_END[1], TRUNK / 2.0),
         MARK,
     )
 
-    outer = BOWL_OUTER
-    canvas.paint(
-        (BOWL_CX - outer - 1, BOWL_CY - outer - 1, BOWL_CX + outer + 1, BOWL_CY + outer + 1),
-        sdf_ring(BOWL_CX, BOWL_CY, BOWL_R, half),
-        MARK,
-    )
+    # The agents last, so each sits at full weight on top of its own path.
+    for ax, ay in AGENTS:
+        canvas.paint(
+            (ax - AGENT_R - 1, ay - AGENT_R - 1, ax + AGENT_R + 1, ay + AGENT_R + 1),
+            sdf_disc(ax, ay, AGENT_R),
+            MARK,
+        )
 
     return canvas
 
