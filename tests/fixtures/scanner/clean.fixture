@@ -1,0 +1,12 @@
+# Control fixture for check-no-private-values.sh --self-test.
+#
+# Nothing here may trip any check group. If this file ever starts failing, the scanner has
+# become over-strict and would have started rejecting ordinary source.
+
+struct Example {
+    let name = "Phleet"
+    let version = "0.1.0"
+    let deploymentTarget = "17.0"
+}
+
+Relative links and plain prose are fine: see docs/development.md for the toolchain pins.

@@ -1,0 +1,30 @@
+// Shared build settings for every target and configuration.
+//
+// This file holds no team identifier, provisioning profile name, or any other
+// operator-owned value. Local signing lives in Signing.local.xcconfig, which is
+// git-ignored and optionally included at the bottom of this file.
+
+IPHONEOS_DEPLOYMENT_TARGET = 17.0
+SWIFT_VERSION = 5.0
+PRODUCT_NAME = $(TARGET_NAME)
+TARGETED_DEVICE_FAMILY = 1
+
+// Marketing version is pinned here; the build number defaults to 1 for local builds
+// and is overridden on the xcodebuild invocation with the CI run number.
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+
+// Warnings are errors for the app target. Both test targets override this back to NO
+// in project.yml, so test scaffolding cannot fail the build on a style warning.
+SWIFT_TREAT_WARNINGS_AS_ERRORS = YES
+GCC_TREAT_WARNINGS_AS_ERRORS = YES
+
+// Manual signing per the pinned release model. Simulator CI builds pass
+// CODE_SIGNING_ALLOWED=NO, so no identity is consulted there.
+CODE_SIGN_STYLE = manual
+
+SWIFT_EMIT_LOC_STRINGS = YES
+
+// Optional include. The `?` matters: Signing.local.xcconfig is git-ignored and absent
+// on a clean checkout, and a plain #include would fail generation on every CI run.
+#include? "Signing.local.xcconfig"

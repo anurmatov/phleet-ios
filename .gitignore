@@ -1,0 +1,31 @@
+# Signing and push material. None of this may ever be committed; see SECURITY.md.
+*.p8
+*.p12
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.pem
+*.key
+Config/*.local.xcconfig
+
+# Generated Xcode project. Regenerate with `make generate`.
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+*.xcuserstate
+
+# Build products
+DerivedData/
+build/
+ExportOptions.plist
+
+# Pinned tools fetched by scripts/bootstrap.sh
+.tools/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store

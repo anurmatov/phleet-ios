@@ -1,0 +1,20 @@
+{
+  "runtimes" : [
+    {
+      "identifier" : "com.apple.CoreSimulator.SimRuntime.iOS-16-4",
+      "version" : "16.4",
+      "isAvailable" : true
+    }
+  ],
+  "devices" : {
+    "com.apple.CoreSimulator.SimRuntime.iOS-16-4" : [
+      {
+        "udid" : "00000000-0000-0000-0000-000000000901",
+        "name" : "iPhone 14",
+        "isAvailable" : true,
+        "deviceTypeIdentifier" : "com.apple.CoreSimulator.SimDeviceType.iPhone-14"
+      }
+    ]
+  },
+  "pairs" : {}
+}

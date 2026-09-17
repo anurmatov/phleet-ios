@@ -1,0 +1,8 @@
+# Generated Xcode project files. These are produced by XcodeGen from project.yml
+# and are never committed (see .gitignore). Marking them generated documents that
+# they must not be hand-edited if one ever appears in a diff.
+*.pbxproj linguist-generated=true -diff -merge
+*.xcworkspacedata linguist-generated=true -diff -merge
+
+# Fixtures are byte-sensitive; keep them out of language statistics.
+tests/fixtures/** linguist-vendored=true

@@ -1,0 +1,9 @@
+Negative fixture for check-no-private-values.sh --self-test, group 2.
+
+Both values below are reserved for documentation and refer to nothing real: `.example` is a
+reserved top-level domain (RFC 2606) and 203.0.113.0/24 is the TEST-NET-3 block (RFC 5737).
+They are here because the group 2 allowlist must reject them, and a `.invalid` host would be
+allowed and so could not prove the check works.
+
+let base = "https://server.example/enroll"
+let fallback = "203.0.113.10"

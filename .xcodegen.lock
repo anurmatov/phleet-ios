@@ -1,0 +1,15 @@
+# Pinned XcodeGen release artifact.
+#
+# scripts/bootstrap.sh downloads exactly this tag and refuses to continue unless the
+# artifact hashes to this value. A version string alone does not guarantee that two
+# machines generate the same Xcode project; the hash does.
+#
+# 2.46.0 is used because it recognises String Catalogs (.xcstrings) as resources.
+# An older release silently drops Phleet/Resources/Localizable.xcstrings from the
+# bundle, after which every a11y.* lookup returns its own key and AC 10 fails with
+# no obvious cause.
+#
+# To move the pin: pick the new tag, download its xcodegen.zip, record the sha256
+# here, and say why in docs/development.md.
+version=2.46.0
+sha256=4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806

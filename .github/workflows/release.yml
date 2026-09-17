@@ -1,0 +1,160 @@
+name: Release
+
+# Signed archive and TestFlight upload. Manual only, and fail closed: a missing input stops the
+# run before anything is created, there is no fallback to automatic signing, the run never
+# continues unsigned, and it uploads no artifact of any kind -- artifacts on a public repository
+# are publicly downloadable, and this job handles a distribution certificate.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testflight:
+    name: Archive and upload to TestFlight
+    runs-on: macos-26
+    timeout-minutes: 90
+
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      DISTRIBUTION_CERTIFICATE_P12: ${{ secrets.DISTRIBUTION_CERTIFICATE_P12 }}
+      DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.DISTRIBUTION_CERTIFICATE_PASSWORD }}
+      PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+      KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      DEVELOPMENT_TEAM: ${{ vars.DEVELOPMENT_TEAM }}
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      # The first thing this job does. Everything below creates state -- a keychain, an imported
+      # identity, an archive -- and none of it should begin if an input is absent.
+      - name: Check release inputs
+        run: ./scripts/check-release-inputs.sh
+
+      - name: Bootstrap toolchain
+        run: ./scripts/bootstrap.sh
+
+      - name: Create ephemeral keychain and import signing material
+        run: |
+          set -euo pipefail
+          KEYCHAIN="$RUNNER_TEMP/phleet-release.keychain-db"
+          echo "RELEASE_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+
+          CERT="$RUNNER_TEMP/distribution.p12"
+          printf '%s' "$DISTRIBUTION_CERTIFICATE_P12" | base64 --decode > "$CERT"
+          security import "$CERT" -k "$KEYCHAIN" -P "$DISTRIBUTION_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          rm -f "$CERT"
+
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+          # A provisioning profile has to be installed under its own UUID for Xcode to find it,
+          # and manual signing needs the profile's Name to reference it by. Both live inside the
+          # signed profile, so decode it and read them out rather than guessing.
+          PROFILE="$RUNNER_TEMP/profile.mobileprovision"
+          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
+          printf '%s' "$PROVISIONING_PROFILE" | base64 --decode > "$PROFILE"
+          security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
+
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")"
+          if [ -z "$PROFILE_UUID" ] || [ -z "$PROFILE_NAME" ]; then
+            echo "error: could not read UUID and Name from the provisioning profile" >&2
+            exit 1
+          fi
+
+          PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILE_DIR"
+          cp "$PROFILE" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
+          rm -f "$PROFILE" "$PROFILE_PLIST"
+
+          # Not echoed anywhere: the decoded plist carries the profile's entitlements and
+          # certificate, and GITHUB_ENV keeps these out of the log.
+          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+
+          KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
+          printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "ASC_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+
+      - name: Generate export options
+        # Written at run time from the team identifier and never committed; .gitignore and the
+        # invariant scan both cover ExportOptions.plist.
+        run: |
+          set -euo pipefail
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <plist version="1.0">
+          <dict>
+          	<key>method</key>
+          	<string>app-store-connect</string>
+          	<key>destination</key>
+          	<string>upload</string>
+          	<key>teamID</key>
+          	<string>$DEVELOPMENT_TEAM</string>
+          	<key>signingStyle</key>
+          	<string>manual</string>
+          	<key>provisioningProfiles</key>
+          	<dict>
+          		<key>com.anvarlab.phleet</key>
+          		<string>$PROFILE_NAME</string>
+          	</dict>
+          	<key>uploadSymbols</key>
+          	<true/>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Archive
+        run: |
+          set -euo pipefail
+          ./.tools/xcodegen/bin/xcodegen generate --spec project.yml --project .
+          xcodebuild \
+            -project Phleet.xcodeproj \
+            -scheme Phleet \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Phleet.xcarchive" \
+            CODE_SIGN_STYLE=manual \
+            DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            archive
+
+      - name: Export and upload to TestFlight
+        run: |
+          set -euo pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Phleet.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$RUNNER_TEMP/export" \
+            -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+
+      # Runs whether or not anything above succeeded. A distribution identity left behind on a
+      # runner, or a key file left on disk, is the failure this step exists to prevent.
+      - name: Delete keychain and signing material
+        if: always()
+        run: |
+          set +e
+          [ -n "${RELEASE_KEYCHAIN:-}" ] && security delete-keychain "$RELEASE_KEYCHAIN"
+          rm -f "${ASC_KEY_PATH:-}" "$RUNNER_TEMP/distribution.p12"
+          rm -f "$RUNNER_TEMP/profile.mobileprovision" "$RUNNER_TEMP/profile.plist"
+          if [ -n "${PROFILE_UUID:-}" ]; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          fi
+          rm -f ExportOptions.plist
+          exit 0

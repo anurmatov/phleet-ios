@@ -1,0 +1,9 @@
+Negative fixture for check-no-private-values.sh --self-test, group 1.
+
+The line below matches the generic private-key header pattern and contains no key material of
+any kind. That is the point: the scanner must recognise the shape of a key without this
+repository ever holding one.
+
+-----BEGIN TEST PRIVATE KEY-----
+not-a-key
+-----END TEST PRIVATE KEY-----
