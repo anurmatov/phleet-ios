@@ -49,6 +49,21 @@ final class KeychainCredentialStoreTests: XCTestCase {
         XCTAssertEqual(attributes[kSecAttrService as String] as? String, service)
     }
 
+    /// The first thing to read when this file goes red.
+    ///
+    /// `-34018` is `errSecMissingEntitlement`, and on the simulator it means the host process has
+    /// no keychain access group — which happens when the build is not signed at all, or when the
+    /// `keychain-access-groups` entitlement is dropped. Neither is a fault in the store; both
+    /// silence the only coverage the device secret has.
+    func testTheTestHostCanReachTheKeychain() {
+        XCTAssertNoThrow(
+            try store.save(credential),
+            "the app host has no keychain access group. Check keychain-access-groups in "
+                + "Phleet/Phleet.entitlements and the ad-hoc CODE_SIGN_IDENTITY in the Makefile; "
+                + "-34018 is errSecMissingEntitlement, not a store defect"
+        )
+    }
+
     func testAFreshInstallReportsNoCredentialRatherThanFailing() throws {
         XCTAssertNil(try store.load())
     }

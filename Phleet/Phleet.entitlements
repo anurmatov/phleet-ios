@@ -5,5 +5,17 @@
 	     registerForRemoteNotifications(), and the app contacts no Apple service. -->
 	<key>aps-environment</key>
 	<string>development</string>
+
+	<!-- The default keychain access group, and deliberately only that one.
+	     On device an app signed with a real profile is granted this group implicitly, so
+	     declaring it changes nothing there and needs no capability the App ID does not
+	     already have. On the simulator it is load-bearing: a process with no embedded
+	     entitlements has no access group at all, and every SecItem call answers -34018.
+	     Naming any group other than the default one would require the provisioning profile
+	     to carry it, which is exactly the operator-owned coupling this repository avoids. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	</array>
 </dict>
 </plist>
