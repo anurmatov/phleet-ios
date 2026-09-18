@@ -53,42 +53,13 @@ struct TranscriptEntryView: View {
             }
 
             if record.state.ownsProgressIndicator {
-                progressIndicator
+                ProgressIndicatorView(activity: activity, reduceMotion: reduceMotion)
             }
 
             if let reply = record.reply {
                 replyView(reply)
             }
         }
-    }
-
-    /// A single indeterminate indicator, and nothing more.
-    ///
-    /// There is no incremental assistant-text event in v1, so there is nothing to feed a
-    /// token-by-token effect. Tool completion is not client-visible on any provider either:
-    /// `toolName` says a tool started, and nothing ever says it finished.
-    @ViewBuilder
-    private var progressIndicator: some View {
-        HStack(spacing: 8) {
-            if reduceMotion {
-                // Static and still labelled. An animation is not what carries the meaning.
-                Image(systemName: "hourglass")
-                    .imageScale(.small)
-            } else {
-                ProgressView()
-                    .controlSize(.small)
-            }
-            Text(progressKey)
-                .font(.caption)
-            if let toolName = activity?.toolName, !toolName.isEmpty {
-                Text(verbatim: toolName)
-                    .font(.caption.monospaced())
-            }
-        }
-        .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(AccessibilityIdentifier.conversationProgress.identifier)
-        .accessibilityLabel(AccessibilityIdentifier.conversationProgress.localizedLabel)
     }
 
     private func replyView(_ reply: AgentReply) -> some View {
@@ -160,12 +131,6 @@ struct TranscriptEntryView: View {
         }
     }
 
-    private var progressKey: LocalizedStringKey {
-        activity?.activity == .tool
-            ? "conversation.progress.tool"
-            : "conversation.progress.working"
-    }
-
     private var spokenLabel: String {
         var parts: [String] = [String(localized: "conversation.speaker.you")]
 
@@ -201,5 +166,51 @@ struct TranscriptEntryView: View {
                 : "conversation.state.canceledElsewhere"
         case .outcomeUnknown: return "conversation.state.outcomeUnknown"
         }
+    }
+}
+
+/// A single indeterminate indicator, and nothing more.
+///
+/// There is no incremental assistant-text event in v1, so there is nothing to feed a
+/// token-by-token effect. Tool completion is not client-visible on any provider either:
+/// `toolName` says a tool started, and nothing ever says it finished, so a checklist would render
+/// ticks no event can produce.
+///
+/// `reduceMotion` is a parameter rather than an `@Environment` read because
+/// `accessibilityReduceMotion` is a read-only environment value: a test cannot write it, and a
+/// behaviour that cannot be exercised is a behaviour nobody checks. `TranscriptEntryView` reads
+/// the environment once and passes it in.
+struct ProgressIndicatorView: View {
+
+    let activity: TurnActivity?
+    let reduceMotion: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if reduceMotion {
+                // Static and still labelled. The animation was never what carried the meaning.
+                Image(systemName: "hourglass")
+                    .imageScale(.small)
+            } else {
+                ProgressView()
+                    .controlSize(.small)
+            }
+            Text(progressKey)
+                .font(.caption)
+            if let toolName = activity?.toolName, !toolName.isEmpty {
+                Text(verbatim: toolName)
+                    .font(.caption.monospaced())
+            }
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier(AccessibilityIdentifier.conversationProgress.identifier)
+        .accessibilityLabel(AccessibilityIdentifier.conversationProgress.localizedLabel)
+    }
+
+    private var progressKey: LocalizedStringKey {
+        activity?.activity == .tool
+            ? "conversation.progress.tool"
+            : "conversation.progress.working"
     }
 }

@@ -33,7 +33,6 @@ final class DynamicTypeRenderingTests: XCTestCase {
     private func assertRenders(
         _ view: some View,
         _ label: String,
-        reduceMotion: Bool = false,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
@@ -41,7 +40,6 @@ final class DynamicTypeRenderingTests: XCTestCase {
             let renderer = ImageRenderer(
                 content: view
                     .environment(\.dynamicTypeSize, size)
-                    .environment(\.accessibilityReduceMotion, reduceMotion)
                     .frame(width: 390)
             )
             renderer.scale = 1
@@ -90,16 +88,46 @@ final class DynamicTypeRenderingTests: XCTestCase {
     }
 
     func testTheWorkingIndicatorRendersWithAndWithoutMotion() {
-        let view = TranscriptEntryView(
-            record: record(.working),
-            activity: TurnActivity(submissionId: "s1", activity: .tool, toolName: "search"),
-            sendAgain: {}
+        assertRenders(
+            TranscriptEntryView(
+                record: record(.working),
+                activity: TurnActivity(submissionId: "s1", activity: .tool, toolName: "search"),
+                sendAgain: {}
+            ),
+            "a working entry"
         )
 
-        assertRenders(view, "a working entry with motion")
-        // With Reduce Motion on the indicator is a static, labelled state rather than an
-        // animation — and it still has to lay out.
-        assertRenders(view, "a working entry without motion", reduceMotion: true)
+        // `accessibilityReduceMotion` is a read-only environment value, so it cannot be written
+        // from a test. The indicator therefore takes it as a parameter and is rendered both ways
+        // directly: with motion reduced it is a static, labelled state rather than an animation,
+        // and it still has to lay out at every size.
+        for reduceMotion in [false, true] {
+            assertRenders(
+                ProgressIndicatorView(
+                    activity: TurnActivity(
+                        submissionId: "s1",
+                        activity: .tool,
+                        toolName: "search"
+                    ),
+                    reduceMotion: reduceMotion
+                ),
+                "the working indicator (reduceMotion: \(reduceMotion))"
+            )
+        }
+    }
+
+    func testTheWorkingIndicatorKeepsItsLabelWithMotionReduced() {
+        // The label is what carries the meaning; the animation never did.
+        for reduceMotion in [false, true] {
+            assertRenders(
+                ProgressIndicatorView(activity: nil, reduceMotion: reduceMotion),
+                "the bare working indicator (reduceMotion: \(reduceMotion))"
+            )
+            XCTAssertFalse(
+                AccessibilityIdentifier.conversationProgress.localizedLabel.isEmpty,
+                "the indicator has no spoken label at reduceMotion: \(reduceMotion)"
+            )
+        }
     }
 
     func testTheThirdStateRendersAtEverySize() {

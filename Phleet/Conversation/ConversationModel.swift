@@ -70,7 +70,21 @@ final class ConversationModel {
         case closed(CloseAction)
         /// The cycle could not start; try again after a backoff.
         case retry
+        /// The cycle could not start and the server named a delay; try again after exactly that.
+        case retryAfter(seconds: Int)
         /// Stop entirely.
+        case stop
+    }
+
+    /// What opening the conversation produced.
+    ///
+    /// A typed outcome rather than an optional: `openConversation` sets the connection state on
+    /// its way out, so inferring "retryable" from that state afterwards reads whatever it just
+    /// wrote and can only ever answer one way.
+    private enum OpenOutcome {
+        case opened(OpenConversationResponse)
+        case retry
+        case retryAfter(seconds: Int)
         case stop
     }
 
@@ -111,6 +125,13 @@ final class ConversationModel {
     private(set) var clientDefects: [String] = []
     /// How many times a cursor reset to the recovery floor. Logged, never silent.
     private(set) var invalidCursorRecoveries = 0
+
+    /// How many times the live buffer overflowed while catching up.
+    ///
+    /// Observable rather than private because an overflow is not a silent event: each one owes a
+    /// catch-up round, and "it happened and was recovered" has to be distinguishable from "it
+    /// never happened".
+    private(set) var liveBufferOverflows = 0
 
     // MARK: - Private state
 
@@ -298,6 +319,10 @@ final class ConversationModel {
                 connectionState = .waiting(seconds: Int(delay.rounded()))
                 await sleep(delay)
 
+            case .retryAfter(let seconds):
+                connectionState = .rateLimited(seconds: seconds)
+                await sleep(Double(seconds))
+
             case .closed(let action):
                 switch action {
                 case .disarm:
@@ -352,8 +377,16 @@ final class ConversationModel {
     func runOnce() async -> CycleOutcome {
         connectionState = .connecting
 
-        guard let open = await openConversation() else {
-            return connectionState == .connecting ? .retry : .stop
+        let open: OpenConversationResponse
+        switch await openConversation() {
+        case .opened(let response):
+            open = response
+        case .retry:
+            return .retry
+        case .retryAfter(let seconds):
+            return .retryAfter(seconds: seconds)
+        case .stop:
+            return .stop
         }
 
         conversationId = open.conversationId
@@ -407,6 +440,7 @@ final class ConversationModel {
                     applyLive(event)
                 } else {
                     buffer.append(event)
+                    liveBufferOverflows = buffer.overflowCount
                 }
 
             case .undecodableFrame:
@@ -437,9 +471,9 @@ final class ConversationModel {
         return outcome
     }
 
-    private func openConversation() async -> OpenConversationResponse? {
+    private func openConversation() async -> OpenOutcome {
         do {
-            return try await tokens.authorized { token in
+            let response = try await tokens.authorized { token in
                 try await api.openConversation(
                     origin: origin,
                     accessToken: token,
@@ -447,22 +481,36 @@ final class ConversationModel {
                     clientInstanceId: clientInstanceId
                 )
             }
+            return .opened(response)
+
         } catch AccessTokenHolder.Failure.deviceRevoked {
             connectionState = .revoked
-            return nil
+            return .stop
+
+        } catch FleetAPIError.rateLimited(let seconds) {
+            // The server named a delay. Honouring it is not the same as giving up: the thread is
+            // still there, and the reconnect loop stays alive.
+            connectionState = .rateLimited(seconds: seconds)
+            return .retryAfter(seconds: seconds)
+
         } catch let error as FleetAPIError {
             switch error.treatment {
             case .terminal, .clientDefect:
                 // Never fabricate a conversation id, and never loop on a refusal that asking
                 // again cannot change.
                 connectionState = .unavailable
+                return .stop
             default:
+                // A transport failure, a `503`, or a `500` says nothing durable about the thread.
+                // Ending the reconnect loop here would leave the app permanently disconnected
+                // after one bad moment, with no path back but relaunching.
                 connectionState = .offline
+                return .retry
             }
-            return nil
+
         } catch {
             connectionState = .offline
-            return nil
+            return .retry
         }
     }
 

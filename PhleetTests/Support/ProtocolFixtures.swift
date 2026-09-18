@@ -17,6 +17,7 @@ enum ProtocolFixture {
     static let allNames = [
         "merged-injection",
         "host-error-closes-injected",
+        "injected-before-host-known",
         "started-before-accepted",
         "queued-then-run",
         "queue-full",

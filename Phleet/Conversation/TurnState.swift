@@ -167,6 +167,15 @@ struct TurnStateMachine: Equatable, Sendable {
     private var hostSubmissionId: String?
     private var attachedByHost: [String: [String]] = [:]
 
+    /// Submissions dispositioned `injected` before this client ever saw which turn was running.
+    ///
+    /// It happens on any cold start that catches up mid-turn, or when the accepted event for the
+    /// host is pruned. They are still attached to *a* running turn — the runtime chose that, not
+    /// the client — so the next terminal closes them. Leaving them out is the exact hang that
+    /// closure rules exist to prevent, and attributing them to the only turn evidence available
+    /// is the best reading there is.
+    private var attachedWithUnknownHost: [String] = []
+
     init() {}
 
     var ignoredEventCount: Int { ignoredEventKinds.count }
@@ -291,6 +300,8 @@ struct TurnStateMachine: Equatable, Sendable {
             records[id]?.state = .attached(hostSubmissionId: host)
             if let host {
                 attachedByHost[host, default: []].append(id)
+            } else {
+                attachedWithUnknownHost.append(id)
             }
         case .queued:
             records[id]?.state = .waiting
@@ -336,6 +347,7 @@ struct TurnStateMachine: Equatable, Sendable {
         // `turn.error` and `turn.outcome_unknown` carry no merged list, so attachment is the
         // only thing that closes a message folded into the turn they end.
         var attached = hostId.map { attachedByHost[$0] ?? [] } ?? []
+        attached.append(contentsOf: attachedWithUnknownHost)
         if event.identity.submissionId == nil, let fallbackHost = hostSubmissionId {
             attached.append(fallbackHost)
         }
@@ -390,6 +402,7 @@ struct TurnStateMachine: Equatable, Sendable {
         if let hostId {
             attachedByHost[hostId] = []
         }
+        attachedWithUnknownHost.removeAll()
         if let current = hostSubmissionId, closure.closedSubmissionIds.contains(current) {
             hostSubmissionId = nil
         }

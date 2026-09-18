@@ -115,6 +115,40 @@ final class MergedTurnClosureTests: XCTestCase {
         XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
     }
 
+    func testAnInjectedSubmissionObservedBeforeItsHostIsStillClosed() {
+        // Nothing has told this client which turn is running when the injected accepted arrives
+        // — the ordinary shape of a cold start that catches up mid-turn, or of a host whose own
+        // accepted event has been pruned. `turn.error` carries no merged list by contract, so
+        // without attachment there is no path to a terminal at all and the message spins forever.
+        let state = machine([
+            TestEvent.accepted("s2", .injected, seq: 1),
+            TestEvent.error("s1", seq: 2)
+        ])
+
+        guard case .failed = state.record("s2")?.state else {
+            return XCTFail("an injected message with no observed host must still reach a terminal")
+        }
+        XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
+    }
+
+    func testAnInjectedSubmissionWithNoObservedHostIsClosedByAnOutcomeUnknownToo() {
+        let state = machine([
+            TestEvent.accepted("s2", .injected, seq: 1),
+            TestEvent.outcomeUnknown("s1", seq: 2)
+        ])
+
+        XCTAssertEqual(state.record("s2")?.state, .outcomeUnknown(.attemptAbandoned))
+        XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
+    }
+
+    func testTheInjectedBeforeHostFixtureLeavesNothingWorking() throws {
+        let state = machine(try ProtocolFixture.events("injected-before-host-known"))
+
+        XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
+        XCTAssertEqual(state.orderedRecords.count, 2)
+        XCTAssertTrue(state.orderedRecords.allSatisfy(\.state.isTerminal))
+    }
+
     // MARK: - The invariant
 
     func testNoSubmissionIsLeftWorkingOnceASequenceEndsWithATerminal() throws {

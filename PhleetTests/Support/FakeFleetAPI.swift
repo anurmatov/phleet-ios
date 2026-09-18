@@ -30,12 +30,17 @@ final class FakeFleetAPI: FleetAPIClient {
     /// the middle of the attach sequence.
     var onCatchUp: ((Int) -> Void)?
 
-    /// How many times a catch-up suspends before answering.
+    /// Holds a catch-up open until it returns true.
     ///
-    /// A catch-up that returns without ever suspending completes before the frame loop reads its
-    /// next frame, so live frames are applied directly and the buffer is never exercised. A test
-    /// that needs frames to *queue* during catch-up sets this.
-    var catchUpSuspensions = 0
+    /// A catch-up that returns without suspending completes before the frame loop reads its next
+    /// frame, so live frames are applied directly and the buffer is never exercised at all. A
+    /// test that needs frames to *queue* during catch-up gates it on an observable condition
+    /// rather than on a guessed number of yields, which is the difference between a deterministic
+    /// test and one that passes depending on scheduling.
+    var catchUpGate: (() -> Bool)?
+
+    /// A hard bound, so a gate that never opens fails the test instead of hanging the suite.
+    static let maxGateYields = 50_000
 
     var registerResults: [Result<RegisterDeviceResponse, Error>] = [
         .success(RegisterDeviceResponse(
@@ -165,8 +170,13 @@ final class FakeFleetAPI: FleetAPIClient {
         )
         accessTokensPresented.append(accessToken)
         onCatchUp?(afterSeq)
-        for _ in 0..<catchUpSuspensions {
-            await Task.yield()
+
+        if let catchUpGate {
+            var yields = 0
+            while !catchUpGate(), yields < Self.maxGateYields {
+                await Task.yield()
+                yields += 1
+            }
         }
         return try Self.next(&catchUpResults)
     }

@@ -12,7 +12,8 @@ final class CatchUpTests: XCTestCase {
         api: FakeFleetAPI,
         stream: FakeConversationStream,
         limits: SessionLimits = .documentedDefaults,
-        identifiers: [String] = []
+        identifiers: [String] = [],
+        recordSleep: @escaping (Double) -> Void = { _ in }
     ) -> ConversationModel {
         let store = InMemoryCredentialStore(
             credential: DeviceCredential(
@@ -43,7 +44,7 @@ final class CatchUpTests: XCTestCase {
                 remaining.isEmpty ? ClientIdentifier.random() : remaining.removeFirst()
             },
             randomFraction: { 0 },
-            sleep: { _ in }
+            sleep: { seconds in recordSleep(seconds) }
         )
     }
 
@@ -303,10 +304,12 @@ final class CatchUpTests: XCTestCase {
         ]])
         stream.finishesAfterScript = false
 
+        var model: ConversationModel?
+
         // Frames only reach the buffer while a catch-up is genuinely in flight: once the client
-        // is live it applies them directly. So they are put on the wire from inside the catch-up
-        // call, and the catch-up is made to suspend while they are consumed.
-        api.catchUpSuspensions = 64
+        // is live it applies them directly. So they go on the wire from inside the catch-up call,
+        // and the catch-up is held open until the overflow has actually happened — gated on the
+        // observable count rather than on a guessed number of yields.
         var pushed = false
         api.onCatchUp = { _ in
             guard !pushed else { return }
@@ -317,11 +320,14 @@ final class CatchUpTests: XCTestCase {
                 finishing: true
             )
         }
+        api.catchUpGate = { !pushed || (model?.liveBufferOverflows ?? 0) > 0 }
 
-        let model = makeModel(api: api, stream: stream, limits: limits)
-        _ = await model.runOnce()
+        let created = makeModel(api: api, stream: stream, limits: limits)
+        model = created
+        _ = await created.runOnce()
 
-        XCTAssertEqual(model.catchUpRounds, 2, "one initial round plus the one the overflow owes")
+        XCTAssertEqual(created.liveBufferOverflows, 1, "five frames overflowed a buffer of four")
+        XCTAssertEqual(created.catchUpRounds, 2, "one initial round plus the one the overflow owes")
         XCTAssertEqual(
             api.catchUpCursors,
             [0, 0],
@@ -418,6 +424,77 @@ final class CatchUpTests: XCTestCase {
         XCTAssertEqual(model.sendFailure, .idempotencyConflict)
         XCTAssertTrue(model.clientDefects.contains("submission.idempotencyKey"))
         XCTAssertEqual(api.submissions.count, 1)
+    }
+
+    // MARK: - A failed open does not end the loop
+
+    func testAFailedOpenRetriesRatherThanEndingTheReconnectLoop() async {
+        // `openConversation` sets the connection state on its way out, so a cycle that inferred
+        // "retryable" from that state afterwards could only ever answer one way — and one
+        // transport error would leave the app permanently disconnected with no path back but
+        // relaunching. The only caller is a view's `.task`.
+        let api = FakeFleetAPI()
+        api.openResults = [
+            .failure(FleetAPIError.transport("dropped")),
+            .success(open(nextSeq: 41)),
+            .success(open(nextSeq: 41))
+        ]
+        let stream = FakeConversationStream(scripts: [
+            closingScript(code: 4500),
+            closingScript(code: 4409)
+        ])
+        let model = makeModel(api: api, stream: stream)
+
+        await model.run()
+
+        XCTAssertEqual(stream.attaches.count, 2, "the loop survived a failed open")
+        XCTAssertEqual(model.connectionState, .superseded)
+    }
+
+    func testA503OnOpenRetriesRatherThanEndingTheReconnectLoop() async {
+        let api = FakeFleetAPI()
+        api.openResults = [
+            .failure(FleetAPIError.refused(.runtimeBusy, status: 503, message: nil)),
+            .success(open(nextSeq: 41))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript(code: 4409)])
+        let model = makeModel(api: api, stream: stream)
+
+        await model.run()
+
+        XCTAssertEqual(stream.attaches.count, 1)
+        XCTAssertEqual(model.connectionState, .superseded)
+    }
+
+    func testARateLimitedOpenWaitsTheNamedDelayAndThenRetries() async {
+        let api = FakeFleetAPI()
+        api.openResults = [
+            .failure(FleetAPIError.rateLimited(retryAfterSeconds: 12)),
+            .success(open(nextSeq: 41))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript(code: 4409)])
+
+        var slept: [Double] = []
+        let model = makeModel(api: api, stream: stream, recordSleep: { slept.append($0) })
+
+        await model.run()
+
+        XCTAssertEqual(slept.first, 12, "the delay the server named, not a backoff interval")
+        XCTAssertEqual(stream.attaches.count, 1)
+    }
+
+    func testARefusalThatAskingAgainCannotChangeStopsTheLoop() async {
+        let api = FakeFleetAPI()
+        api.openResults = [
+            .failure(FleetAPIError.refused(.conversationNotFound, status: 404, message: nil))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript(code: 4409)])
+        let model = makeModel(api: api, stream: stream)
+
+        await model.run()
+
+        XCTAssertEqual(stream.attaches.count, 0)
+        XCTAssertEqual(model.connectionState, .unavailable)
     }
 
     // MARK: - Close handling
