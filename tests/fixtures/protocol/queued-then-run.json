@@ -1,0 +1,79 @@
+{
+  "protocol": "fleet.conversation.v1",
+  "events": [
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "submission.accepted-1",
+      "seq": 1,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "disposition": "queued"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.started-2",
+      "seq": 2,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.started",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {}
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.progress-3",
+      "seq": 3,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.progress",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "activity": "tool",
+        "toolName": "search"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.final-4",
+      "seq": 4,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.final",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "text": "Answered after waiting.",
+        "completion": "completed",
+        "mergedSubmissionIds": [
+          "s1"
+        ]
+      }
+    }
+  ]
+}

@@ -1,50 +1,41 @@
 import SwiftUI
 
-/// The unenrolled root state: what the app is, and the one thing you can do next.
+/// Routes on enrolled, unenrolled and revoked.
 ///
-/// There is no configured server to show, because this build ships with none and persists
-/// none. Every font here is a semantic text style and every element carries its identifier and
-/// label from `AccessibilityIdentifier`.
+/// A stale credential whose token has never been minted still counts as enrolled: the device
+/// record exists server-side, and the way to find out whether it is alive is to spend it. Only
+/// the one sign-out condition — a `401` from the token mint — moves the app back here.
 struct RootView: View {
 
-    @State private var isShowingEnrollmentPlaceholder = false
+    @Environment(AppEnvironment.self) private var appEnvironment
+
+    @State private var isShowingThread = false
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
-                Text("root.title")
-                    .font(.largeTitle)
-                    .fontWeight(.semibold)
-                    .accessibilityIdentifier(AccessibilityIdentifier.rootTitle.identifier)
-                    .accessibilityLabel(AccessibilityIdentifier.rootTitle.localizedLabel)
+        NavigationStack {
+            switch appEnvironment.route {
+            case .enrollment:
+                EnrollmentView()
 
-                Text("root.purpose")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier(AccessibilityIdentifier.rootPurpose.identifier)
-                    .accessibilityLabel(AccessibilityIdentifier.rootPurpose.localizedLabel)
-
-                Button {
-                    isShowingEnrollmentPlaceholder = true
-                } label: {
-                    Text("root.connectFleet")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .accessibilityIdentifier(AccessibilityIdentifier.rootConnectFleet.identifier)
-                .accessibilityLabel(AccessibilityIdentifier.rootConnectFleet.localizedLabel)
+            case .agent:
+                agent
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding()
-        }
-        .sheet(isPresented: $isShowingEnrollmentPlaceholder) {
-            EnrollmentPlaceholderView()
         }
     }
-}
 
-#Preview {
-    RootView()
+    @ViewBuilder
+    private var agent: some View {
+        if let summary = appEnvironment.agentSummary {
+            AgentSummaryView(summary: summary) {
+                isShowingThread = true
+            }
+            .navigationDestination(isPresented: $isShowingThread) {
+                if let conversation = appEnvironment.conversation {
+                    ConversationView(model: conversation)
+                }
+            }
+        } else {
+            ProgressView()
+        }
+    }
 }

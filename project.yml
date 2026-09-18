@@ -55,6 +55,11 @@ targets:
     platform: iOS
     sources:
       - path: PhleetTests
+      # A folder reference, so a fixture added to the directory is picked up without touching
+      # this file. Tests read it from the bundle's `protocol` subdirectory.
+      - path: tests/fixtures/protocol
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: Phleet
     settings:
@@ -71,8 +76,11 @@ targets:
     sources:
       - path: PhleetUITests
       # Shared so a renamed identifier breaks the UI test at compile time instead of
-      # leaving it querying a string that no longer exists.
+      # leaving it querying a string that no longer exists. `LaunchArguments` is shared for
+      # the same reason: a renamed argument must not leave a test launching an app that
+      # quietly ignores it.
       - path: Phleet/Support/AccessibilityIdentifier.swift
+      - path: Phleet/Support/LaunchArguments.swift
     dependencies:
       - target: Phleet
     settings:
