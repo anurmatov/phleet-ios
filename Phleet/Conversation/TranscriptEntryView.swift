@@ -98,7 +98,6 @@ struct TranscriptEntryView: View {
     ) -> some View {
         Text(verbatim: text)
             .font(.body)
-            .textSelection(.enabled)
             .accessibilityIdentifier(identifier.identifier)
             .accessibilityLabel(String(localized: speaker) + ". " + text)
             .accessibilityAction(named: Text(copyActionKey)) { putOnPasteboard(text) }
