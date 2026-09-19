@@ -108,7 +108,6 @@ struct ConversationView: View {
         // content grows without yanking someone who has scrolled up to read. Deliberately not a
         // `ScrollViewReader` with offset maths: scroll position is a view concern and the
         // platform already models it.
-        .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
         // Covers the area below short content, so an early thread with two messages in it
         // dismisses on a tap in the empty space the same way a full one does.
