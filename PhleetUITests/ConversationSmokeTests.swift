@@ -172,16 +172,12 @@ final class ConversationSmokeTests: XCTestCase {
     /// Both sides of the transcript are covered: the agent's reply from the seeded thread, and
     /// the person's own message after a send.
     func testAMessageBodyCanBeSelected() throws {
-        let app = launchAndOpenTheThread(extraArguments: [LaunchArguments.tallTranscript])
-
-        let reply = element(in: app, .conversationReplyBody)
-        XCTAssertTrue(reply.waitForExistence(timeout: 30), "no reply body to select")
-        reply.press(forDuration: 1.2)
-        XCTAssertTrue(
-            selectionMenuAppeared(in: app),
-            "a long press on an agent reply raised no selection menu"
-        )
-        dismissAnyMenu(in: app)
+        // A short thread on purpose. On the seeded one every reply shares an identifier, so
+        // `firstMatch` resolves to the *oldest* — which the scroll anchor has put off the top of
+        // the screen, so the press cannot land and the test fails without ever reaching the
+        // thing it is testing. Keeping selection independent of scroll position also keeps the
+        // anchor probe attributable to a single test.
+        let app = launchAndOpenTheThread()
 
         let composer = element(in: app, .conversationComposer)
         composer.tap()
@@ -190,24 +186,19 @@ final class ConversationSmokeTests: XCTestCase {
 
         let mine = element(in: app, .conversationMessageBody)
         XCTAssertTrue(mine.waitForExistence(timeout: 30), "the sent message never rendered")
-
-        // #10's "sending keeps the newest entry visible", asserted here because this is the test
-        // that sends. `waitForExistence` alone would pass with the entry rendered far below the
-        // fold, so the reply that closes the turn — the last thing in the transcript — has to be
-        // hittable, not merely present.
-        let newestReply = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Scripted reply.")
-        ).firstMatch
-        XCTAssertTrue(newestReply.waitForExistence(timeout: 30), "the reply never rendered")
-        XCTAssertTrue(
-            newestReply.isHittable,
-            "sending did not keep the newest entry visible"
-        )
-
         mine.press(forDuration: 1.2)
         XCTAssertTrue(
             selectionMenuAppeared(in: app),
             "a long press on the person's own message raised no selection menu"
+        )
+        dismissAnyMenu(in: app)
+
+        let reply = element(in: app, .conversationReplyBody)
+        XCTAssertTrue(reply.waitForExistence(timeout: 30), "no reply body to select")
+        reply.press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app),
+            "a long press on an agent reply raised no selection menu"
         )
     }
 
@@ -229,19 +220,36 @@ final class ConversationSmokeTests: XCTestCase {
     func testAThreadOpensAtItsNewestEntry() throws {
         let app = launchAndOpenTheThread(extraArguments: [LaunchArguments.tallTranscript])
 
-        let newest = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Seeded reply 29 of 29")
-        ).firstMatch
+        let newest = seededReply(29, in: app)
         XCTAssertTrue(newest.waitForExistence(timeout: 30), "the seeded thread never rendered")
         XCTAssertTrue(newest.isHittable, "the thread did not open at its newest entry")
 
-        let oldest = app.staticTexts.matching(
-            NSPredicate(format: "label CONTAINS %@", "Seeded reply 1 of 29")
-        ).firstMatch
         XCTAssertFalse(
-            oldest.isHittable,
+            seededReply(1, in: app).isHittable,
             "the oldest entry is on screen, so the thread opened at the top"
         )
+
+        // #10's "sending keeps the newest entry visible". It lives with the tall fixture rather
+        // than in the selection test: on a short thread everything is visible and the assertion
+        // would hold with no anchor at all. `waitForExistence` is not enough either — it passes
+        // for an entry rendered far below the fold — so the reply that closes the turn has to be
+        // hittable.
+        let composer = element(in: app, .conversationComposer)
+        composer.tap()
+        composer.typeText("hello")
+        element(in: app, .conversationSend).tap()
+
+        let liveReply = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Scripted reply.")
+        ).firstMatch
+        XCTAssertTrue(liveReply.waitForExistence(timeout: 30), "the reply never rendered")
+        XCTAssertTrue(liveReply.isHittable, "sending did not keep the newest entry visible")
+    }
+
+    private func seededReply(_ index: Int, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Seeded reply \(index) of 29")
+        ).firstMatch
     }
 
     /// Taps a harmless spot to close an open edit menu before the next interaction.
