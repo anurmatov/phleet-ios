@@ -1,15 +1,15 @@
 import XCTest
 
-/// One smoke test: the app launches, says what it is, and its single entry point opens the
-/// enrollment placeholder. `AccessibilityIdentifier` is compiled into this target too, so a
-/// renamed case breaks the build here rather than silently querying a stale string.
+/// One smoke test: the app launches, says what it is, and a fresh install lands on enrollment.
+/// `AccessibilityIdentifier` is compiled into this target too, so a renamed case breaks the
+/// build here rather than silently querying a stale string.
 final class LaunchSmokeTests: XCTestCase {
 
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
-    func testLaunchShowsRootAndOpensEnrollmentPlaceholder() throws {
+    func testLaunchShowsRootAndTheEnrollmentForm() throws {
         let app = XCUIApplication()
         app.launch()
 
@@ -24,17 +24,17 @@ final class LaunchSmokeTests: XCTestCase {
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
-        let connect = element(in: app, AccessibilityIdentifier.rootConnectFleet)
-        XCTAssertTrue(connect.exists, "the enrollment entry point is missing")
-        XCTAssertTrue(connect.isHittable, "the enrollment entry point is not reachable by touch")
+        // A fresh install has no credential, so it resolves to the enrollment screen: two fields
+        // and one action.
+        let address = element(in: app, AccessibilityIdentifier.enrollmentAddressField)
+        XCTAssertTrue(address.exists, "the server address field is missing")
 
-        connect.tap()
+        let code = element(in: app, AccessibilityIdentifier.enrollmentCodeField)
+        XCTAssertTrue(code.exists, "the enrollment code field is missing")
 
-        let placeholder = element(in: app, AccessibilityIdentifier.enrollmentPlaceholderBody)
-        XCTAssertTrue(
-            placeholder.waitForExistence(timeout: 10),
-            "tapping the entry point did not present the enrollment placeholder"
-        )
+        let connect = element(in: app, AccessibilityIdentifier.enrollmentConnect)
+        XCTAssertTrue(connect.exists, "the connect control is missing")
+        XCTAssertTrue(connect.isHittable, "the connect control is not reachable by touch")
     }
 
     /// Queried across every element type on purpose: the assertion is about the accessibility

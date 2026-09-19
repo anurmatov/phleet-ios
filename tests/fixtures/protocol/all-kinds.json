@@ -1,0 +1,249 @@
+{
+  "protocol": "fleet.conversation.v1",
+  "events": [
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "submission.accepted-1",
+      "seq": 1,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "disposition": "ran"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.started-2",
+      "seq": 2,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.started",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {}
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.progress-3",
+      "seq": 3,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.progress",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "activity": "tool",
+        "toolName": "search"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.notice-4",
+      "seq": 4,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.notice",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "text": "A system line.",
+        "truncated": false
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.recovered_answer-5",
+      "seq": 5,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.recovered_answer",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "text": "Recovered text.",
+        "truncated": true
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "protocol.rejected-6",
+      "seq": 6,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "protocol.rejected",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "code": "unsupported_kind",
+        "message": "nope"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "control.ack-7",
+      "seq": 7,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "control.ack",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "target": "turn",
+        "accepted": true,
+        "hadRunningTask": true
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "replay-gap-null-seq",
+      "seq": null,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "conversation.replay_gap",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1
+      },
+      "payload": {
+        "fromSeq": 1,
+        "toSeq": 9,
+        "retainedFloorSeq": 10
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.something_this_build_has_never_seen-8",
+      "seq": 8,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.something_this_build_has_never_seen",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "anything": "at all"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.canceled-9",
+      "seq": 9,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.canceled",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "reason": "operator",
+        "mergedSubmissionIds": [
+          "s1"
+        ]
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.error-10",
+      "seq": 10,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.error",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s2",
+        "turnId": "t2"
+      },
+      "payload": {
+        "code": "internal",
+        "message": "later"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.final-11",
+      "seq": 11,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.final",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s3",
+        "turnId": "t3"
+      },
+      "payload": {
+        "text": "",
+        "completion": "idle",
+        "isPartial": false,
+        "truncated": false,
+        "mergedSubmissionIds": [
+          "s3"
+        ]
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "turn.outcome_unknown-12",
+      "seq": 12,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.outcome_unknown",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s4",
+        "turnId": "t4"
+      },
+      "payload": {
+        "reason": "turn_reaped"
+      }
+    }
+  ]
+}

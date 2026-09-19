@@ -21,8 +21,9 @@ secrets or repository variables. The list of inputs is in
 must never be.
 
 Pull-request CI is designed so that it **cannot** depend on any of it: `.github/workflows/ci.yml`
-references no secret at all and builds with `CODE_SIGNING_ALLOWED=NO`, so it passes on a fork pull
-request where secrets are unavailable by design.
+references no secret at all and builds with the ad-hoc identity (`CODE_SIGN_IDENTITY=-`), which
+needs no certificate, keychain item or provisioning profile — so it passes on a fork pull request
+where secrets are unavailable by design.
 
 `scripts/check-no-private-values.sh` runs on every pull request and fails the build if
 secret-shaped content, signing-material file extensions, or absolute addresses appear in a tracked

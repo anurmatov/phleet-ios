@@ -16,11 +16,22 @@ RESULT_BUNDLE := build/Phleet.xcresult
 # cannot express this, so it is passed on the xcodebuild invocation instead.
 BUILD_NUMBER := $(if $(GITHUB_RUN_NUMBER),$(GITHUB_RUN_NUMBER),1)
 
+# Ad-hoc signed, not unsigned. `-` is the ad-hoc identity: it needs no certificate, no
+# keychain item, no provisioning profile and no repository secret, so a pull request from a
+# fork still builds. What it buys is an *embedded entitlements blob* — and without one the
+# simulator process has no keychain access group at all, so every SecItem call in
+# KeychainCredentialStoreTests answers -34018 and the only coverage of the component that
+# stores the device secret cannot run. Disabling signing outright is what suppressed it.
+#
+# The signed release path does not come through here: release.yml invokes xcodebuild directly
+# with its own manual identity.
 XCODEBUILD_FLAGS := \
     -project $(PROJECT) \
     -scheme $(SCHEME) \
-    CODE_SIGNING_ALLOWED=NO \
-    CODE_SIGN_IDENTITY="" \
+    CODE_SIGNING_ALLOWED=YES \
+    CODE_SIGN_IDENTITY=- \
+    DEVELOPMENT_TEAM="" \
+    PROVISIONING_PROFILE_SPECIFIER="" \
     CURRENT_PROJECT_VERSION=$(BUILD_NUMBER)
 
 .PHONY: all generate build test lint selftest icon clean

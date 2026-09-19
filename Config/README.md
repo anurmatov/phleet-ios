@@ -24,5 +24,8 @@ make generate
 absent on every clean checkout and on CI, and a plain `#include` would fail project generation there.
 With the optional form, an absent file simply contributes nothing.
 
-CI never needs this file. Pull-request CI builds for the simulator with `CODE_SIGNING_ALLOWED=NO` and
-references no signing material at all.
+CI never needs this file. Pull-request CI builds for the simulator with the **ad-hoc** identity
+(`CODE_SIGN_IDENTITY=-`) and references no signing material at all: ad-hoc needs no certificate, no
+keychain item and no provisioning profile. It is used rather than disabling signing outright
+because an app with no embedded entitlements has no keychain access group on the simulator, and the
+tests covering the device credential cannot run at all.

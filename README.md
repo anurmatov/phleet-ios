@@ -18,18 +18,35 @@ signing-material file extension, or an absolute address. Its patterns are generi
 contains no list of real hosts, addresses, or identifiers, because publishing the list of things to
 hide is itself the leak.
 
-## Status — foundation only
+## Status — enrollment and one thread
 
-This is the first slice. The app builds, launches, identifies itself, and shows a deliberately
-non-functional enrollment entry point. It has:
+The app enrolls a device against a server you supply, shows the one agent that deployment binds,
+opens a thread, sends messages, and renders what comes back.
 
-- **no networking, no protocol client, no WebSocket or HTTP code**
-- **no enrollment, authentication, token storage, or Keychain access**
+What it does:
+
+- **enrollment** — type the origin, paste the operator-issued code; the credential is persisted
+  before the token mint is attempted, and re-presenting the same code overwrites a rotated secret
+- **credentials** — one Keychain item, `AfterFirstUnlockThisDeviceOnly`, so it never migrates to a
+  new device; the access token is held in memory only and refreshed on a monotonic deadline
+- **one agent** — derived from `GET /v1/session`, because no route on the boundary enumerates
+  agents
+- **one thread** — stream attached first, then catch-up, with the live frames buffered in between;
+  paging, history-gap separators, cursor advance, and every one of the eight close codes handled
+  distinctly
+
+What it still does not do:
+
 - **no APNs registration** — the `aps-environment` entitlement is a static declaration and no code
   calls `registerForRemoteNotifications()`
-- **no messaging, approvals, attachments, voice, or persistence of conversation content**
+- **no voice, attachments, approvals, or multi-agent rooms**
+- **no steer or cancel interface** — the routes exist; this app does not surface them
+- **no local persistence of conversation history** — the transcript is in memory only
+- **no QR enrollment** — the operator's code-issuing path prints to a terminal, so there is
+  nothing to scan yet
 
-Those arrive in later slices, once this foundation is verified on real hardware.
+Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
+offline. Nothing here has been exercised against a live server yet.
 
 ## Build and test
 
@@ -54,16 +71,16 @@ a `.pbxproj`; change `project.yml` and regenerate.
 |---|---|
 | `Phleet/` | app sources, resources, entitlements |
 | `PhleetTests/` | app-hosted unit tests |
-| `PhleetUITests/` | one launch smoke test |
+| `PhleetUITests/` | launch and conversation smoke tests, driven by an in-app scripted backend |
 | `Config/` | `.xcconfig` build settings; local signing overrides are git-ignored |
 | `scripts/` | build-gate scripts, each with a `--self-test` mode, plus the app-icon generator |
-| `tests/fixtures/` | synthetic inputs for the script self-tests |
+| `tests/fixtures/` | synthetic inputs for the script self-tests and recorded protocol event sequences |
 | `docs/` | toolchain, signing/release, and architecture notes |
 
 ## Documentation
 
 - [docs/development.md](docs/development.md) — pinned toolchain and how to build without Xcode knowledge
-- [docs/architecture.md](docs/architecture.md) — what this app is, what it is not, where the configuration seam is
+- [docs/architecture.md](docs/architecture.md) — the layers, the transport seam, the cursor rules, and the sign-out rule
 - [docs/signing-and-release.md](docs/signing-and-release.md) — operator-owned signing and the TestFlight path
 - [CONTRIBUTING.md](CONTRIBUTING.md) — how to work on this, and what must never be committed
 - [SECURITY.md](SECURITY.md) — how to report a vulnerability

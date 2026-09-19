@@ -1,0 +1,22 @@
+{
+  "protocol": "fleet.conversation.v1",
+  "events": [
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "submission.accepted-1",
+      "seq": 1,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "disposition": "queue_full"
+      }
+    }
+  ]
+}

@@ -1,38 +1,302 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "a11y.enrollment.placeholder.body" : {
-      "comment" : "Spoken label for the whole enrollment-unavailable message.",
+    "a11y.agent.label" : {
+      "comment" : "Spoken label for the agent's name.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enrollment is not available yet. Connecting to a Fleet arrives in a later release. This build is the foundation only and ships with no server configured."
+            "value" : "Agent"
           }
         }
       }
     },
-    "a11y.enrollment.placeholder.dismiss" : {
-      "comment" : "Spoken label for the button that closes the enrollment placeholder.",
+    "a11y.agent.openThread" : {
+      "comment" : "Spoken label for the button that opens the thread.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Close"
+            "value" : "Open the thread"
           }
         }
       }
     },
-    "a11y.root.connectFleet" : {
-      "comment" : "Spoken label for the enrollment entry point.",
+    "a11y.agent.principal" : {
+      "comment" : "Spoken label for the bound principal.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connect a Fleet"
+            "value" : "Bound principal"
+          }
+        }
+      }
+    },
+    "a11y.agent.server" : {
+      "comment" : "Spoken label for the server this device is enrolled with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server"
+          }
+        }
+      }
+    },
+    "a11y.conversation.agentReply" : {
+      "comment" : "Spoken label for the agent's reply.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent reply"
+          }
+        }
+      }
+    },
+    "a11y.conversation.banner" : {
+      "comment" : "Spoken label for the connection banner.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "a11y.conversation.composer" : {
+      "comment" : "Spoken label for the message composer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "a11y.conversation.composerLimit" : {
+      "comment" : "Spoken label for the notice that the message is too long to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message is too long to send"
+          }
+        }
+      }
+    },
+    "a11y.conversation.entry" : {
+      "comment" : "Spoken label for one transcript entry. Views compose the spoken sentence from the entry's own content.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "a11y.conversation.outcomeUnknown" : {
+      "comment" : "Spoken label for the state where the outcome of a turn cannot be confirmed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outcome could not be confirmed"
+          }
+        }
+      }
+    },
+    "a11y.conversation.progress" : {
+      "comment" : "Spoken label for the single working indicator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working"
+          }
+        }
+      }
+    },
+    "a11y.conversation.replayGap" : {
+      "comment" : "Spoken label for the separator marking history that is no longer available.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earlier messages are no longer available"
+          }
+        }
+      }
+    },
+    "a11y.conversation.resume" : {
+      "comment" : "Spoken label for the button that resumes a superseded connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume here"
+          }
+        }
+      }
+    },
+    "a11y.conversation.send" : {
+      "comment" : "Spoken label for the send button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "a11y.conversation.sendAgain" : {
+      "comment" : "Spoken label for the button that submits the same text a second time.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send again"
+          }
+        }
+      }
+    },
+    "a11y.conversation.systemLine" : {
+      "comment" : "Spoken label for a system line in the transcript.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "System message"
+          }
+        }
+      }
+    },
+    "a11y.conversation.transcript" : {
+      "comment" : "Spoken label for the transcript.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conversation"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.addressField" : {
+      "comment" : "Spoken label for the server address field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server address"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.addressMessage" : {
+      "comment" : "Spoken label for the message about the server address.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server address problem"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.codeField" : {
+      "comment" : "Spoken label for the enrollment code field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrollment code"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.codeMessage" : {
+      "comment" : "Spoken label for the message about the enrollment code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrollment code problem"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.connect" : {
+      "comment" : "Spoken label for the button that runs enrollment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.credentialUnavailable" : {
+      "comment" : "Spoken label for the notice shown when the stored credential cannot be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The saved credential could not be read on this device right now."
+          }
+        }
+      }
+    },
+    "a11y.enrollment.formMessage" : {
+      "comment" : "Spoken label for the message about the enrollment attempt.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrollment result"
+          }
+        }
+      }
+    },
+    "a11y.enrollment.revokedNotice" : {
+      "comment" : "Spoken label for the notice shown after this device was revoked.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's access was revoked. A new enrollment code is needed."
           }
         }
       }
@@ -61,56 +325,920 @@
         }
       }
     },
-    "enrollment.placeholder.body" : {
-      "comment" : "Explains that enrollment has not shipped yet, without implying a failure.",
+    "agent.openThread" : {
+      "comment" : "Button that opens the thread.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connecting to a Fleet arrives in a later release. Nothing has gone wrong — this build is the foundation only, and ships with no server configured."
+            "value" : "Open the thread"
           }
         }
       }
     },
-    "enrollment.placeholder.dismiss" : {
-      "comment" : "Button that closes the enrollment placeholder.",
+    "agent.principal.caption" : {
+      "comment" : "Caption for the bound principal.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Close"
+            "value" : "Principal"
           }
         }
       }
     },
-    "enrollment.placeholder.title" : {
-      "comment" : "Headline of the enrollment placeholder.",
+    "agent.section" : {
+      "comment" : "Section caption above the single agent entry.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Enrollment is not available yet"
+            "value" : "Agent"
           }
         }
       }
     },
-    "root.connectFleet" : {
-      "comment" : "Entry point that presents the enrollment placeholder.",
+    "agent.server.caption" : {
+      "comment" : "Caption for the server this device is enrolled with.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Connect a Fleet"
+            "value" : "Server"
+          }
+        }
+      }
+    },
+    "agent.unnamed" : {
+      "comment" : "Neutral fallback when the server reports no agent label.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unnamed agent"
+          }
+        }
+      }
+    },
+    "conversation.announcement.canceled" : {
+      "comment" : "Announced when a turn is canceled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The turn was canceled."
+          }
+        }
+      }
+    },
+    "conversation.announcement.error" : {
+      "comment" : "Announced when a turn fails.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The turn failed."
+          }
+        }
+      }
+    },
+    "conversation.announcement.final" : {
+      "comment" : "Announced when a turn produces an answer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent answered."
+          }
+        }
+      }
+    },
+    "conversation.announcement.outcomeUnknown" : {
+      "comment" : "Announced when a turn's outcome cannot be confirmed. A spinner that quietly stops is unreadable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The outcome of that message could not be confirmed."
+          }
+        }
+      }
+    },
+    "conversation.banner.connecting" : {
+      "comment" : "Connection state: connecting.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting"
+          }
+        }
+      }
+    },
+    "conversation.banner.idle" : {
+      "comment" : "Connection state: nothing started yet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "conversation.banner.live" : {
+      "comment" : "Connection state: connected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connected"
+          }
+        }
+      }
+    },
+    "conversation.banner.notPermitted" : {
+      "comment" : "Connection state: this principal is not permitted.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This account cannot open this conversation."
+          }
+        }
+      }
+    },
+    "conversation.banner.offline" : {
+      "comment" : "Connection state: nothing is reachable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline. You can still read and send; messages go out when the connection returns."
+          }
+        }
+      }
+    },
+    "conversation.banner.rateLimited" : {
+      "comment" : "Connection state: the server asked the client to wait.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting, as the server asked"
+          }
+        }
+      }
+    },
+    "conversation.banner.revoked" : {
+      "comment" : "Connection state: the device credential is dead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's access was revoked."
+          }
+        }
+      }
+    },
+    "conversation.banner.superseded" : {
+      "comment" : "Connection state: this conversation is open in another instance.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This conversation is open elsewhere. Reconnecting is switched off until you resume it here."
+          }
+        }
+      }
+    },
+    "conversation.banner.unavailable" : {
+      "comment" : "Connection state: the thread itself is gone or refused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This thread is not available."
+          }
+        }
+      }
+    },
+    "conversation.banner.waiting" : {
+      "comment" : "Connection state: waiting before the next attempt.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnecting shortly"
+          }
+        }
+      }
+    },
+    "conversation.composer.limit" : {
+      "comment" : "Shown when the composed message exceeds the server's byte limit.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This message is too long to send."
+          }
+        }
+      }
+    },
+    "conversation.composer.prompt" : {
+      "comment" : "Placeholder for the composer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "conversation.gap" : {
+      "comment" : "Separator marking history that expired beneath the cursor.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earlier messages are no longer available."
+          }
+        }
+      }
+    },
+    "conversation.outcomeUnknown.body" : {
+      "comment" : "States the uncertainty plainly.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent may have run this in full, in part, or not at all. There is no way to confirm which."
+          }
+        }
+      }
+    },
+    "conversation.outcomeUnknown.sendAgain" : {
+      "comment" : "The action. Deliberately not labelled Retry.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send again"
+          }
+        }
+      }
+    },
+    "conversation.outcomeUnknown.title" : {
+      "comment" : "Title of the third state.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outcome could not be confirmed"
+          }
+        }
+      }
+    },
+    "conversation.progress.tool" : {
+      "comment" : "The working indicator when a tool has started. Nothing reports a tool finishing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working, using a tool"
+          }
+        }
+      }
+    },
+    "conversation.progress.working" : {
+      "comment" : "The single indeterminate working indicator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working"
+          }
+        }
+      }
+    },
+    "conversation.recovered" : {
+      "comment" : "Marks an answer recovered from an earlier turn.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recovered from an earlier turn"
+          }
+        }
+      }
+    },
+    "conversation.reply.empty" : {
+      "comment" : "Shown when a completed turn legitimately carries no text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No answer was produced."
+          }
+        }
+      }
+    },
+    "conversation.reply.idle" : {
+      "comment" : "The turn completed without producing an answer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The agent had nothing to add."
+          }
+        }
+      }
+    },
+    "conversation.reply.incomplete" : {
+      "comment" : "The turn did not complete normally.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This turn did not finish normally."
+          }
+        }
+      }
+    },
+    "conversation.reply.partial" : {
+      "comment" : "The reply is partial.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This answer is partial."
+          }
+        }
+      }
+    },
+    "conversation.reply.truncated" : {
+      "comment" : "The reply was truncated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This answer was shortened."
+          }
+        }
+      }
+    },
+    "conversation.resume" : {
+      "comment" : "Button that resumes a connection that was superseded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume here"
+          }
+        }
+      }
+    },
+    "conversation.send" : {
+      "comment" : "Send button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "conversation.send.failure.idempotencyConflict" : {
+      "comment" : "The client generated a key that collided. A defect, surfaced rather than worked around.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This message could not be sent because of a problem on this device. It was not sent twice."
+          }
+        }
+      }
+    },
+    "conversation.send.failure.notKnown" : {
+      "comment" : "A send whose outcome is unknown. Retrying reuses the same identifiers.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We could not confirm this message was received. Sending it again reuses the same identifiers, so it cannot start a second turn."
+          }
+        }
+      }
+    },
+    "conversation.send.failure.tooLarge" : {
+      "comment" : "The server refused the message as too large.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That message is too long for this server."
+          }
+        }
+      }
+    },
+    "conversation.send.hint" : {
+      "comment" : "Accessibility hint for the send button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sends this message to the agent."
+          }
+        }
+      }
+    },
+    "conversation.speaker.agent" : {
+      "comment" : "Names the agent as the speaker, for VoiceOver.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "conversation.speaker.you" : {
+      "comment" : "Names the person as the speaker, for VoiceOver.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You"
+          }
+        }
+      }
+    },
+    "conversation.state.answeredTogether" : {
+      "comment" : "Marks messages a single turn answered together.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answered together"
+          }
+        }
+      }
+    },
+    "conversation.state.attached" : {
+      "comment" : "Submission state: folded into the turn already running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Being answered with the current turn"
+          }
+        }
+      }
+    },
+    "conversation.state.canceled" : {
+      "comment" : "Submission state: canceled from this device.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canceled"
+          }
+        }
+      }
+    },
+    "conversation.state.canceledElsewhere" : {
+      "comment" : "Submission state: the turn was ended somewhere other than this device.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ended elsewhere"
+          }
+        }
+      }
+    },
+    "conversation.state.completed" : {
+      "comment" : "Submission state: answered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Answered"
+          }
+        }
+      }
+    },
+    "conversation.state.failed" : {
+      "comment" : "Submission state: the turn failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed"
+          }
+        }
+      }
+    },
+    "conversation.state.notRun" : {
+      "comment" : "Submission state: accepted and terminally resolved without running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accepted, but not run"
+          }
+        }
+      }
+    },
+    "conversation.state.outcomeUnknown" : {
+      "comment" : "Submission state: the outcome cannot be confirmed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outcome unconfirmed"
+          }
+        }
+      }
+    },
+    "conversation.state.sending" : {
+      "comment" : "Submission state: sent, nothing back yet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent"
+          }
+        }
+      }
+    },
+    "conversation.state.waiting" : {
+      "comment" : "Submission state: queued. Deliberately not the typing wording.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting"
+          }
+        }
+      }
+    },
+    "conversation.state.working" : {
+      "comment" : "Submission state: the agent is working on this message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working"
+          }
+        }
+      }
+    },
+    "conversation.title" : {
+      "comment" : "Navigation title for the thread.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thread"
+          }
+        }
+      }
+    },
+    "enrollment.address.label" : {
+      "comment" : "Field label for the server address.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Server address"
+          }
+        }
+      }
+    },
+    "enrollment.address.prompt" : {
+      "comment" : "Placeholder for the server address field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "your-server.example"
+          }
+        }
+      }
+    },
+    "enrollment.code.help" : {
+      "comment" : "Explains where the enrollment code comes from and that it expires.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your operator issues this code and it is single use. It expires a short while after it is issued, so paste it rather than retyping it."
+          }
+        }
+      }
+    },
+    "enrollment.code.label" : {
+      "comment" : "Field label for the enrollment code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enrollment code"
+          }
+        }
+      }
+    },
+    "enrollment.code.prompt" : {
+      "comment" : "Placeholder for the enrollment code field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste the code"
+          }
+        }
+      }
+    },
+    "enrollment.connect" : {
+      "comment" : "Button that runs enrollment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "enrollment.connect.hint" : {
+      "comment" : "Accessibility hint for the connect button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registers this device with the server you entered."
+          }
+        }
+      }
+    },
+    "enrollment.credentialUnavailable" : {
+      "comment" : "Shown when the stored credential could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The saved credential could not be read right now. Nothing was deleted; try again once the device has been unlocked."
+          }
+        }
+      }
+    },
+    "enrollment.message.addressEmpty" : {
+      "comment" : "The address field was left empty.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the address your operator gave you."
+          }
+        }
+      }
+    },
+    "enrollment.message.addressInsecure" : {
+      "comment" : "The address used an insecure scheme.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This address is not secure. Enter an address that uses HTTPS. It is not upgraded automatically, because an insecure address is usually the wrong address."
+          }
+        }
+      }
+    },
+    "enrollment.message.addressMalformed" : {
+      "comment" : "The address could not be parsed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This address could not be read. Check it for typos."
+          }
+        }
+      }
+    },
+    "enrollment.message.addressMissingHost" : {
+      "comment" : "The address named no host.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This address names no server."
+          }
+        }
+      }
+    },
+    "enrollment.message.addressUserInfo" : {
+      "comment" : "The address embedded a user name or password.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove the user name and password from the address."
+          }
+        }
+      }
+    },
+    "enrollment.message.codeEmpty" : {
+      "comment" : "The enrollment code field was left empty.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste the enrollment code your operator issued."
+          }
+        }
+      }
+    },
+    "enrollment.message.codeNotAccepted" : {
+      "comment" : "The single message covering every authentication failure during enrollment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code was not accepted. It may have expired or already been used. Ask your operator for a new one."
+          }
+        }
+      }
+    },
+    "enrollment.message.credentialUnavailable" : {
+      "comment" : "The credential store could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The saved credential could not be read. Nothing was deleted."
+          }
+        }
+      }
+    },
+    "enrollment.message.credentialWriteFailed" : {
+      "comment" : "The credential could not be saved, so enrollment stopped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's credential could not be saved, so enrollment stopped before going any further."
+          }
+        }
+      }
+    },
+    "enrollment.message.deviceLimit" : {
+      "comment" : "Another device already holds the single active slot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another device is already enrolled."
+          }
+        }
+      }
+    },
+    "enrollment.message.deviceLimit.resolution" : {
+      "comment" : "How to resolve the device limit. There is deliberately no replace control.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask your operator to revoke the other device and issue a fresh code."
+          }
+        }
+      }
+    },
+    "enrollment.message.deviceRevoked" : {
+      "comment" : "The device credential was proven dead during enrollment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's access is not valid. Ask your operator for a new enrollment code."
+          }
+        }
+      }
+    },
+    "enrollment.message.rateLimited" : {
+      "comment" : "The server asked the client to slow down.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server asked us to wait before trying again."
+          }
+        }
+      }
+    },
+    "enrollment.message.serverUnavailable" : {
+      "comment" : "The server could not be reached or answered with a fault.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server could not be reached. Your credential is untouched; try again."
+          }
+        }
+      }
+    },
+    "enrollment.revoked" : {
+      "comment" : "Shown when this device's access was revoked.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device's access was revoked. Ask your operator for a new enrollment code."
           }
         }
       }
     },
     "root.purpose" : {
-      "comment" : "One-line statement of what the app is for.",
+      "comment" : "One line explaining what the app is.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -122,7 +1250,7 @@
       }
     },
     "root.title" : {
-      "comment" : "The product name.",
+      "comment" : "The product name, shown at the top of the enrollment screen.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
