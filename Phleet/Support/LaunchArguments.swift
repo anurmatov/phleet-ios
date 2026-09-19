@@ -12,4 +12,11 @@ enum LaunchArguments {
     /// A launch argument rather than a build gate: this codebase has exactly one `#if DEBUG`,
     /// `make lint` fails on a second, and a UI test runs against the app as built.
     static let scriptedBackend = "-phleet-scripted-backend"
+
+    /// Makes the scripted backend answer with a reply taller than any viewport.
+    ///
+    /// Without it there is nothing to scroll, and a test for
+    /// `scrollDismissesKeyboard(.interactively)` would pass against a thread that never
+    /// scrolled — which is the same as not testing it.
+    static let tallTranscript = "-phleet-tall-transcript"
 }

@@ -204,12 +204,16 @@ struct ConversationView: View {
 
     private func sendButton(draft: Binding<String>) -> some View {
         Button {
+            // Captured before anything else touches the field, and restored only if it was
+            // already focused. A burst of messages should not cost a tap on the field between
+            // each one — but sending from a dismissed keyboard must not re-open it, which is
+            // what an unconditional set would do to someone who had just tapped outside.
+            let wasFocused = composerFocused
             let text = draft.wrappedValue
             draft.wrappedValue = ""
-            // Held deliberately: a burst of messages should not cost a tap on the field between
-            // each one. Asserted rather than assumed, because whether a button steals first
-            // responder is not something to leave to the framework's mood.
-            composerFocused = true
+            if wasFocused {
+                composerFocused = true
+            }
             Task { await model.send(text) }
         } label: {
             Text("conversation.send")

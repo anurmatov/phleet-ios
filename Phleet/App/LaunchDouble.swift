@@ -17,7 +17,9 @@ struct LaunchDouble {
     static func make(from arguments: [String]) -> LaunchDouble? {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
-        let backend = ScriptedBackend()
+        let backend = ScriptedBackend(
+            tallReply: arguments.contains(LaunchArguments.tallTranscript)
+        )
         return LaunchDouble(
             credentialStore: InMemoryCredentialStore(),
             api: backend,
@@ -26,12 +28,25 @@ struct LaunchDouble {
     }
 }
 
-/// The scripted backend. One turn, one answer.
+/// The scripted backend. One turn, one answer — long or short.
 final class ScriptedBackend: FleetAPIClient, ConversationStream {
 
     private let conversationId = "scripted-conversation"
     private var continuation: AsyncStream<ConversationStreamEvent>.Continuation?
     private var seq = 40
+
+    /// Answer with a reply taller than any viewport, so the transcript actually scrolls.
+    private let tallReply: Bool
+
+    init(tallReply: Bool = false) {
+        self.tallReply = tallReply
+    }
+
+    /// Sixty lines, each long enough to wrap: comfortably past the tallest iPhone viewport at
+    /// the smallest text size, which is the case that has the least content per point.
+    private static let tallReplyText = (1...60)
+        .map { "Scripted line \($0), long enough to wrap and push the one after it down." }
+        .joined(separator: "\n")
 
     // MARK: - FleetAPIClient
 
@@ -189,7 +204,7 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
                     identity: identity,
                     payload: .turnFinal(
                         TurnFinalPayload(
-                            text: "Scripted reply.",
+                            text: tallReply ? Self.tallReplyText : "Scripted reply.",
                             completion: .completed,
                             isPartial: false,
                             truncated: false,

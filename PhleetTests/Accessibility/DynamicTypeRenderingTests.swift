@@ -170,9 +170,13 @@ final class DynamicTypeRenderingTests: XCTestCase {
         )
     }
 
-    /// The composer grew a line of copy, so the whole thread is rendered rather than only the
-    /// rows: a caption that pushes the field off the bottom at `accessibility5` is exactly the
-    /// failure this suite exists to catch, and a row-only render cannot see it.
+    /// The whole thread rather than only the rows, because the composer grew a line of copy and
+    /// a row-only render cannot see whether the composer still lays out at all.
+    ///
+    /// What this deliberately does **not** prove: `assertRenders` bounds width and leaves height
+    /// free, so the render grows to fit whatever it is given and a composer pushed below the
+    /// bottom of a real screen would still pass here. That claim needs a real viewport and
+    /// belongs to `testTheSendButtonStaysReachableAtAccessibilitySizes` in the UI tests.
     func testTheThreadRendersAtEverySize() throws {
         let environment = AppEnvironment(
             credentialStore: InMemoryCredentialStore(
