@@ -161,6 +161,81 @@ final class ConversationSmokeTests: XCTestCase {
         )
     }
 
+    /// A long press on a message body raises the system edit menu.
+    ///
+    /// That menu is the observable half of `.textSelection(.enabled)`: it is the selection's own
+    /// menu, raised by the same press that places the handles. With the modifier gone the press
+    /// selects nothing and no menu appears, which is what makes this fail on removal — unlike
+    /// `TranscriptCopyTests`, which passed the whole time selection was absent because it
+    /// asserts the copy path rather than the requirement.
+    ///
+    /// Both sides of the transcript are covered: the agent's reply from the seeded thread, and
+    /// the person's own message after a send.
+    func testAMessageBodyCanBeSelected() throws {
+        let app = launchAndOpenTheThread(extraArguments: [LaunchArguments.tallTranscript])
+
+        let reply = element(in: app, .conversationReplyBody)
+        XCTAssertTrue(reply.waitForExistence(timeout: 30), "no reply body to select")
+        reply.press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app),
+            "a long press on an agent reply raised no selection menu"
+        )
+        dismissAnyMenu(in: app)
+
+        let composer = element(in: app, .conversationComposer)
+        composer.tap()
+        composer.typeText("a message of my own")
+        element(in: app, .conversationSend).tap()
+
+        let mine = element(in: app, .conversationMessageBody)
+        XCTAssertTrue(mine.waitForExistence(timeout: 30), "the sent message never rendered")
+        mine.press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app),
+            "a long press on the person's own message raised no selection menu"
+        )
+    }
+
+    /// The edit menu a selection raises.
+    ///
+    /// Checked as a button as well as a menu item: both shapes have surfaced across releases,
+    /// and a miss on the element type would read as "selection is broken" when it is not.
+    private func selectionMenuAppeared(in app: XCUIApplication) -> Bool {
+        if app.menuItems["Copy"].waitForExistence(timeout: 5) { return true }
+        return app.buttons["Copy"].exists
+    }
+
+    /// A thread taller than the viewport opens on its newest entry.
+    ///
+    /// Asserted by naming *which* reply is on screen. "Something is visible" would pass at the
+    /// top of the thread exactly as readily as at the bottom, which is the bug this covers.
+    /// Removing `.defaultScrollAnchor(.bottom)` lands the view at the oldest entry and both
+    /// halves invert.
+    func testAThreadOpensAtItsNewestEntry() throws {
+        let app = launchAndOpenTheThread(extraArguments: [LaunchArguments.tallTranscript])
+
+        let newest = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Seeded reply 29 of 29")
+        ).firstMatch
+        XCTAssertTrue(newest.waitForExistence(timeout: 30), "the seeded thread never rendered")
+        XCTAssertTrue(newest.isHittable, "the thread did not open at its newest entry")
+
+        let oldest = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Seeded reply 1 of 29")
+        ).firstMatch
+        XCTAssertFalse(
+            oldest.isHittable,
+            "the oldest entry is on screen, so the thread opened at the top"
+        )
+    }
+
+    /// Taps a harmless spot to close an open edit menu before the next interaction.
+    private func dismissAnyMenu(in app: XCUIApplication) {
+        guard app.menuItems.firstMatch.exists else { return }
+        tapOutsideTheComposer(in: app)
+    }
+
     private func entries(in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any)
             .matching(identifier: AccessibilityIdentifier.conversationEntry.identifier)

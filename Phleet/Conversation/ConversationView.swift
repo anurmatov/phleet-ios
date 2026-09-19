@@ -74,30 +74,41 @@ struct ConversationView: View {
                             Text("conversation.recovered")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
+                            // Its own element, for the same reason as every other body: text
+                            // merged into an opaque parent cannot be long-pressed, so it cannot
+                            // be selected.
                             Text(verbatim: reply.text)
                                 .font(.body)
                                 .textSelection(.enabled)
+                                .accessibilityIdentifier(
+                                    AccessibilityIdentifier.conversationReplyBody.identifier
+                                )
+                                .accessibilityLabel(
+                                    String(localized: "conversation.recovered") + ". "
+                                        + reply.text
+                                )
+                                .accessibilityAction(named: Text("conversation.copy.reply")) {
+                                    if let text = TranscriptCopy.copyable(reply.text) {
+                                        UIPasteboard.general.string = text
+                                    }
+                                }
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityElement(children: .ignore)
+                        .accessibilityElement(children: .contain)
                         .accessibilityIdentifier(
                             AccessibilityIdentifier.conversationAgentReply.identifier
                         )
-                        .accessibilityLabel(
-                            String(localized: "conversation.recovered") + ". " + reply.text
-                        )
-                        .accessibilityActions {
-                            if let text = TranscriptCopy.copyable(reply.text) {
-                                Button("conversation.copy.reply") {
-                                    UIPasteboard.general.string = text
-                                }
-                            }
-                        }
                     }
                 }
             }
             .padding()
         }
+        // A conversation opens at its newest entry, not its oldest. The stock anchor does it at
+        // render time, so there is no visible flight to the bottom, and it holds the bottom as
+        // content grows without yanking someone who has scrolled up to read. Deliberately not a
+        // `ScrollViewReader` with offset maths: scroll position is a view concern and the
+        // platform already models it.
+        .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
         // Covers the area below short content, so an early thread with two messages in it
         // dismisses on a tap in the empty space the same way a full one does.

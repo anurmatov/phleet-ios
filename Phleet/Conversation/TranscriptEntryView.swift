@@ -1,19 +1,23 @@
 import SwiftUI
 import UIKit
 
-/// One submission and its answer, as **one** accessibility element.
+/// One submission and its answer: an accessibility **container** holding addressable parts.
 ///
-/// VoiceOver reads a single coherent sentence — speaker, state, text — rather than three
-/// fragments, following the `.accessibilityElement(children: .ignore)` pattern the rest of the
-/// app uses. The `outcome_unknown` panel is deliberately a sibling rather than a child: it
-/// carries an action, and an action inside an ignored element is unreachable.
+/// It was one merged element until #9. `.accessibilityElement(children: .ignore)` collapses the
+/// subtree into a single opaque element, and a body that is not its own element cannot be
+/// long-pressed — not by a person using VoiceOver, and not by a UI test, which is why #7's
+/// `.textSelection(.enabled)` shipped with nothing able to observe that it did nothing. The
+/// container is now `.contain`, so each body keeps its own element and its own selection.
 ///
-/// Message text is selectable, which is what gives copy, Select All, Look Up and Share without
-/// this app implementing any of them. There is deliberately **no** `.contextMenu` on those
-/// bodies: a context menu claims the same long press that starts a selection, so adding one
-/// would take away the affordance it was meant to supplement. VoiceOver cannot perform that
-/// long press on an element that reads as one unit, so the copy path for it is a pair of
-/// accessibility actions naming whole blocks instead.
+/// What that costs: VoiceOver reads the entry as speaker-and-text, then state, rather than one
+/// sentence. What it buys is the ability to reach a single body — which is the whole point of
+/// selection, and the same thing a sighted person gets from a long press.
+///
+/// There is deliberately **no** `.contextMenu` on the bodies: it claims the long press that
+/// selection needs. Copy-the-whole-block stays reachable two ways — Select All in the system
+/// menu the selection itself raises, and a named accessibility action for VoiceOver.
+///
+/// The `outcome_unknown` panel is a sibling rather than a child: it carries an action.
 struct TranscriptEntryView: View {
 
     let record: SubmissionRecord
@@ -25,49 +29,29 @@ struct TranscriptEntryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             content
-                .accessibilityElement(children: .ignore)
-                .accessibilityIdentifier(AccessibilityIdentifier.conversationEntry.identifier)
-                .accessibilityLabel(spokenLabel)
-                .accessibilityActions {
-                    if let message = TranscriptCopy.copyable(record.text) {
-                        Button("conversation.copy.message") { putOnPasteboard(message) }
-                    }
-                    if let reply = TranscriptCopy.copyable(record.reply?.text) {
-                        Button("conversation.copy.reply") { putOnPasteboard(reply) }
-                    }
-                }
 
             if case .outcomeUnknown(let reason) = record.state {
                 OutcomeUnknownView(reason: reason, sendAgain: sendAgain)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(AccessibilityIdentifier.conversationEntry.identifier)
     }
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
             if let text = record.text, !text.isEmpty {
-                Text(verbatim: text)
-                    .font(.body)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                selectableBody(
+                    text,
+                    speaker: "conversation.speaker.you",
+                    identifier: .conversationMessageBody,
+                    copyActionKey: "conversation.copy.message"
+                )
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
-            HStack(spacing: 6) {
-                Image(systemName: stateSymbol)
-                    .imageScale(.small)
-                Text(stateKey)
-                    .font(.caption)
-            }
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-
-            if record.isAnsweredTogether {
-                Text("conversation.state.answeredTogether")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            stateRow
 
             if record.state.ownsProgressIndicator {
                 ProgressIndicatorView(activity: activity, reduceMotion: reduceMotion)
@@ -77,6 +61,47 @@ struct TranscriptEntryView: View {
                 replyView(reply)
             }
         }
+    }
+
+    /// State and the answered-together marker as one spoken element: neither is worth stopping
+    /// on separately, and both are chrome rather than content.
+    private var stateRow: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            HStack(spacing: 6) {
+                Image(systemName: stateSymbol)
+                    .imageScale(.small)
+                Text(stateKey)
+                    .font(.caption)
+            }
+
+            if record.isAnsweredTogether {
+                Text("conversation.state.answeredTogether")
+                    .font(.caption2)
+            }
+        }
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(stateSpokenLabel)
+    }
+
+    /// A selectable message body.
+    ///
+    /// The identifier is what makes a long press reachable — to a UI test, and to anyone
+    /// navigating by element. The copy action is the VoiceOver equivalent of Select All followed
+    /// by Copy, which is the path a long press opens for everyone else.
+    private func selectableBody(
+        _ text: String,
+        speaker: String.LocalizationValue,
+        identifier: AccessibilityIdentifier,
+        copyActionKey: LocalizedStringKey
+    ) -> some View {
+        Text(verbatim: text)
+            .font(.body)
+            .textSelection(.enabled)
+            .accessibilityIdentifier(identifier.identifier)
+            .accessibilityLabel(String(localized: speaker) + ". " + text)
+            .accessibilityAction(named: Text(copyActionKey)) { putOnPasteboard(text) }
     }
 
     private func replyView(_ reply: AgentReply) -> some View {
@@ -93,9 +118,12 @@ struct TranscriptEntryView: View {
                     .font(.body.italic())
                     .foregroundStyle(.secondary)
             } else {
-                Text(verbatim: reply.text)
-                    .font(.body)
-                    .textSelection(.enabled)
+                selectableBody(
+                    reply.text,
+                    speaker: "conversation.speaker.agent",
+                    identifier: .conversationReplyBody,
+                    copyActionKey: "conversation.copy.reply"
+                )
             }
             if reply.completion != .completed || reply.isPartial || reply.truncated {
                 Text(qualifierKey(for: reply))
@@ -104,6 +132,7 @@ struct TranscriptEntryView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityIdentifier.conversationAgentReply.identifier)
     }
 
@@ -155,22 +184,13 @@ struct TranscriptEntryView: View {
         }
     }
 
-    private var spokenLabel: String {
-        var parts: [String] = [String(localized: "conversation.speaker.you")]
-
-        if let text = record.text, !text.isEmpty {
-            parts.append(text)
-        }
-        parts.append(String(localized: stateLabelResource))
+    /// The chrome element's spoken text. The bodies carry their own speaker and content now, so
+    /// this is state and the answered-together marker and nothing else.
+    private var stateSpokenLabel: String {
+        var parts = [String(localized: stateLabelResource)]
 
         if record.isAnsweredTogether {
             parts.append(String(localized: "conversation.state.answeredTogether"))
-        }
-        if let reply = record.reply {
-            parts.append(String(localized: "conversation.speaker.agent"))
-            parts.append(
-                reply.text.isEmpty ? String(localized: "conversation.reply.empty") : reply.text
-            )
         }
         return parts.joined(separator: ". ")
     }

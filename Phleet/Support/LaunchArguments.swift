@@ -13,10 +13,11 @@ enum LaunchArguments {
     /// `make lint` fails on a second, and a UI test runs against the app as built.
     static let scriptedBackend = "-phleet-scripted-backend"
 
-    /// Makes the scripted backend answer with a reply taller than any viewport.
+    /// Makes the scripted backend seed catch-up with a thread taller than any viewport.
     ///
-    /// Without it there is nothing to scroll, and a test for
-    /// `scrollDismissesKeyboard(.interactively)` would pass against a thread that never
-    /// scrolled — which is the same as not testing it.
+    /// Seeded on *open* rather than in the reply to the first send, because that is the only
+    /// state in which open-at-newest can be observed at all. It also gives the scroll-dismiss
+    /// test something to scroll: against a thread that never scrolls, that assertion would pass
+    /// without exercising anything.
     static let tallTranscript = "-phleet-tall-transcript"
 }
