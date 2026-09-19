@@ -190,6 +190,20 @@ final class ConversationSmokeTests: XCTestCase {
 
         let mine = element(in: app, .conversationMessageBody)
         XCTAssertTrue(mine.waitForExistence(timeout: 30), "the sent message never rendered")
+
+        // #10's "sending keeps the newest entry visible", asserted here because this is the test
+        // that sends. `waitForExistence` alone would pass with the entry rendered far below the
+        // fold, so the reply that closes the turn — the last thing in the transcript — has to be
+        // hittable, not merely present.
+        let newestReply = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Scripted reply.")
+        ).firstMatch
+        XCTAssertTrue(newestReply.waitForExistence(timeout: 30), "the reply never rendered")
+        XCTAssertTrue(
+            newestReply.isHittable,
+            "sending did not keep the newest entry visible"
+        )
+
         mine.press(forDuration: 1.2)
         XCTAssertTrue(
             selectionMenuAppeared(in: app),

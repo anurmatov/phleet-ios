@@ -104,10 +104,15 @@ struct ConversationView: View {
             .padding()
         }
         // A conversation opens at its newest entry, not its oldest. The stock anchor does it at
-        // render time, so there is no visible flight to the bottom, and it holds the bottom as
-        // content grows without yanking someone who has scrolled up to read. Deliberately not a
-        // `ScrollViewReader` with offset maths: scroll position is a view concern and the
-        // platform already models it.
+        // render time, so there is no visible flight to the bottom, and the view follows the
+        // bottom as content arrives. Deliberately not a `ScrollViewReader` with offset maths:
+        // scroll position is a view concern and the platform already models it.
+        //
+        // Both of those are asserted by tests. The third criterion in #10 — that an event
+        // arriving while someone has scrolled up leaves the viewport where they left it — is
+        // **not** asserted here and is not claimed: the scripted backend only emits in response
+        // to a send, so there is no unsolicited event to land on a scrolled-up view. Recorded as
+        // a gap on #10 rather than described as behaviour nobody checked.
         .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
         // Covers the area below short content, so an early thread with two messages in it
