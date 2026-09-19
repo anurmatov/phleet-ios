@@ -1,6 +1,14 @@
 import SwiftUI
+import UIKit
 
 /// The thread: what has happened, and one place to say something.
+///
+/// Keyboard behaviour is the platform's, not this app's. Scrolling dismisses through
+/// `scrollDismissesKeyboard(.interactively)` rather than a gesture recogniser watching the
+/// content offset, so the keyboard tracks the finger and comes back if the drag is reversed —
+/// which is the part a hand-rolled version never gets right. A tap outside the composer also
+/// dismisses, attached as a *simultaneous* gesture so it cannot swallow the long press and
+/// double tap that selecting message text depends on.
 struct ConversationView: View {
 
     @Environment(AppEnvironment.self) private var appEnvironment
@@ -10,6 +18,8 @@ struct ConversationView: View {
     let model: ConversationModel
 
     @State private var announcedCount = 0
+
+    @FocusState private var composerFocused: Bool
 
     var body: some View {
         @Bindable var environment = appEnvironment
@@ -66,6 +76,7 @@ struct ConversationView: View {
                                 .foregroundStyle(.secondary)
                             Text(verbatim: reply.text)
                                 .font(.body)
+                                .textSelection(.enabled)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityElement(children: .ignore)
@@ -75,11 +86,23 @@ struct ConversationView: View {
                         .accessibilityLabel(
                             String(localized: "conversation.recovered") + ". " + reply.text
                         )
+                        .accessibilityActions {
+                            if let text = TranscriptCopy.copyable(reply.text) {
+                                Button("conversation.copy.reply") {
+                                    UIPasteboard.general.string = text
+                                }
+                            }
+                        }
                     }
                 }
             }
             .padding()
         }
+        .scrollDismissesKeyboard(.interactively)
+        // Covers the area below short content, so an early thread with two messages in it
+        // dismisses on a tap in the empty space the same way a full one does.
+        .contentShape(Rectangle())
+        .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
         .accessibilityIdentifier(AccessibilityIdentifier.conversationTranscript.identifier)
         .accessibilityLabel(AccessibilityIdentifier.conversationTranscript.localizedLabel)
     }
@@ -135,6 +158,20 @@ struct ConversationView: View {
             }
 
             composerControls(draft: draft)
+
+            // Said plainly rather than implied by the absence of a button. Images need an event
+            // kind, size limits and storage that the protocol does not have yet, so there is
+            // nothing here to attach them with — and someone looking for the paperclip should
+            // find out why instead of concluding the app is broken.
+            Text("conversation.media.unsupported")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier(
+                    AccessibilityIdentifier.conversationMediaUnsupported.identifier
+                )
+                .accessibilityLabel(
+                    AccessibilityIdentifier.conversationMediaUnsupported.localizedLabel
+                )
         }
         .padding()
         .background(.thinMaterial)
@@ -160,14 +197,23 @@ struct ConversationView: View {
         TextField("conversation.composer.prompt", text: draft, axis: .vertical)
             .textFieldStyle(.roundedBorder)
             .lineLimit(1...5)
+            .focused($composerFocused)
             .accessibilityIdentifier(AccessibilityIdentifier.conversationComposer.identifier)
             .accessibilityLabel(AccessibilityIdentifier.conversationComposer.localizedLabel)
     }
 
     private func sendButton(draft: Binding<String>) -> some View {
         Button {
+            // Captured before anything else touches the field, and restored only if it was
+            // already focused. A burst of messages should not cost a tap on the field between
+            // each one — but sending from a dismissed keyboard must not re-open it, which is
+            // what an unconditional set would do to someone who had just tapped outside.
+            let wasFocused = composerFocused
             let text = draft.wrappedValue
             draft.wrappedValue = ""
+            if wasFocused {
+                composerFocused = true
+            }
             Task { await model.send(text) }
         } label: {
             Text("conversation.send")

@@ -170,6 +170,46 @@ final class DynamicTypeRenderingTests: XCTestCase {
         )
     }
 
+    /// The whole thread rather than only the rows, because the composer grew a line of copy and
+    /// a row-only render cannot see whether the composer still lays out at all.
+    ///
+    /// What this deliberately does **not** prove: `assertRenders` bounds width and leaves height
+    /// free, so the render grows to fit whatever it is given and a composer pushed below the
+    /// bottom of a real screen would still pass here. That claim needs a real viewport and
+    /// belongs to `testTheSendButtonStaysReachableAtAccessibilitySizes` in the UI tests.
+    func testTheThreadRendersAtEverySize() throws {
+        let environment = AppEnvironment(
+            credentialStore: InMemoryCredentialStore(
+                credential: DeviceCredential(
+                    origin: "https://server.invalid",
+                    deviceId: "device-1",
+                    deviceSecret: "secret-1",
+                    clientInstanceId: "instance-1"
+                )
+            ),
+            api: FakeFleetAPI(),
+            stream: FakeConversationStream(),
+            launchArguments: [],
+            launchEnvironment: [:]
+        )
+        // The environment builds the thread's model from the stored credential, so this renders
+        // the composition the app actually runs. Nothing reaches the network: `run()` is started
+        // by `.task`, and `ImageRenderer` does not run tasks.
+        let model = try XCTUnwrap(environment.conversation)
+
+        assertRenders(ConversationView(model: model).environment(environment), "the thread")
+    }
+
+    func testTheMediaLimitationHasASpokenLabel() {
+        // Stated, not implied by an absent button — and stated to VoiceOver too.
+        let label = AccessibilityIdentifier.conversationMediaUnsupported.localizedLabel
+        XCTAssertFalse(label.isEmpty)
+        XCTAssertNotEqual(
+            label,
+            AccessibilityIdentifier.conversationMediaUnsupported.labelKey
+        )
+    }
+
     func testEveryConnectionStateRendersItsBanner() {
         let states: [ConversationModel.ConnectionState] = [
             .idle, .connecting, .live, .waiting(seconds: 4), .rateLimited(seconds: 12),

@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// One submission and its answer, as **one** accessibility element.
 ///
@@ -6,6 +7,13 @@ import SwiftUI
 /// fragments, following the `.accessibilityElement(children: .ignore)` pattern the rest of the
 /// app uses. The `outcome_unknown` panel is deliberately a sibling rather than a child: it
 /// carries an action, and an action inside an ignored element is unreachable.
+///
+/// Message text is selectable, which is what gives copy, Select All, Look Up and Share without
+/// this app implementing any of them. There is deliberately **no** `.contextMenu` on those
+/// bodies: a context menu claims the same long press that starts a selection, so adding one
+/// would take away the affordance it was meant to supplement. VoiceOver cannot perform that
+/// long press on an element that reads as one unit, so the copy path for it is a pair of
+/// accessibility actions naming whole blocks instead.
 struct TranscriptEntryView: View {
 
     let record: SubmissionRecord
@@ -20,6 +28,14 @@ struct TranscriptEntryView: View {
                 .accessibilityElement(children: .ignore)
                 .accessibilityIdentifier(AccessibilityIdentifier.conversationEntry.identifier)
                 .accessibilityLabel(spokenLabel)
+                .accessibilityActions {
+                    if let message = TranscriptCopy.copyable(record.text) {
+                        Button("conversation.copy.message") { putOnPasteboard(message) }
+                    }
+                    if let reply = TranscriptCopy.copyable(record.reply?.text) {
+                        Button("conversation.copy.reply") { putOnPasteboard(reply) }
+                    }
+                }
 
             if case .outcomeUnknown(let reason) = record.state {
                 OutcomeUnknownView(reason: reason, sendAgain: sendAgain)
@@ -33,6 +49,7 @@ struct TranscriptEntryView: View {
             if let text = record.text, !text.isEmpty {
                 Text(verbatim: text)
                     .font(.body)
+                    .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .trailing)
             }
 
@@ -78,6 +95,7 @@ struct TranscriptEntryView: View {
             } else {
                 Text(verbatim: reply.text)
                     .font(.body)
+                    .textSelection(.enabled)
             }
             if reply.completion != .completed || reply.isPartial || reply.truncated {
                 Text(qualifierKey(for: reply))
@@ -87,6 +105,12 @@ struct TranscriptEntryView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityIdentifier(AccessibilityIdentifier.conversationAgentReply.identifier)
+    }
+
+    // MARK: - Pasteboard
+
+    private func putOnPasteboard(_ text: String) {
+        UIPasteboard.general.string = text
     }
 
     // MARK: - Copy

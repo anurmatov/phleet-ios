@@ -37,6 +37,7 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case conversationProgress = "conversation.progress"
     case conversationComposer = "conversation.composer"
     case conversationComposerLimit = "conversation.composerLimit"
+    case conversationMediaUnsupported = "conversation.mediaUnsupported"
     case conversationSend = "conversation.send"
     case conversationBanner = "conversation.banner"
     case conversationResume = "conversation.resume"
