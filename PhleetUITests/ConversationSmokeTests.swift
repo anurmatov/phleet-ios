@@ -172,10 +172,12 @@ final class ConversationSmokeTests: XCTestCase {
             .tap()
     }
 
+    // `expectation(for:evaluatedWith:)` is declared as returning `XCTestExpectation`, whatever it
+    // hands back at runtime, so that is what this returns. `wait(for:timeout:)` takes those.
     private func keyboardGone(
         _ keyboard: XCUIElement,
         _ after: String
-    ) -> XCTNSPredicateExpectation {
+    ) -> XCTestExpectation {
         let gone = expectation(
             for: NSPredicate(format: "exists == false"),
             evaluatedWith: keyboard
