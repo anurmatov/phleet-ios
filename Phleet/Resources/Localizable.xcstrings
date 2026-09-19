@@ -109,6 +109,18 @@
         }
       }
     },
+    "a11y.conversation.mediaUnsupported" : {
+      "comment" : "Spoken label for the composer's note that images cannot be sent yet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Images are not supported yet"
+          }
+        }
+      }
+    },
     "a11y.conversation.outcomeUnknown" : {
       "comment" : "Spoken label for the state where the outcome of a turn cannot be confirmed.",
       "extractionState" : "manual",
@@ -577,6 +589,30 @@
         }
       }
     },
+    "conversation.copy.message" : {
+      "comment" : "VoiceOver action that copies the person's own message to the pasteboard.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy message"
+          }
+        }
+      }
+    },
+    "conversation.copy.reply" : {
+      "comment" : "VoiceOver action that copies the agent's reply to the pasteboard.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy reply"
+          }
+        }
+      }
+    },
     "conversation.gap" : {
       "comment" : "Separator marking history that expired beneath the cursor.",
       "extractionState" : "manual",
@@ -585,6 +621,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Earlier messages are no longer available."
+          }
+        }
+      }
+    },
+    "conversation.media.unsupported" : {
+      "comment" : "Composer note stating the current limitation: this build sends text only.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text only for now — images can’t be sent or shown yet."
           }
         }
       }
