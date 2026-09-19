@@ -161,6 +161,103 @@ final class ConversationSmokeTests: XCTestCase {
         )
     }
 
+    /// A long press on a message body raises the system edit menu.
+    ///
+    /// That menu is the observable half of `.textSelection(.enabled)`: it is the selection's own
+    /// menu, raised by the same press that places the handles. With the modifier gone the press
+    /// selects nothing and no menu appears, which is what makes this fail on removal — unlike
+    /// `TranscriptCopyTests`, which passed the whole time selection was absent because it
+    /// asserts the copy path rather than the requirement.
+    ///
+    /// Both sides of the transcript are covered: the agent's reply from the seeded thread, and
+    /// the person's own message after a send.
+    func testAMessageBodyCanBeSelected() throws {
+        // A short thread on purpose. On the seeded one every reply shares an identifier, so
+        // `firstMatch` resolves to the *oldest* — which the scroll anchor has put off the top of
+        // the screen, so the press cannot land and the test fails without ever reaching the
+        // thing it is testing. Keeping selection independent of scroll position also keeps the
+        // anchor probe attributable to a single test.
+        let app = launchAndOpenTheThread()
+
+        let composer = element(in: app, .conversationComposer)
+        composer.tap()
+        composer.typeText("a message of my own")
+        element(in: app, .conversationSend).tap()
+
+        let mine = element(in: app, .conversationMessageBody)
+        XCTAssertTrue(mine.waitForExistence(timeout: 30), "the sent message never rendered")
+        mine.press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app),
+            "a long press on the person's own message raised no selection menu"
+        )
+        dismissAnyMenu(in: app)
+
+        let reply = element(in: app, .conversationReplyBody)
+        XCTAssertTrue(reply.waitForExistence(timeout: 30), "no reply body to select")
+        reply.press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app),
+            "a long press on an agent reply raised no selection menu"
+        )
+    }
+
+    /// The edit menu a selection raises.
+    ///
+    /// Checked as a button as well as a menu item: both shapes have surfaced across releases,
+    /// and a miss on the element type would read as "selection is broken" when it is not.
+    private func selectionMenuAppeared(in app: XCUIApplication) -> Bool {
+        if app.menuItems["Copy"].waitForExistence(timeout: 5) { return true }
+        return app.buttons["Copy"].exists
+    }
+
+    /// A thread taller than the viewport opens on its newest entry.
+    ///
+    /// Asserted by naming *which* reply is on screen. "Something is visible" would pass at the
+    /// top of the thread exactly as readily as at the bottom, which is the bug this covers.
+    /// Removing `.defaultScrollAnchor(.bottom)` lands the view at the oldest entry and both
+    /// halves invert.
+    func testAThreadOpensAtItsNewestEntry() throws {
+        let app = launchAndOpenTheThread(extraArguments: [LaunchArguments.tallTranscript])
+
+        let newest = seededReply(29, in: app)
+        XCTAssertTrue(newest.waitForExistence(timeout: 30), "the seeded thread never rendered")
+        XCTAssertTrue(newest.isHittable, "the thread did not open at its newest entry")
+
+        XCTAssertFalse(
+            seededReply(1, in: app).isHittable,
+            "the oldest entry is on screen, so the thread opened at the top"
+        )
+
+        // #10's "sending keeps the newest entry visible". It lives with the tall fixture rather
+        // than in the selection test: on a short thread everything is visible and the assertion
+        // would hold with no anchor at all. `waitForExistence` is not enough either — it passes
+        // for an entry rendered far below the fold — so the reply that closes the turn has to be
+        // hittable.
+        let composer = element(in: app, .conversationComposer)
+        composer.tap()
+        composer.typeText("hello")
+        element(in: app, .conversationSend).tap()
+
+        let liveReply = app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Scripted reply.")
+        ).firstMatch
+        XCTAssertTrue(liveReply.waitForExistence(timeout: 30), "the reply never rendered")
+        XCTAssertTrue(liveReply.isHittable, "sending did not keep the newest entry visible")
+    }
+
+    private func seededReply(_ index: Int, in app: XCUIApplication) -> XCUIElement {
+        app.staticTexts.matching(
+            NSPredicate(format: "label CONTAINS %@", "Seeded reply \(index) of 29")
+        ).firstMatch
+    }
+
+    /// Taps a harmless spot to close an open edit menu before the next interaction.
+    private func dismissAnyMenu(in app: XCUIApplication) {
+        guard app.menuItems.firstMatch.exists else { return }
+        tapOutsideTheComposer(in: app)
+    }
+
     private func entries(in app: XCUIApplication) -> XCUIElementQuery {
         app.descendants(matching: .any)
             .matching(identifier: AccessibilityIdentifier.conversationEntry.identifier)

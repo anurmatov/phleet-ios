@@ -18,7 +18,7 @@ struct LaunchDouble {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
         let backend = ScriptedBackend(
-            tallReply: arguments.contains(LaunchArguments.tallTranscript)
+            tallTranscript: arguments.contains(LaunchArguments.tallTranscript)
         )
         return LaunchDouble(
             credentialStore: InMemoryCredentialStore(),
@@ -28,25 +28,40 @@ struct LaunchDouble {
     }
 }
 
-/// The scripted backend. One turn, one answer — long or short.
+/// The scripted backend. One turn, one answer — on an optionally pre-populated thread.
 final class ScriptedBackend: FleetAPIClient, ConversationStream {
 
     private let conversationId = "scripted-conversation"
     private var continuation: AsyncStream<ConversationStreamEvent>.Continuation?
     private var seq = 40
+    private var seededCatchUp = false
 
-    /// Answer with a reply taller than any viewport, so the transcript actually scrolls.
-    private let tallReply: Bool
+    /// Answer catch-up with a back-and-forth long enough to overflow any viewport.
+    ///
+    /// Seeded through **catch-up** rather than as one long live reply, because open-at-newest
+    /// can only be observed on a thread that is already tall when it opens. A tall reply that
+    /// only arrives after the first send proves nothing about the scroll position on arrival.
+    private let tallTranscript: Bool
 
-    init(tallReply: Bool = false) {
-        self.tallReply = tallReply
+    init(tallTranscript: Bool = false) {
+        self.tallTranscript = tallTranscript
     }
 
-    /// Sixty lines, each long enough to wrap: comfortably past the tallest iPhone viewport at
-    /// the smallest text size, which is the case that has the least content per point.
-    private static let tallReplyText = (1...60)
-        .map { "Scripted line \($0), long enough to wrap and push the one after it down." }
-        .joined(separator: "\n")
+    /// `openConversation` reports `nextSeq: 41`, and history before `retainedFloorSeq: 12` is
+    /// pruned, so seq 12...40 is exactly the readable range: seeding it leaves no gap at either
+    /// end. Each reply names its position so a test can assert *which* one is on screen —
+    /// "something is visible" would pass at the top of the thread as readily as the bottom.
+    private static let seededReplies: [(seq: Int, text: String)] = {
+        let range = 12...40
+        return range.map { seq in
+            let index = seq - range.lowerBound + 1
+            return (
+                seq,
+                "Seeded reply \(index) of \(range.count). Long enough to wrap onto a second "
+                    + "line so that a handful of these overflow the viewport."
+            )
+        }
+    }()
 
     // MARK: - FleetAPIClient
 
@@ -103,9 +118,40 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         afterSeq: Int,
         limit: Int
     ) async throws -> CatchUpResponse {
-        CatchUpResponse(
-            events: [],
-            nextAfterSeq: afterSeq,
+        guard tallTranscript, !seededCatchUp else {
+            return CatchUpResponse(
+                events: [],
+                nextAfterSeq: afterSeq,
+                hasMore: false,
+                protocolVersion: ProtocolVersion.current
+            )
+        }
+        seededCatchUp = true
+
+        let events = Self.seededReplies.map { seeded in
+            ConversationEvent(
+                eventId: "seeded-final-\(seeded.seq)",
+                seq: seeded.seq,
+                kind: .turnFinal,
+                identity: EventIdentity(
+                    conversationId: conversationId,
+                    submissionId: "seeded-submission-\(seeded.seq)"
+                ),
+                payload: .turnFinal(
+                    TurnFinalPayload(
+                        text: seeded.text,
+                        completion: .completed,
+                        isPartial: false,
+                        truncated: false,
+                        mergedSubmissionIds: ["seeded-submission-\(seeded.seq)"]
+                    )
+                )
+            )
+        }
+
+        return CatchUpResponse(
+            events: events,
+            nextAfterSeq: Self.seededReplies.last?.seq ?? afterSeq,
             hasMore: false,
             protocolVersion: ProtocolVersion.current
         )
@@ -204,7 +250,7 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
                     identity: identity,
                     payload: .turnFinal(
                         TurnFinalPayload(
-                            text: tallReply ? Self.tallReplyText : "Scripted reply.",
+                            text: "Scripted reply.",
                             completion: .completed,
                             isPartial: false,
                             truncated: false,

@@ -31,7 +31,9 @@ enum AccessibilityIdentifier: String, CaseIterable {
 
     case conversationTranscript = "conversation.transcript"
     case conversationEntry = "conversation.entry"
+    case conversationMessageBody = "conversation.messageBody"
     case conversationAgentReply = "conversation.agentReply"
+    case conversationReplyBody = "conversation.replyBody"
     case conversationSystemLine = "conversation.systemLine"
     case conversationReplayGap = "conversation.replayGap"
     case conversationProgress = "conversation.progress"

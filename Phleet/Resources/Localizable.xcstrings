@@ -121,6 +121,18 @@
         }
       }
     },
+    "a11y.conversation.messageBody" : {
+      "comment" : "Spoken label for the person's own selectable message text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your message"
+          }
+        }
+      }
+    },
     "a11y.conversation.outcomeUnknown" : {
       "comment" : "Spoken label for the state where the outcome of a turn cannot be confirmed.",
       "extractionState" : "manual",
@@ -153,6 +165,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Earlier messages are no longer available"
+          }
+        }
+      }
+    },
+    "a11y.conversation.replyBody" : {
+      "comment" : "Spoken label for the agent's selectable reply text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent reply"
           }
         }
       }
