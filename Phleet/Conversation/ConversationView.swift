@@ -113,7 +113,6 @@ struct ConversationView: View {
         // **not** asserted here and is not claimed: the scripted backend only emits in response
         // to a send, so there is no unsolicited event to land on a scrolled-up view. Recorded as
         // a gap on #10 rather than described as behaviour nobody checked.
-        .defaultScrollAnchor(.bottom)
         .scrollDismissesKeyboard(.interactively)
         // Covers the area below short content, so an early thread with two messages in it
         // dismisses on a tap in the empty space the same way a full one does.
