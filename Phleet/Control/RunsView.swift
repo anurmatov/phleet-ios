@@ -93,10 +93,14 @@ struct RunRow: View {
 
     let run: WorkflowRun
 
+    /// One column for the outcome symbol, so the subjects beside them line up.
+    @ScaledMetric(relativeTo: .body) private var symbolColumn: CGFloat = 24
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: run.outcome.symbolName)
                 .foregroundStyle(run.outcome.tint)
+                .frame(width: symbolColumn)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
