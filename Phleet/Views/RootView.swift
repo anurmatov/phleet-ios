@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// Two tabs, for two surfaces that share nothing but the app.
+/// Three tabs, for two surfaces that share nothing but the app.
 ///
-/// **Fleet** is the control plane: it talks to the orchestrator's operator API. **Chat** is the
-/// thread: it talks to the device boundary. They hold different credentials, are set up
-/// separately, and either works without the other — which is why neither is nested inside the
-/// other's navigation.
+/// **Fleet** and **Runs** are the control plane: they talk to the orchestrator's operator API
+/// through one connection. **Chat** is the thread: it talks to the device boundary. The two
+/// surfaces hold different credentials, are set up separately, and either works without the
+/// other — which is why neither is nested inside the other's navigation.
 ///
 /// Fleet is first because it answers the question a person opens the app with: is anything
 /// waiting for me.
@@ -14,6 +14,7 @@ struct RootView: View {
     /// Named `Pane` rather than `Tab`: newer SDKs ship a `Tab` type of their own.
     enum Pane: Hashable {
         case fleet
+        case runs
         case chat
     }
 
@@ -35,6 +36,18 @@ struct RootView: View {
                 }
             }
             .tag(Pane.fleet)
+
+            NavigationStack {
+                runs
+            }
+            .tabItem {
+                Label {
+                    Text("tab.runs")
+                } icon: {
+                    Image(systemName: "list.bullet.rectangle")
+                }
+            }
+            .tag(Pane.runs)
 
             NavigationStack {
                 chat
@@ -61,6 +74,28 @@ struct RootView: View {
             }
         } else {
             ControlSetupView()
+        }
+    }
+
+    // MARK: - Runs
+
+    /// Shares the fleet's connection: without one there is nothing to list, and the place to
+    /// make one is the Fleet tab.
+    @ViewBuilder
+    private var runs: some View {
+        if let fleet = appEnvironment.controlPlane, let runs = appEnvironment.runs {
+            RunsView(fleet: fleet, runs: runs)
+        } else {
+            ContentUnavailableView {
+                Label {
+                    Text("runs.unconnected.title")
+                } icon: {
+                    Image(systemName: "list.bullet.rectangle")
+                }
+            } description: {
+                Text("runs.unconnected.description")
+            }
+            .accessibilityIdentifier(AccessibilityIdentifier.runsUnconnected.identifier)
         }
     }
 

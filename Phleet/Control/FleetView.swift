@@ -33,6 +33,9 @@ struct FleetView: View {
         .navigationDestination(for: AgentRoute.self) { route in
             AgentDetailView(model: model, agentName: route.agentName)
         }
+        .navigationDestination(for: AgentLogRoute.self) { route in
+            AgentLogView(agentName: route.agentName)
+        }
         .refreshable {
             await model.refresh()
         }

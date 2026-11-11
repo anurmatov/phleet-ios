@@ -1,0 +1,9 @@
+[
+  { "eventId": 1, "eventType": "WorkflowStarted", "timestamp": "2026-01-15T09:00:00.0000000+00:00", "activityType": null, "agent": null, "inputSummary": "{\"issue\":41}", "outputSummary": null, "signalName": null, "failureMessage": null },
+  { "eventId": 5, "eventType": "ActivityScheduled", "timestamp": "2026-01-15T09:00:01+00:00", "activityType": "DelegateToAgentActivity", "agent": "builder", "inputSummary": "Implement the synthetic change" },
+  { "eventId": 9, "eventType": "ActivityCompleted", "timestamp": "2026-01-15T09:20:00+00:00", "activityType": "DelegateToAgentActivity", "agent": "builder", "outputSummary": "Opened the synthetic pull request" },
+  { "eventId": 14, "eventType": "ActivityFailed", "timestamp": "2026-01-15T09:25:00+00:00", "activityType": "DelegateToAgentActivity", "agent": "reviewer", "failureMessage": "The synthetic reviewer did not answer" },
+  { "eventId": 20, "eventType": "SignalReceived", "timestamp": "2026-01-15T09:40:00+00:00", "signalName": "merge-approval", "inputSummary": "{\"Decision\":\"approved\"}" },
+  { "eventType": "AnEntryWithNoIdentifierWhichIsDropped" },
+  { "eventId": 30, "eventType": "ANewKindOfEvent", "timestamp": "not-a-timestamp", "somethingNew": [1, 2, 3] }
+]

@@ -20,11 +20,12 @@ hide is itself the leak.
 
 ## Status — a fleet view, and one thread
 
-The app has two tabs that share nothing but the app.
+The app has three tabs over two surfaces that share nothing but the app.
 
-**Fleet** connects to an orchestrator you supply and shows what is waiting for you and how every
-agent is doing. **Chat** enrolls a device against a server you supply, shows the one agent that
-deployment binds, opens a thread, sends messages, and renders what comes back.
+**Fleet** and **Runs** connect to an orchestrator you supply. Fleet shows what is waiting for you
+and how every agent is doing; Runs shows workflow runs in progress and recently closed. **Chat**
+enrolls a device against a server you supply, shows the one agent that deployment binds, opens a
+thread, sends messages, and renders what comes back.
 
 What Fleet does:
 
@@ -37,6 +38,12 @@ What Fleet does:
   orchestrator registers for that gate; a decision takes two taps and is sent with the run and
   gate reference that were on screen, so a stale screen is refused rather than obeyed
 - **agents** — every agent, the ones that are down or late first, with its current task
+- **agent actions** — restart, stop, start, or cancel the task in hand; which are offered follows
+  the agent's state, each takes two taps, and the agent's own state afterwards is the evidence
+- **logs** — the tail of an agent's container log, followed while the screen is open
+- **runs** — in progress, stopped without finishing, and finished in the last day; a run's
+  history; cancel, addressed to that run rather than to its workflow name
+- **start a workflow** — pick a type and fill in its text, number and switch inputs
 - **freshness** — HTTPS reads on a timer are the source of truth; the orchestrator's live socket
   only makes changes arrive sooner, so a socket that cannot pass a proxy costs nothing but speed
 - **no redirects** — a request is never followed to another host, so a proxy's sign-in redirect
@@ -56,10 +63,12 @@ What Chat does:
 
 What it still does not do:
 
-- **no agent actions** — an agent cannot be started, stopped or restarted from the app, and no
-  logs are shown
-- **no workflow management** — runs are listed only when they are waiting for a person; there is
-  no run history, cancel, or start
+- **no provisioning** — an agent that was never provisioned, or needs reprovisioning, is handled
+  from the web dashboard
+- **no terminate or restart of a run** — a run can be cancelled, which asks it to stop; forcing
+  one to stop and restarting one are not offered
+- **no rich workflow inputs** — a workflow that needs a list or a nested value is started from
+  the dashboard
 - **no editing** — instructions, project contexts, workflow definitions, credentials and secret
   bindings stay on the web dashboard
 - **no check of the operator token at setup** — the orchestrator asks for it only on a request
@@ -75,8 +84,8 @@ What it still does not do:
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
 offline. Nothing here has been exercised against a live server yet — and for the Fleet tab that
 includes an access proxy: the orchestrator fixtures are written from its source, not captured
-from a running one, and whether its live socket passes a proxy with service-token headers is
-untested.
+from a running one, and whether its sockets (live state, agent logs) pass a proxy with
+service-token headers is untested.
 
 ## Build and test
 

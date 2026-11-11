@@ -49,6 +49,66 @@
         }
       }
     },
+    "a11y.agentAction.action" : {
+      "comment" : "Spoken label for an agent action button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action"
+          }
+        }
+      }
+    },
+    "a11y.agentAction.cancel" : {
+      "comment" : "Spoken label for the button that goes back to choosing an agent action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose again"
+          }
+        }
+      }
+    },
+    "a11y.agentAction.confirm" : {
+      "comment" : "Spoken label for the button that confirms an agent action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm"
+          }
+        }
+      }
+    },
+    "a11y.agentAction.notice" : {
+      "comment" : "Spoken label for a notice explaining why no agent action is offered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notice"
+          }
+        }
+      }
+    },
+    "a11y.agentAction.state" : {
+      "comment" : "Spoken label for the state of the last agent action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last action"
+          }
+        }
+      }
+    },
     "a11y.agentDetail.fact" : {
       "comment" : "Spoken label for one detail about an agent.",
       "extractionState" : "manual",
@@ -93,6 +153,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Current task"
+          }
+        }
+      }
+    },
+    "a11y.agentLog.line" : {
+      "comment" : "Spoken label for one log line.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log line"
+          }
+        }
+      }
+    },
+    "a11y.agentLog.open" : {
+      "comment" : "Spoken label for the link that opens an agent's log.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logs"
+          }
+        }
+      }
+    },
+    "a11y.agentLog.reload" : {
+      "comment" : "Spoken label for the button that reloads the log.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reload the log"
+          }
+        }
+      }
+    },
+    "a11y.agentLog.state" : {
+      "comment" : "Spoken label for whether the log is being followed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log state"
           }
         }
       }
@@ -769,6 +877,258 @@
         }
       }
     },
+    "a11y.run.cancel" : {
+      "comment" : "Spoken label for the button that starts cancelling a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel run"
+          }
+        }
+      }
+    },
+    "a11y.run.cancelConfirm" : {
+      "comment" : "Spoken label for the button that confirms cancelling a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel this run"
+          }
+        }
+      }
+    },
+    "a11y.run.cancelKeep" : {
+      "comment" : "Spoken label for the button that backs out of cancelling a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep it running"
+          }
+        }
+      }
+    },
+    "a11y.run.cancelState" : {
+      "comment" : "Spoken label for the state of a cancel request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel request"
+          }
+        }
+      }
+    },
+    "a11y.run.event" : {
+      "comment" : "Spoken label for one entry in a run's history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History entry"
+          }
+        }
+      }
+    },
+    "a11y.run.gate" : {
+      "comment" : "Spoken label for the gate a run is waiting at.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for you"
+          }
+        }
+      }
+    },
+    "a11y.run.status" : {
+      "comment" : "Spoken label for a run's state.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "a11y.runs.run" : {
+      "comment" : "Spoken label for a run row.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run"
+          }
+        }
+      }
+    },
+    "a11y.runs.start" : {
+      "comment" : "Spoken label for the button that starts a workflow.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a workflow"
+          }
+        }
+      }
+    },
+    "a11y.runs.unconnected" : {
+      "comment" : "Spoken label shown on the runs tab when there is no connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "a11y.start.close" : {
+      "comment" : "Spoken label for the button that closes the start-workflow sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "a11y.start.done" : {
+      "comment" : "Spoken label for the button that closes the sheet after a start.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "a11y.start.field" : {
+      "comment" : "Spoken label for one workflow input.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Input"
+          }
+        }
+      }
+    },
+    "a11y.start.state" : {
+      "comment" : "Spoken label for the result of starting a workflow.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start result"
+          }
+        }
+      }
+    },
+    "a11y.start.submit" : {
+      "comment" : "Spoken label for the button that starts the workflow.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start the workflow"
+          }
+        }
+      }
+    },
+    "a11y.start.type" : {
+      "comment" : "Spoken label for a workflow type that can be started.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workflow"
+          }
+        }
+      }
+    },
+    "action.failure.accessDenied" : {
+      "comment" : "The access proxy refused an action request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The access proxy refused this device, so nothing was done."
+          }
+        }
+      }
+    },
+    "action.failure.outcomeUnknown" : {
+      "comment" : "An action request did not complete and may or may not have taken effect.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request did not complete. It may or may not have taken effect, so check the current state before trying again."
+          }
+        }
+      }
+    },
+    "action.failure.readOnly" : {
+      "comment" : "An action was refused because the connection is read-only.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This connection is read-only, so nothing was sent."
+          }
+        }
+      }
+    },
+    "action.failure.refused" : {
+      "comment" : "The orchestrator refused an action for another reason.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator did not accept this."
+          }
+        }
+      }
+    },
+    "action.failure.tokenRejected" : {
+      "comment" : "The orchestrator refused the operator token for an action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator refused the operator token, so nothing was done. Remove the connection and set it up again with the right token."
+          }
+        }
+      }
+    },
     "agent.health.down" : {
       "comment" : "Agent state: no heartbeat for a long time.",
       "extractionState" : "manual",
@@ -921,6 +1281,150 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unnamed agent"
+          }
+        }
+      }
+    },
+    "agentAction.cancel" : {
+      "comment" : "Button that goes back to choosing an agent action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose again"
+          }
+        }
+      }
+    },
+    "agentAction.cancelTask" : {
+      "comment" : "Action: ask an agent to drop its current task.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel current task"
+          }
+        }
+      }
+    },
+    "agentAction.disruptive.help" : {
+      "comment" : "Warns that an agent action interrupts the agent's work.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This interrupts whatever the agent is doing, and cannot be undone from here."
+          }
+        }
+      }
+    },
+    "agentAction.notice.none" : {
+      "comment" : "No action applies to an agent that was never provisioned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This agent has not been provisioned. That is done from the dashboard."
+          }
+        }
+      }
+    },
+    "agentAction.notice.readOnly" : {
+      "comment" : "Agent actions are unavailable on a read-only connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This connection is read-only, so it cannot change an agent."
+          }
+        }
+      }
+    },
+    "agentAction.restart" : {
+      "comment" : "Action: restart an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restart"
+          }
+        }
+      }
+    },
+    "agentAction.start" : {
+      "comment" : "Action: start a stopped agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
+          }
+        }
+      }
+    },
+    "agentAction.state.failed" : {
+      "comment" : "Prefix before the name of an agent action that did not land.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not done:"
+          }
+        }
+      }
+    },
+    "agentAction.state.requested" : {
+      "comment" : "Prefix before the name of an agent action the orchestrator accepted.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Requested:"
+          }
+        }
+      }
+    },
+    "agentAction.state.sending" : {
+      "comment" : "Prefix before the name of an agent action that is being sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending:"
+          }
+        }
+      }
+    },
+    "agentAction.stop" : {
+      "comment" : "Action: stop an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        }
+      }
+    },
+    "agentAction.title" : {
+      "comment" : "Section heading for what can be done to an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actions"
           }
         }
       }
@@ -1089,6 +1593,90 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Work"
+          }
+        }
+      }
+    },
+    "agentLog.open" : {
+      "comment" : "Link that opens an agent's log.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logs"
+          }
+        }
+      }
+    },
+    "agentLog.state.connecting" : {
+      "comment" : "Log state: connecting.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting…"
+          }
+        }
+      }
+    },
+    "agentLog.state.ended" : {
+      "comment" : "Log state: the connection ended after some lines arrived.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The log stopped. Reload to follow it again."
+          }
+        }
+      }
+    },
+    "agentLog.state.following" : {
+      "comment" : "Log state: following new lines as they arrive.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Following"
+          }
+        }
+      }
+    },
+    "agentLog.state.unavailable" : {
+      "comment" : "Log state: the connection ended before any line arrived.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No log is available for this agent right now."
+          }
+        }
+      }
+    },
+    "agentLog.title" : {
+      "comment" : "Title of the agent log screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logs"
+          }
+        }
+      }
+    },
+    "agentLog.truncated" : {
+      "comment" : "Shown above a log whose earliest received lines were dropped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Earlier lines are not shown."
           }
         }
       }
@@ -2725,6 +3313,138 @@
         }
       }
     },
+    "run.cancel" : {
+      "comment" : "Button that starts cancelling a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel run"
+          }
+        }
+      }
+    },
+    "run.cancel.confirm" : {
+      "comment" : "Button that confirms cancelling a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel this run"
+          }
+        }
+      }
+    },
+    "run.cancel.help" : {
+      "comment" : "Explains what cancelling a run does.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelling asks the workflow to stop. It winds down in its own time and cannot be resumed from here."
+          }
+        }
+      }
+    },
+    "run.cancel.keep" : {
+      "comment" : "Button that backs out of cancelling a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep it running"
+          }
+        }
+      }
+    },
+    "run.cancel.readOnly" : {
+      "comment" : "Cancelling is unavailable on a read-only connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This connection is read-only, so it cannot cancel a run."
+          }
+        }
+      }
+    },
+    "run.cancel.requested" : {
+      "comment" : "Shown after the orchestrator accepted a cancel request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel requested. The run stops in its own time."
+          }
+        }
+      }
+    },
+    "run.closed" : {
+      "comment" : "Label for when a run closed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed"
+          }
+        }
+      }
+    },
+    "run.gate.title" : {
+      "comment" : "Section heading for a gate a run is waiting at.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for you"
+          }
+        }
+      }
+    },
+    "run.history.empty" : {
+      "comment" : "Shown when a run has no history entries.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing has happened in this run yet."
+          }
+        }
+      }
+    },
+    "run.history.failed" : {
+      "comment" : "Shown when a run's history could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The history could not be read. Pull down to try again."
+          }
+        }
+      }
+    },
+    "run.history.title" : {
+      "comment" : "Section heading for a run's history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History"
+          }
+        }
+      }
+    },
     "run.issue" : {
       "comment" : "Short prefix before an issue number.",
       "extractionState" : "manual",
@@ -2737,6 +3457,78 @@
         }
       }
     },
+    "run.outcome.canceled" : {
+      "comment" : "Run state: cancelled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancelled"
+          }
+        }
+      }
+    },
+    "run.outcome.completed" : {
+      "comment" : "Run state: finished.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finished"
+          }
+        }
+      }
+    },
+    "run.outcome.failed" : {
+      "comment" : "Run state: failed, timed out or was terminated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed"
+          }
+        }
+      }
+    },
+    "run.outcome.noLongerRunning" : {
+      "comment" : "Run state: it was running when opened and is no longer listed as running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer running"
+          }
+        }
+      }
+    },
+    "run.outcome.other" : {
+      "comment" : "Run state: closed in a way the app does not recognise.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed"
+          }
+        }
+      }
+    },
+    "run.outcome.running" : {
+      "comment" : "Run state: in progress.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        }
+      }
+    },
     "run.pullRequest" : {
       "comment" : "Short prefix before a pull request number.",
       "extractionState" : "manual",
@@ -2745,6 +3537,306 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "PR"
+          }
+        }
+      }
+    },
+    "run.started" : {
+      "comment" : "Label for when a run started.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started"
+          }
+        }
+      }
+    },
+    "run.type" : {
+      "comment" : "Label for a run's workflow type.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Workflow"
+          }
+        }
+      }
+    },
+    "run.workflowId" : {
+      "comment" : "Label for a run's workflow identifier.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identifier"
+          }
+        }
+      }
+    },
+    "runs.finished.empty" : {
+      "comment" : "Shown when no run finished recently.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing finished in the last day."
+          }
+        }
+      }
+    },
+    "runs.finished.title" : {
+      "comment" : "Section heading for runs that finished.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finished"
+          }
+        }
+      }
+    },
+    "runs.running.empty" : {
+      "comment" : "Shown when no run is in progress.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is running."
+          }
+        }
+      }
+    },
+    "runs.running.title" : {
+      "comment" : "Section heading for runs in progress.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        }
+      }
+    },
+    "runs.stopped.empty" : {
+      "comment" : "Shown when no run failed or was cancelled recently.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing failed or was cancelled in the last day."
+          }
+        }
+      }
+    },
+    "runs.stopped.title" : {
+      "comment" : "Section heading for runs that closed without finishing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped without finishing"
+          }
+        }
+      }
+    },
+    "runs.title" : {
+      "comment" : "Title of the runs screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runs"
+          }
+        }
+      }
+    },
+    "runs.unconnected.description" : {
+      "comment" : "Explains where to connect to an orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to your fleet on the Fleet tab to see its runs."
+          }
+        }
+      }
+    },
+    "runs.unconnected.title" : {
+      "comment" : "Title shown on the runs tab when there is no orchestrator connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "start.close" : {
+      "comment" : "Button that closes the start-workflow sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "start.done" : {
+      "comment" : "Button that closes the sheet after a workflow started.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "start.field.optional" : {
+      "comment" : "Placeholder for an optional workflow input.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional"
+          }
+        }
+      }
+    },
+    "start.field.required" : {
+      "comment" : "Placeholder for a required workflow input.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Required"
+          }
+        }
+      }
+    },
+    "start.fields.help" : {
+      "comment" : "Explains which inputs the form offers.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only text, number and switch inputs are offered here. Start a workflow that needs anything else from the dashboard."
+          }
+        }
+      }
+    },
+    "start.fields.none" : {
+      "comment" : "Shown when a workflow type asks for no simple inputs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This workflow asks for nothing that can be entered here."
+          }
+        }
+      }
+    },
+    "start.fields.title" : {
+      "comment" : "Section heading for a workflow's inputs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inputs"
+          }
+        }
+      }
+    },
+    "start.invalid.missing" : {
+      "comment" : "Prefix before the name of a required input that was left empty.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a value for"
+          }
+        }
+      }
+    },
+    "start.invalid.number" : {
+      "comment" : "Prefix before the name of a number input that does not hold a number.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a number for"
+          }
+        }
+      }
+    },
+    "start.state.started" : {
+      "comment" : "Shown after a workflow was started.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started"
+          }
+        }
+      }
+    },
+    "start.submit" : {
+      "comment" : "Button that starts the workflow.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
+          }
+        }
+      }
+    },
+    "start.title" : {
+      "comment" : "Title of the start-workflow sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a workflow"
+          }
+        }
+      }
+    },
+    "start.types.empty" : {
+      "comment" : "Shown when the orchestrator lists no workflow types.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "There are no workflows to start."
           }
         }
       }
@@ -2769,6 +3861,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fleet"
+          }
+        }
+      }
+    },
+    "tab.runs" : {
+      "comment" : "Tab that shows workflow runs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Runs"
           }
         }
       }

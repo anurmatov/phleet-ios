@@ -8,10 +8,11 @@ simplification of each one fails quietly.
 A native iOS client for the public [phleet](https://github.com/anurmatov/phleet) platform,
 targeting iOS 17.0 and built with SwiftUI.
 
-It has two tabs. **Chat** enrolls a device against a server you supply, shows the one agent that
-deployment binds, opens a thread, sends messages, and renders what comes back. **Fleet** connects
-to an orchestrator and shows what is waiting for a person and how every agent is doing; it is
-described under [The control plane](#the-control-plane). For the thread, the wire contract is
+It has three tabs over two surfaces. **Chat** enrolls a device against a server you supply, shows the one agent that
+deployment binds, opens a thread, sends messages, and renders what comes back. **Fleet** and
+**Runs** connect to an orchestrator: what is waiting for a person, how every agent is doing, and
+the workflow runs in progress and recently closed. They are described under
+[The control plane](#the-control-plane). For the thread, the wire contract is
 [`docs/first-party-api.md`](https://github.com/anurmatov/phleet/blob/main/docs/first-party-api.md)
 (the north boundary) and
 [`docs/conversation-protocol.md`](https://github.com/anurmatov/phleet/blob/main/docs/conversation-protocol.md)
@@ -27,8 +28,8 @@ Not in this slice, and not partially present either:
 - no steer or cancel interface — the routes exist, this app does not surface them
 - no local persistence of conversation history: no database, no file store, no user defaults
 - no QR enrollment
-- no agent actions (start, stop, restart, logs), no run history, and no editing of instructions,
-  contexts, workflow definitions or secrets — those stay on the web dashboard
+- no provisioning, no terminate or restart of a run, and no editing of instructions, contexts,
+  workflow definitions or secrets — those stay on the web dashboard
 
 The app also ships **no server address**. There is no `Info.plist` key, no `.xcconfig` key, and
 no source literal holding a host.
@@ -211,10 +212,16 @@ device is then unreachable.
 ```
 AppEnvironment
   ├── ControlCredentialStore        KeychainControlCredentialStore in the app
-  ├── ControlAPIClient              three reads and one write
-  ├── ControlLiveStream             the orchestrator's socket, as a sequence
-  └── ControlPlaneModel             built when a connection exists; the Fleet tab's state
+  ├── ControlAPIClient              the operator routes this app uses
+  ├── ControlLiveStream             the orchestrator's state socket, as a sequence
+  ├── AgentLogStream                one agent's log socket, as a sequence
+  ├── ControlPlaneModel             agents, runs in progress, gates, agent actions
+  └── RunsModel                     closed runs, run history, cancel, start
 ```
+
+The two models exist exactly when a connection does and are torn down together. Runs in progress
+live only in `ControlPlaneModel`, which already keeps them fresh; `RunsModel` holds what changes
+slowly and is read on demand. One run never has two states that could disagree.
 
 ### The operator token rides only on writes
 
@@ -267,6 +274,38 @@ workflow. The model reads again, and the gate is either still there or gone.
 
 Every decision takes two taps — choose, then send — because an approval sent by a thumb reaching
 for something else cannot be undone from here.
+
+### An action is "requested", and the state is the evidence
+
+Restart, stop, start and cancel-task answer when the orchestrator has taken the request, not when
+the agent has changed. The model records `requested`, reads the fleet again straight away, and
+the agent detail screen renders the agent's **current** state from the model rather than the row
+that was tapped — so what a person sees after a restart is the agent coming up, not a message
+claiming it did.
+
+Which actions are offered follows the agent's state (`AgentAction.available(for:)`). An agent
+with no heartbeat is offered restart rather than start: "no heartbeat" may mean hung or stopped,
+and a restart is right for both.
+
+### A cancel names the run
+
+`cancelRun` sends the run identifier as well as the workflow identifier. A workflow restarted
+under the same name is a different run, and a screen still showing the old one must not cancel
+the new one.
+
+### A log is a tail, and it does not silently resume
+
+`LogTail` keeps the newest five hundred lines and counts what fell off the front, so the screen
+can say that the top is not the beginning. When the socket ends the log stops and says so;
+following again is a reload, which starts from the orchestrator's replay. A log that reconnected
+on its own would show a gap as if it were continuous.
+
+### Starting offers only inputs a form can produce
+
+A workflow type's inputs are read from its JSON Schema. Text, number and boolean properties
+become fields; an array or a nested object is left out rather than rendered as a text box that
+could only produce the wrong type. An optional input left empty is omitted from the request, not
+sent as an empty string, so a workflow that tests "was this given" is not told yes.
 
 ### Decoding is forgiving, addressing is strict
 

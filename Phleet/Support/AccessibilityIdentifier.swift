@@ -79,6 +79,36 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case agentDetailFact = "agentDetail.fact"
     case agentDetailGone = "agentDetail.gone"
 
+    case agentAction = "agentAction.action"
+    case agentActionConfirm = "agentAction.confirm"
+    case agentActionCancel = "agentAction.cancel"
+    case agentActionNotice = "agentAction.notice"
+    case agentActionState = "agentAction.state"
+
+    case agentLogOpen = "agentLog.open"
+    case agentLogLine = "agentLog.line"
+    case agentLogState = "agentLog.state"
+    case agentLogReload = "agentLog.reload"
+
+    case runsUnconnected = "runs.unconnected"
+    case runsRun = "runs.run"
+    case runsStart = "runs.start"
+
+    case runStatus = "run.status"
+    case runGate = "run.gate"
+    case runCancel = "run.cancel"
+    case runCancelConfirm = "run.cancelConfirm"
+    case runCancelKeep = "run.cancelKeep"
+    case runCancelState = "run.cancelState"
+    case runEvent = "run.event"
+
+    case startType = "start.type"
+    case startField = "start.field"
+    case startSubmit = "start.submit"
+    case startState = "start.state"
+    case startDone = "start.done"
+    case startClose = "start.close"
+
     case connectionAddress = "connection.address"
     case connectionMode = "connection.mode"
     case connectionRemove = "connection.remove"

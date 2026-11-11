@@ -1,0 +1,51 @@
+[
+  {
+    "workflowId": "pr-synthetic-60",
+    "runId": "run-closed-1",
+    "workflowType": "UwePrImplementationWorkflow",
+    "namespace": "fleet",
+    "status": "Completed",
+    "startTime": "2026-01-15T06:00:00+00:00",
+    "closeTime": "2026-01-15T07:30:00.5000000+00:00",
+    "prNumber": 60,
+    "repo": "example/project",
+    "phase": "done"
+  },
+  {
+    "workflowId": "pr-synthetic-61",
+    "runId": "run-closed-2",
+    "workflowType": "UwePrImplementationWorkflow",
+    "namespace": "fleet",
+    "status": "Failed",
+    "startTime": "2026-01-15T05:00:00+00:00",
+    "closeTime": "2026-01-15T05:10:00+00:00",
+    "prNumber": 61,
+    "repo": "example/project"
+  },
+  {
+    "workflowId": "design-synthetic-9",
+    "runId": "run-closed-3",
+    "workflowType": "UweDesignWorkflow",
+    "namespace": "fleet",
+    "status": "Canceled",
+    "startTime": "2026-01-15T04:00:00+00:00",
+    "closeTime": "2026-01-15T04:05:00+00:00",
+    "issueNumber": 9,
+    "repo": "example/project"
+  },
+  {
+    "workflowId": "advisory-synthetic-2",
+    "runId": "run-closed-4",
+    "workflowType": "ExternalAdvisoryWorkflow",
+    "namespace": "fleet",
+    "status": "TimedOut",
+    "closeTime": "2026-01-15T03:00:00+00:00"
+  },
+  {
+    "workflowId": "advisory-synthetic-3",
+    "runId": "run-closed-5",
+    "workflowType": "ExternalAdvisoryWorkflow",
+    "namespace": "fleet",
+    "status": "ContinuedAsNew"
+  }
+]

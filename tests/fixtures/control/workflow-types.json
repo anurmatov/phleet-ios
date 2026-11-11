@@ -1,0 +1,24 @@
+[
+  {
+    "name": "UweDesignWorkflow",
+    "description": "UWE: UweDesignWorkflow",
+    "namespace": "fleet",
+    "taskQueue": "fleet",
+    "inputSchema": "{\"type\":\"object\",\"properties\":{\"repo\":{\"type\":\"string\",\"description\":\"owner/name\"},\"issueNumber\":{\"type\":\"integer\"},\"urgent\":{\"type\":\"boolean\"},\"labels\":{\"type\":\"array\"},\"options\":{\"type\":\"object\"}},\"required\":[\"repo\",\"issueNumber\"]}"
+  },
+  {
+    "name": "NoInputWorkflow",
+    "description": null,
+    "namespace": "fleet",
+    "taskQueue": null,
+    "inputSchema": null
+  },
+  {
+    "name": "BrokenSchemaWorkflow",
+    "namespace": "fleet",
+    "inputSchema": "this is not a schema"
+  },
+  {
+    "description": "A type with no name, which is dropped"
+  }
+]
