@@ -54,6 +54,7 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case controlSetupClientSecretField = "controlSetup.clientSecretField"
     case controlSetupServiceTokenMessage = "controlSetup.serviceTokenMessage"
     case controlSetupTokenField = "controlSetup.tokenField"
+    case controlSetupTokenMessage = "controlSetup.tokenMessage"
     case controlSetupConnect = "controlSetup.connect"
     case controlSetupFormMessage = "controlSetup.formMessage"
     case controlSetupCredentialUnavailable = "controlSetup.credentialUnavailable"
@@ -111,6 +112,7 @@ enum AccessibilityIdentifier: String, CaseIterable {
 
     case connectionAddress = "connection.address"
     case connectionMode = "connection.mode"
+    case connectionTokenNote = "connection.tokenNote"
     case connectionRemove = "connection.remove"
     case connectionRemoveConfirm = "connection.removeConfirm"
     case connectionRemoveCancel = "connection.removeCancel"

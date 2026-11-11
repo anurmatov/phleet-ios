@@ -213,6 +213,39 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         return started.workflowId
     }
 
+    private struct TokenStatus: Decodable {
+        let status: String?
+    }
+
+    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.operatorTokenPath,
+            presentsOperatorToken: true
+        )
+        do {
+            let data = try await perform(request)
+            let answer: TokenStatus = try Self.decode(data, decoder)
+            return Self.tokenCheck(status: answer.status)
+        } catch ControlAPIError.unauthorized {
+            return .rejected
+        } catch ControlAPIError.refused(let status, _) where status == 404 || status == 405 {
+            // An orchestrator from before this route existed. That is not a refusal of the token.
+            return .unsupported
+        }
+    }
+
+    /// Reads the route's `status`. Anything this build does not recognise is "nothing was
+    /// learned", never "accepted": a check that assumed success would be worse than no check.
+    static func tokenCheck(status: String?) -> OperatorTokenCheck {
+        switch status {
+        case "accepted"?: return .accepted
+        case "not_required"?: return .notRequired
+        default: return .unsupported
+        }
+    }
+
     // MARK: - Plumbing
 
     private func perform(_ request: URLRequest) async throws -> Data {

@@ -93,7 +93,7 @@ final class ControlSetupModelTests: XCTestCase {
 
         let credential = try await XCTUnwrapAsync(model.connect())
 
-        XCTAssertEqual(api.calls, [.agents])
+        XCTAssertEqual(api.calls, [.agents, .checkOperatorToken])
         XCTAssertEqual(api.connections.first, credential.connection)
         XCTAssertEqual(
             credential,
@@ -152,6 +152,119 @@ final class ControlSetupModelTests: XCTestCase {
         await model.connect()
 
         XCTAssertNil(model.formMessage)
+    }
+
+    // MARK: - The operator token
+
+    func testAnAcceptedTokenIsStoredAsVerified() async throws {
+        let api = FakeControlAPI()
+        let store = InMemoryControlCredentialStore()
+        let model = makeModel(api: api, store: store)
+
+        _ = try await XCTUnwrapAsync(model.connect())
+
+        XCTAssertEqual(model.tokenVerification, .verified)
+        XCTAssertEqual(api.connections.last?.operatorToken, "operator-token-1")
+        XCTAssertEqual(store.saveCount, 1)
+    }
+
+    func testARejectedTokenStoresNothingAndIsNamedAgainstTheTokenField() async {
+        let api = FakeControlAPI()
+        api.tokenCheckResult = .success(.rejected)
+        let store = InMemoryControlCredentialStore()
+        let model = makeModel(api: api, store: store)
+
+        let credential = await model.connect()
+
+        XCTAssertNil(credential)
+        XCTAssertEqual(model.tokenMessage, .operatorTokenRejected)
+        XCTAssertNil(model.formMessage, "the address and the proxy were fine")
+        XCTAssertEqual(store.saveCount, 0, "a token the orchestrator refused is never stored")
+        XCTAssertFalse(model.isConnecting)
+    }
+
+    func testAnOrchestratorThatCannotCheckStillConnectsAndSaysTheTokenIsUnverified() async throws {
+        // An orchestrator from before the route existed. Not a refusal of the token.
+        let api = FakeControlAPI()
+        api.tokenCheckResult = .success(.unsupported)
+        let store = InMemoryControlCredentialStore()
+        let model = makeModel(api: api, store: store)
+
+        _ = try await XCTUnwrapAsync(model.connect())
+
+        XCTAssertEqual(model.tokenVerification, .unverified)
+        XCTAssertEqual(store.saveCount, 1)
+    }
+
+    func testACheckThatCouldNotCompleteDoesNotBlockSetup() async throws {
+        let api = FakeControlAPI()
+        api.tokenCheckResult = .failure(ControlAPIError.transport("lost"))
+        let model = makeModel(api: api)
+
+        _ = try await XCTUnwrapAsync(model.connect())
+
+        XCTAssertEqual(model.tokenVerification, .unverified)
+    }
+
+    func testAnUngatedOrchestratorIsReportedAsSuchNotAsVerified() async throws {
+        let api = FakeControlAPI()
+        api.tokenCheckResult = .success(.notRequired)
+        let model = makeModel(api: api)
+
+        _ = try await XCTUnwrapAsync(model.connect())
+
+        XCTAssertEqual(model.tokenVerification, .notRequired)
+    }
+
+    func testAReadOnlyConnectionAsksNothingAboutAToken() async throws {
+        let api = FakeControlAPI()
+        let model = makeModel(api: api)
+        model.operatorToken = ""
+
+        _ = try await XCTUnwrapAsync(model.connect())
+
+        XCTAssertEqual(api.calls, [.agents])
+        XCTAssertEqual(model.tokenVerification, .noToken)
+    }
+
+    func testTheCheckIsTheOneReadThatPresentsTheOperatorToken() throws {
+        let check = try ControlRequest.make(
+            connection: .fixture,
+            method: "GET",
+            percentEncodedPath: ControlRequest.operatorTokenPath,
+            presentsOperatorToken: true
+        )
+        XCTAssertEqual(check.url?.absoluteString, "https://fleet.example.invalid/api/operator-token")
+        XCTAssertEqual(check.value(forHTTPHeaderField: "Authorization"), "Bearer operator-token-1")
+        XCTAssertEqual(check.httpMethod, "GET")
+
+        // Every other read still leaves it out.
+        let ordinary = try ControlRequest.make(
+            connection: .fixture,
+            method: "GET",
+            percentEncodedPath: "/api/agents"
+        )
+        XCTAssertNil(ordinary.value(forHTTPHeaderField: "Authorization"))
+
+        // And without a token there is nothing to check.
+        XCTAssertThrowsError(
+            try ControlRequest.make(
+                connection: .readOnlyFixture,
+                method: "GET",
+                percentEncodedPath: ControlRequest.operatorTokenPath,
+                presentsOperatorToken: true
+            )
+        ) { error in
+            XCTAssertEqual(error as? ControlAPIError, .readOnly)
+        }
+    }
+
+    func testOnlyTheTwoKnownAnswersCountAndAnythingElseIsNothingLearned() {
+        XCTAssertEqual(URLSessionControlAPIClient.tokenCheck(status: "accepted"), .accepted)
+        XCTAssertEqual(URLSessionControlAPIClient.tokenCheck(status: "not_required"), .notRequired)
+        // Never "accepted" by default: a check that assumed success would be worse than none.
+        XCTAssertEqual(URLSessionControlAPIClient.tokenCheck(status: "something-new"), .unsupported)
+        XCTAssertEqual(URLSessionControlAPIClient.tokenCheck(status: nil), .unsupported)
     }
 
     // MARK: - The credential

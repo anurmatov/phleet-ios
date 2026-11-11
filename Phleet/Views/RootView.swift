@@ -69,7 +69,11 @@ struct RootView: View {
     private var fleet: some View {
         if let model = appEnvironment.controlPlane,
            let credential = appEnvironment.controlCredential {
-            FleetView(model: model, credential: credential) {
+            FleetView(
+                model: model,
+                credential: credential,
+                tokenVerification: appEnvironment.controlTokenVerification
+            ) {
                 appEnvironment.removeControlConnection()
             }
         } else {

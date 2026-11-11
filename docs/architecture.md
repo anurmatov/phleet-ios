@@ -231,9 +231,21 @@ not sent cannot be logged in transit. A connection stored without an operator to
 **read-only**: it cannot build a write at all, and the interface says so instead of offering a
 control that fails.
 
-Setup cannot verify the operator token, and does not pretend to. There is no request that needs
-the token and changes nothing, and making a write to learn whether writes are allowed is not a
-check. A wrong token is reported the first time a decision is sent.
+Setup checks the operator token with `GET /api/operator-token`, the one read that presents it
+(`presentsOperatorToken`) because its whole purpose is to ask whether the token is right. A token
+the orchestrator rejects is refused at setup and nothing is stored. Three other answers do not
+block setup, and each is reported as what it is rather than as "verified":
+
+| Answer | Meaning | Stored as |
+|---|---|---|
+| `accepted` | it is the operator token | verified |
+| `not_required` | the orchestrator does not gate writes; the token was checked against nothing | not required |
+| `404`, or the check did not complete | an orchestrator without the route, or a lost request | unverified |
+
+An unrecognised answer is "nothing was learned", never "accepted". Against an orchestrator
+without the route the app does not fall back to making a write to find out: that is not a check.
+The result is kept for the launch that made it and shown on the connection sheet; it is not
+stored, because after a relaunch the honest answer is "not checked since".
 
 ### No redirect is ever followed
 

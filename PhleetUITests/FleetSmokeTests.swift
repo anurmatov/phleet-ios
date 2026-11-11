@@ -79,6 +79,33 @@ final class FleetSmokeTests: XCTestCase {
         XCTAssertFalse(element(in: app, .fleetGate).exists)
     }
 
+    /// A token the orchestrator rejects is refused at setup, where it can be retyped, and
+    /// nothing is stored: the form is still there and the fleet never appears.
+    func testAnOperatorTokenTheOrchestratorRejectsIsRefusedAtSetup() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [LaunchArguments.scriptedBackend]
+        app.launch()
+
+        let token = element(in: app, .controlSetupTokenField)
+        XCTAssertTrue(token.waitForExistence(timeout: 30), "the setup form never appeared")
+        token.tap()
+        // The one value the scripted orchestrator rejects; see `ScriptedControlBackend`.
+        token.typeText("a-token-the-scripted-orchestrator-rejects")
+
+        let address = element(in: app, .controlSetupAddressField)
+        address.tap()
+        address.typeText("fleet.example.invalid\n")
+
+        element(in: app, .controlSetupConnect).tap()
+
+        XCTAssertTrue(
+            element(in: app, .controlSetupTokenMessage).waitForExistence(timeout: 30),
+            "a rejected token was not reported against the token field"
+        )
+        XCTAssertFalse(element(in: app, .fleetAgent).exists, "a rejected token still connected")
+        XCTAssertTrue(element(in: app, .controlSetupConnect).exists)
+    }
+
     private func element(
         in app: XCUIApplication,
         _ identifier: AccessibilityIdentifier

@@ -79,6 +79,23 @@ protocol ControlAPIClient {
         _ connection: ControlConnection,
         body: StartWorkflowBody
     ) async throws -> String
+
+    /// `GET /api/operator-token` — whether the orchestrator accepts this connection's operator
+    /// token. Changes nothing.
+    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck
+}
+
+/// What the orchestrator said about the operator token.
+enum OperatorTokenCheck: Equatable, Sendable {
+    /// It is the operator token.
+    case accepted
+    /// It is not.
+    case rejected
+    /// The orchestrator has no operator token configured, so writes are not gated at all. The
+    /// token that was sent was not checked against anything.
+    case notRequired
+    /// The orchestrator has no such route: it predates the check. Nothing was learned.
+    case unsupported
 }
 
 /// How control-plane requests are put on the wire.
@@ -97,15 +114,19 @@ enum ControlRequest {
     /// - The service token goes on **every** request: the proxy in front authenticates reads too.
     /// - The operator token goes on a request only when it changes something. The orchestrator
     ///   does not ask for it on a read, and a secret that is not sent cannot be logged in transit.
+    /// - The one exception is `presentsOperatorToken`: the read whose whole purpose is to ask
+    ///   whether the token is right.
     static func make(
         connection: ControlConnection,
         method: String,
         percentEncodedPath: String,
         query: [URLQueryItem] = [],
-        body: Data? = nil
+        body: Data? = nil,
+        presentsOperatorToken: Bool = false
     ) throws -> URLRequest {
         let changesState = method.uppercased() != "GET"
-        if changesState && connection.operatorToken == nil {
+        let needsOperatorToken = changesState || presentsOperatorToken
+        if needsOperatorToken && connection.operatorToken == nil {
             throw ControlAPIError.readOnly
         }
 
@@ -125,7 +146,7 @@ enum ControlRequest {
                 forHTTPHeaderField: accessClientSecretHeader
             )
         }
-        if changesState, let operatorToken = connection.operatorToken {
+        if needsOperatorToken, let operatorToken = connection.operatorToken {
             request.setValue("Bearer " + operatorToken, forHTTPHeaderField: "Authorization")
         }
         if let body {
@@ -167,6 +188,8 @@ enum ControlRequest {
     static func signalPath(namespace: String, workflowId: String) -> String {
         "/api/workflows/" + escaped(namespace) + "/signal/" + escaped(workflowId)
     }
+
+    static let operatorTokenPath = "/api/operator-token"
 
     static func agentActionPath(agentName: String, action: AgentAction) -> String {
         "/api/agents/" + escaped(agentName) + "/" + action.rawValue
