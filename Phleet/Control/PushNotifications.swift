@@ -98,6 +98,12 @@ final class PushNotificationsModel {
     /// Non-nil while notifications are wanted. Mirrors what is stored with the connection.
     private(set) var deviceId: String?
 
+    /// Moves on with every change of mind and every registration sent. A registration that
+    /// finishes after it has moved on was made for a wish that no longer stands, so it changes
+    /// nothing: it cannot turn notifications back on, report a stale failure, or clear a newer
+    /// wish.
+    private var generation = 0
+
     init(
         api: ControlAPIClient,
         system: PushSystem,
@@ -144,6 +150,8 @@ final class PushNotificationsModel {
             return
         }
 
+        // A new wish always gets a new identifier, so taking back a registration made for an
+        // older one can never remove this one.
         let id = deviceId ?? newDeviceId()
         deviceId = id
         // Stored before the token arrives: the wish to be notified is the person's, and it
@@ -156,10 +164,17 @@ final class PushNotificationsModel {
     /// Apple issued a token. Tells the orchestrator, if notifications are wanted.
     func handleDeviceToken(_ token: String) async {
         guard let deviceId else { return }
+        generation += 1
+        let sent = generation
         do {
             try await api.registerPushDevice(connection, deviceId: deviceId, token: token)
+            guard sent == generation else {
+                await withdrawLateRegistration(of: deviceId)
+                return
+            }
             state = .on
         } catch {
+            guard sent == generation else { return }
             switch error as? ControlAPIError {
             case .refused(let status, let message)? where status == 503 && message == "push_disabled":
                 // Not a failure to retry: the orchestrator will not send. Saying "on" here
@@ -181,25 +196,37 @@ final class PushNotificationsModel {
     }
 
     /// Turns notifications off. The phone stops receiving at once, whether or not the
-    /// orchestrator could be told to forget it.
+    /// orchestrator could be told to forget it. The wish goes before anything is awaited, so a
+    /// registration finishing meanwhile finds it already gone.
     func turnOff() async {
-        system.unregisterForRemoteNotifications()
-        if let deviceId {
-            try? await api.unregisterPushDevice(connection, deviceId: deviceId)
-        }
+        let unwanted = deviceId
+        generation += 1
         deviceId = nil
         persist(nil)
         state = .off
+        system.unregisterForRemoteNotifications()
+        if let unwanted {
+            try? await api.unregisterPushDevice(connection, deviceId: unwanted)
+        }
     }
 
     /// The connection is being removed. Best effort: without the connection there is no way to
     /// try again, and the phone has already stopped receiving.
     func forget() async {
         guard let deviceId else { return }
-        system.unregisterForRemoteNotifications()
-        try? await api.unregisterPushDevice(connection, deviceId: deviceId)
+        generation += 1
         self.deviceId = nil
         state = .off
+        system.unregisterForRemoteNotifications()
+        try? await api.unregisterPushDevice(connection, deviceId: deviceId)
+    }
+
+    /// The orchestrator accepted a registration after the wish behind it had changed. Its
+    /// "forget this device" may have arrived first, so it is told again — unless the device is
+    /// still the one wanted, in which case the newer registration decides.
+    private func withdrawLateRegistration(of lateId: String) async {
+        guard lateId != deviceId else { return }
+        try? await api.unregisterPushDevice(connection, deviceId: lateId)
     }
 
     private func giveUp(_ reason: State) {

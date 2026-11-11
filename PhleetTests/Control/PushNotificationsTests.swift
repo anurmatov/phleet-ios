@@ -17,7 +17,8 @@ final class PushNotificationsTests: XCTestCase {
         system: FakePushSystem? = nil,
         connection: ControlConnection = .fixture,
         deviceId: String? = nil,
-        stored: Stored = Stored()
+        stored: Stored = Stored(),
+        newDeviceId: @escaping () -> String = { "device-0001" }
     ) -> PushNotificationsModel {
         stored.deviceId = deviceId
         return PushNotificationsModel(
@@ -29,7 +30,7 @@ final class PushNotificationsTests: XCTestCase {
                 stored.deviceId = id
                 stored.writes += 1
             },
-            newDeviceId: { "device-0001" }
+            newDeviceId: newDeviceId
         )
     }
 
@@ -213,6 +214,192 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertEqual(system.unregisterCalls, 1)
         XCTAssertNil(stored.deviceId)
         XCTAssertEqual(model.state, .off)
+    }
+
+    // MARK: - A registration that finishes late
+
+    private static let newerToken = String(repeating: "cd", count: 32)
+
+    /// Yields until `condition` holds, within the doubles' gate bound.
+    private func settle(_ condition: () -> Bool) async {
+        for _ in 0..<FakeFleetAPI.maxGateYields where !condition() {
+            await Task.yield()
+        }
+    }
+
+    /// Turns on, sends the token with the orchestrator's answer held, then turns off and lets
+    /// that answer arrive — after the removal was answered, or while it is still in flight.
+    private func turnOffDuringRegistration(
+        answer: Result<Void, Error>,
+        registrationAnswersFirst: Bool
+    ) async -> (PushNotificationsModel, FakeControlAPI, FakePushSystem, Stored) {
+        let api = FakeControlAPI()
+        let system = FakePushSystem()
+        let stored = Stored()
+        let model = makeModel(api: api, system: system, stored: stored)
+        await model.turnOn()
+        api.hold(registrationOf: Self.token)
+        let registering = Task { await model.handleDeviceToken(Self.token) }
+        await settle { api.count(of: .registerPush(deviceId: "device-0001", token: Self.token)) == 1 }
+
+        if registrationAnswersFirst { api.hold(removalOf: "device-0001") }
+        let turningOff = Task { await model.turnOff() }
+        await settle { api.count(of: .unregisterPush(deviceId: "device-0001")) == 1 }
+        XCTAssertEqual(model.state, .off, "the wish goes before the orchestrator answers")
+        if !registrationAnswersFirst { await turningOff.value }
+
+        api.registerPushResult = answer
+        api.release(registrationOf: Self.token)
+        if registrationAnswersFirst {
+            if case .success = answer {
+                // A late success is handled once it takes the registration back.
+                await settle { api.count(of: .unregisterPush(deviceId: "device-0001")) == 2 }
+            } else {
+                await registering.value
+            }
+            api.release(removalOf: "device-0001")
+        }
+        await registering.value
+        await turningOff.value
+        return (model, api, system, stored)
+    }
+
+    private func assertStaysOff(
+        _ model: PushNotificationsModel,
+        _ system: FakePushSystem,
+        _ stored: Stored,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        XCTAssertEqual(model.state, .off, file: file, line: line)
+        XCTAssertNil(model.deviceId, file: file, line: line)
+        XCTAssertNil(stored.deviceId, file: file, line: line)
+        XCTAssertEqual(stored.writes, 2, "turning on, then off; nothing late", file: file, line: line)
+        XCTAssertEqual(system.unregisterCalls, 1, "only turning off stops the phone", file: file, line: line)
+        XCTAssertTrue(model.state.offersTurnOn, "the control still works", file: file, line: line)
+    }
+
+    func testALateSuccessAfterTurningOffKeepsItOffAndTakesTheRegistrationBack() async {
+        for registrationAnswersFirst in [false, true] {
+            let (model, api, system, stored) = await turnOffDuringRegistration(
+                answer: .success(()),
+                registrationAnswersFirst: registrationAnswersFirst
+            )
+
+            assertStaysOff(model, system, stored)
+            // The removal may have reached the orchestrator before the registration did, so it
+            // is told once more.
+            XCTAssertEqual(api.calls, [
+                .registerPush(deviceId: "device-0001", token: Self.token),
+                .unregisterPush(deviceId: "device-0001"),
+                .unregisterPush(deviceId: "device-0001"),
+            ], "registration answered first: \(registrationAnswersFirst)")
+        }
+    }
+
+    func testALateRefusalOrFailureAfterTurningOffChangesNothing() async {
+        let answers: [Result<Void, Error>] = [
+            .failure(ControlAPIError.refused(status: 503, message: "push_disabled")),
+            .failure(ControlAPIError.transport("offline")),
+        ]
+        for answer in answers {
+            for registrationAnswersFirst in [false, true] {
+                let (model, api, system, stored) = await turnOffDuringRegistration(
+                    answer: answer,
+                    registrationAnswersFirst: registrationAnswersFirst
+                )
+
+                assertStaysOff(model, system, stored)
+                XCTAssertEqual(api.calls, [
+                    .registerPush(deviceId: "device-0001", token: Self.token),
+                    .unregisterPush(deviceId: "device-0001"),
+                ], "registration answered first: \(registrationAnswersFirst)")
+            }
+        }
+    }
+
+    func testATokenThatArrivesWhileTurningOffIsNotRegistered() async {
+        let api = FakeControlAPI()
+        let system = FakePushSystem()
+        let stored = Stored()
+        let model = makeModel(api: api, system: system, deviceId: "device-0001", stored: stored)
+        api.hold(removalOf: "device-0001")
+        let turningOff = Task { await model.turnOff() }
+        await settle { api.count(of: .unregisterPush(deviceId: "device-0001")) == 1 }
+
+        await model.handleDeviceToken(Self.token)
+        api.release(removalOf: "device-0001")
+        await turningOff.value
+
+        XCTAssertEqual(api.calls, [.unregisterPush(deviceId: "device-0001")])
+        XCTAssertEqual(model.state, .off)
+        XCTAssertNil(stored.deviceId)
+    }
+
+    func testTurningOnAgainIsNotUndoneByTheOldRegistration() async {
+        // A late registration of the old device is taken back; a refused one needs nothing more.
+        let cases: [(answer: Result<Void, Error>, oldRemovals: Int)] = [
+            (.success(()), 2),
+            (.failure(ControlAPIError.refused(status: 503, message: "push_disabled")), 1),
+        ]
+        for (answer, oldRemovals) in cases {
+            let api = FakeControlAPI()
+            let system = FakePushSystem()
+            let stored = Stored()
+            var ids = ["device-0001", "device-0002"]
+            let model = makeModel(api: api, system: system, stored: stored, newDeviceId: { ids.removeFirst() })
+            await model.turnOn()
+            api.hold(registrationOf: Self.token)
+            let old = Task { await model.handleDeviceToken(Self.token) }
+            await settle { api.count(of: .registerPush(deviceId: "device-0001", token: Self.token)) == 1 }
+
+            await model.turnOff()
+            await model.turnOn()
+            await model.handleDeviceToken(Self.newerToken)
+            XCTAssertEqual(model.state, .on)
+
+            api.registerPushResult = answer
+            api.release(registrationOf: Self.token)
+            await old.value
+
+            XCTAssertEqual(model.state, .on)
+            XCTAssertEqual(model.deviceId, "device-0002")
+            XCTAssertEqual(stored.deviceId, "device-0002")
+            XCTAssertEqual(system.unregisterCalls, 1, "only turning off stops the phone")
+            XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0002")), 0, "the newer wish is never removed")
+            XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0001")), oldRemovals)
+        }
+    }
+
+    func testAnOlderRegistrationOfTheSameDeviceCannotUndoANewerOne() async {
+        let answers: [Result<Void, Error>] = [
+            .success(()),
+            .failure(ControlAPIError.refused(status: 503, message: "push_disabled")),
+        ]
+        for answer in answers {
+            let api = FakeControlAPI()
+            let system = FakePushSystem()
+            let stored = Stored()
+            let model = makeModel(api: api, system: system, deviceId: "device-0001", stored: stored)
+            model.resume()
+            api.hold(registrationOf: Self.token)
+            let older = Task { await model.handleDeviceToken(Self.token) }
+            await settle { api.count(of: .registerPush(deviceId: "device-0001", token: Self.token)) == 1 }
+
+            // Apple issued a newer token, and the orchestrator took it.
+            await model.handleDeviceToken(Self.newerToken)
+            XCTAssertEqual(model.state, .on)
+
+            api.registerPushResult = answer
+            api.release(registrationOf: Self.token)
+            await older.value
+
+            XCTAssertEqual(model.state, .on)
+            XCTAssertEqual(model.deviceId, "device-0001")
+            XCTAssertEqual(stored.deviceId, "device-0001")
+            XCTAssertEqual(system.unregisterCalls, 0)
+            XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0001")), 0)
+        }
     }
 
     // MARK: - Requests

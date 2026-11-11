@@ -39,6 +39,17 @@ final class FakeControlAPI: ControlAPIClient {
     var registerPushResult: Result<Void, Error> = .success(())
     var unregisterPushResult: Result<Void, Error> = .success(())
 
+    /// Push registrations held open, by token, and push removals held open, by device, until a
+    /// test lets them finish. Lets a test choose whether a call completes before or after
+    /// something else the person does. Read from whichever thread runs the call, so guarded.
+    private var heldRegistrations: Set<String> = []
+    private var heldRemovals: Set<String> = []
+
+    /// Guards what a held push call shares with the test: the recorded calls, the held sets and
+    /// the answers. The route methods are `nonisolated async`, so a held call waits on another
+    /// thread while the test, and the next call, carry on.
+    private let lock = NSLock()
+
     /// Runs when an agent action is sent, before its result is produced.
     var onAgentAction: (() -> Void)?
 
@@ -54,12 +65,40 @@ final class FakeControlAPI: ControlAPIClient {
     }
 
     func count(of call: Call) -> Int {
-        calls.filter { $0 == call }.count
+        lock.withLock { calls.filter { $0 == call }.count }
     }
 
     func record(_ call: Call, _ connection: ControlConnection) {
-        calls.append(call)
-        connections.append(connection)
+        lock.withLock {
+            calls.append(call)
+            connections.append(connection)
+        }
+    }
+
+    func hold(registrationOf token: String) {
+        lock.withLock { _ = heldRegistrations.insert(token) }
+    }
+
+    func release(registrationOf token: String) {
+        lock.withLock { _ = heldRegistrations.remove(token) }
+    }
+
+    func hold(removalOf deviceId: String) {
+        lock.withLock { _ = heldRemovals.insert(deviceId) }
+    }
+
+    func release(removalOf deviceId: String) {
+        lock.withLock { _ = heldRemovals.remove(deviceId) }
+    }
+
+    /// Waits while `isHeld` says so, within the same bound as the other doubles' gates, so a hold
+    /// that is never released fails the test instead of hanging the suite.
+    private func waitWhileHeld(_ isHeld: () -> Bool) async {
+        var yields = 0
+        while lock.withLock(isHeld), yields < FakeFleetAPI.maxGateYields {
+            await Task.yield()
+            yields += 1
+        }
     }
 
     func agents(_ connection: ControlConnection) async throws -> [FleetAgent] {
@@ -155,12 +194,14 @@ extension FakeControlAPI {
         token: String
     ) async throws {
         record(.registerPush(deviceId: deviceId, token: token), connection)
-        try registerPushResult.get()
+        await waitWhileHeld { heldRegistrations.contains(token) }
+        try lock.withLock { try registerPushResult.get() }
     }
 
     func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {
         record(.unregisterPush(deviceId: deviceId), connection)
-        try unregisterPushResult.get()
+        await waitWhileHeld { heldRemovals.contains(deviceId) }
+        try lock.withLock { try unregisterPushResult.get() }
     }
 }
 

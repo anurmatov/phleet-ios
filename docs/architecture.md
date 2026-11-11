@@ -284,6 +284,12 @@ signing, the orchestrator's configuration, or the connection's operator token.
   missing route both clear the wish and say which it was.
 - **Turning off stops the phone first.** The app unregisters with the system whether or not the
   orchestrator could be told to forget the device.
+- **A registration that finishes late changes nothing.** The wish changes before anything is
+  awaited, and a registration answered after it has changed — turned off, turned on again, or sent
+  again with a newer token — cannot turn notifications back on, show a stale failure or clear the
+  newer wish. If the orchestrator accepted it for a device no longer wanted, the app tells it to
+  forget that device again. A new wish always gets a new device identifier, so this never removes
+  it.
 - **A read-only connection is told before the person is asked.** Registering is a write; a
   permission prompt for something that could never be used is a prompt for nothing.
 - **Permission is asked for from the connection sheet**, in answer to a tap, never at launch.
