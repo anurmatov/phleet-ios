@@ -1,0 +1,59 @@
+{"app_name": "Phleet", "timestamp": "2026-01-15 10:00:00.00 +0000", "bug_type": "309", "name": "Phleet"}
+{
+ "procName": "Phleet",
+ "exception": {
+  "type": "EXC_BREAKPOINT",
+  "signal": "SIGTRAP"
+ },
+ "termination": {
+  "namespace": "SIGNAL",
+  "indicator": "Trace/BPT trap: 5",
+  "reasons": []
+ },
+ "asi": {
+  "libswiftCore.dylib": [
+   "Fatal error: a synthetic failure"
+  ]
+ },
+ "faultingThread": 0,
+ "usedImages": [
+  {
+   "name": "Phleet"
+  },
+  {
+   "name": "libswiftCore.dylib"
+  }
+ ],
+ "threads": [
+  {
+   "triggered": true,
+   "queue": "com.apple.main-thread",
+   "frames": [
+    {
+     "imageIndex": 1,
+     "symbol": "_assertionFailure",
+     "symbolLocation": 4
+    },
+    {
+     "imageIndex": 0,
+     "symbol": "syntheticFunction()",
+     "symbolLocation": 12
+    },
+    {
+     "imageIndex": 0,
+     "imageOffset": 4096
+    }
+   ]
+  },
+  {
+   "queue": "com.apple.root.default-qos",
+   "frames": [
+    {
+     "imageIndex": 0,
+     "symbol": "bystanderFunction()",
+     "symbolLocation": 8
+    }
+   ]
+  }
+ ]
+}
