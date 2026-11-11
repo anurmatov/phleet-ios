@@ -292,6 +292,9 @@ final class ConversationSmokeTests: XCTestCase {
         app.launchArguments = [LaunchArguments.scriptedBackend] + extraArguments
         app.launch()
 
+        // The thread lives on the second tab; the app opens on the fleet.
+        AppTabs.selectChat(in: app)
+
         // Enrollment: type the origin, paste the code.
         let address = element(in: app, .enrollmentAddressField)
         XCTAssertTrue(address.waitForExistence(timeout: 30), "the enrollment form never appeared")

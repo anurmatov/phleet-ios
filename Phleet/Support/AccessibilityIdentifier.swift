@@ -46,6 +46,46 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case conversationOutcomeUnknown = "conversation.outcomeUnknown"
     case conversationSendAgain = "conversation.sendAgain"
 
+
+    case controlSetupTitle = "controlSetup.title"
+    case controlSetupAddressField = "controlSetup.addressField"
+    case controlSetupAddressMessage = "controlSetup.addressMessage"
+    case controlSetupClientIdField = "controlSetup.clientIdField"
+    case controlSetupClientSecretField = "controlSetup.clientSecretField"
+    case controlSetupServiceTokenMessage = "controlSetup.serviceTokenMessage"
+    case controlSetupTokenField = "controlSetup.tokenField"
+    case controlSetupConnect = "controlSetup.connect"
+    case controlSetupFormMessage = "controlSetup.formMessage"
+    case controlSetupCredentialUnavailable = "controlSetup.credentialUnavailable"
+
+    case fleetStatus = "fleet.status"
+    case fleetNoGates = "fleet.noGates"
+    case fleetGate = "fleet.gate"
+    case fleetNoAgents = "fleet.noAgents"
+    case fleetAgent = "fleet.agent"
+    case fleetUpdated = "fleet.updated"
+    case fleetConnection = "fleet.connection"
+
+    case gateSummary = "gate.summary"
+    case gateComment = "gate.comment"
+    case gateDecision = "gate.decision"
+    case gateConfirm = "gate.confirm"
+    case gateCancel = "gate.cancel"
+    case gateNotice = "gate.notice"
+    case gateFailure = "gate.failure"
+
+    case agentDetailHealth = "agentDetail.health"
+    case agentDetailTask = "agentDetail.task"
+    case agentDetailFact = "agentDetail.fact"
+    case agentDetailGone = "agentDetail.gone"
+
+    case connectionAddress = "connection.address"
+    case connectionMode = "connection.mode"
+    case connectionRemove = "connection.remove"
+    case connectionRemoveConfirm = "connection.removeConfirm"
+    case connectionRemoveCancel = "connection.removeCancel"
+    case connectionDone = "connection.done"
+
     /// The UI-test hook. Applied with `.accessibilityIdentifier(_:)`.
     var identifier: String { rawValue }
 

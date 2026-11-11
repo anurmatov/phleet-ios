@@ -1,0 +1,59 @@
+[
+  {
+    "agentName": "builder",
+    "displayName": "Builder",
+    "shortName": "bld",
+    "model": "example-model",
+    "role": "developer",
+    "currentTask": "Implement the synthetic change",
+    "currentTaskId": "wf-synthetic-1/implement",
+    "reportedStatus": "busy",
+    "effectiveStatus": "busy",
+    "lastSeen": "2026-01-15T10:30:05.1234567+00:00",
+    "version": "1.2.3",
+    "queuedCount": 2,
+    "priorityQueuedCount": 1,
+    "queuedMessages": [
+      { "preview": "synthetic", "source": "test", "queuedAt": "2026-01-15T10:29:00+00:00" }
+    ],
+    "backgroundTasks": [
+      { "taskId": "bg-1", "taskType": "agent", "description": "synthetic", "elapsedSeconds": 12, "summary": null },
+      { "taskId": "bg-2", "taskType": "agent", "description": "synthetic", "elapsedSeconds": 3, "summary": null }
+    ],
+    "containerName": "fleet-builder",
+    "containerStartedAt": "2026-01-15T08:00:00+00:00",
+    "hostPort": null,
+    "journal": null,
+    "aFieldThisBuildHasNeverSeen": { "nested": true }
+  },
+  {
+    "agentName": "reviewer",
+    "displayName": null,
+    "model": "example-model",
+    "role": "reviewer",
+    "currentTask": null,
+    "reportedStatus": "idle",
+    "effectiveStatus": "idle",
+    "lastSeen": "2026-01-15T10:30:01+00:00",
+    "version": "1.2.3",
+    "queuedCount": 0,
+    "backgroundTasks": null
+  },
+  {
+    "agentName": "planner",
+    "displayName": "Planner",
+    "currentTask": "Was planning when it stopped answering",
+    "reportedStatus": "busy",
+    "effectiveStatus": "dead",
+    "lastSeen": "2026-01-15T09:00:00.5+00:00",
+    "queuedCount": "not-a-number"
+  },
+  {
+    "agentName": "spare",
+    "effectiveStatus": "not_provisioned",
+    "lastSeen": "not-a-timestamp"
+  },
+  {
+    "displayName": "An entry with no name, which must be dropped and must not blank the rest"
+  }
+]

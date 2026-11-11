@@ -49,6 +49,246 @@
         }
       }
     },
+    "a11y.agentDetail.fact" : {
+      "comment" : "Spoken label for one detail about an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Detail"
+          }
+        }
+      }
+    },
+    "a11y.agentDetail.gone" : {
+      "comment" : "Spoken label shown when an agent is no longer listed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer listed"
+          }
+        }
+      }
+    },
+    "a11y.agentDetail.health" : {
+      "comment" : "Spoken label for an agent's state.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "a11y.agentDetail.task" : {
+      "comment" : "Spoken label for an agent's current task.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current task"
+          }
+        }
+      }
+    },
+    "a11y.connection.address" : {
+      "comment" : "Spoken label for the address this device is connected to.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        }
+      }
+    },
+    "a11y.connection.done" : {
+      "comment" : "Spoken label for the button that closes the connection sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "a11y.connection.mode" : {
+      "comment" : "Spoken label for what the connection is allowed to do.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access"
+          }
+        }
+      }
+    },
+    "a11y.connection.remove" : {
+      "comment" : "Spoken label for the button that starts removing the connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove connection"
+          }
+        }
+      }
+    },
+    "a11y.connection.removeCancel" : {
+      "comment" : "Spoken label for the button that cancels removing the connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep connection"
+          }
+        }
+      }
+    },
+    "a11y.connection.removeConfirm" : {
+      "comment" : "Spoken label for the button that confirms removing the connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from this device"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.addressField" : {
+      "comment" : "Spoken label for the dashboard address field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dashboard address"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.addressMessage" : {
+      "comment" : "Spoken label for a problem with the dashboard address.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address problem"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.clientIdField" : {
+      "comment" : "Spoken label for the access client ID field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access client ID, optional"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.clientSecretField" : {
+      "comment" : "Spoken label for the access client secret field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access client secret, optional"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.connect" : {
+      "comment" : "Spoken label for the connect button on the control-plane setup screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to the fleet"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.credentialUnavailable" : {
+      "comment" : "Spoken notice that the saved control-plane connection could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The saved connection could not be read right now. Nothing was deleted."
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.formMessage" : {
+      "comment" : "Spoken label for a problem connecting to the orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection problem"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.serviceTokenMessage" : {
+      "comment" : "Spoken label for a problem with the service token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service token problem"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.title" : {
+      "comment" : "Spoken label for the control-plane setup title.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to your fleet"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.tokenField" : {
+      "comment" : "Spoken label for the operator token field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operator token, optional"
+          }
+        }
+      }
+    },
     "a11y.conversation.agentReply" : {
       "comment" : "Spoken label for the agent's reply.",
       "extractionState" : "manual",
@@ -337,6 +577,174 @@
         }
       }
     },
+    "a11y.fleet.agent" : {
+      "comment" : "Spoken label for an agent row.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "a11y.fleet.connection" : {
+      "comment" : "Spoken label for the button that opens the connection sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "a11y.fleet.gate" : {
+      "comment" : "Spoken label for a workflow run waiting for a person.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for you"
+          }
+        }
+      }
+    },
+    "a11y.fleet.noAgents" : {
+      "comment" : "Spoken label for the empty agent list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No agents"
+          }
+        }
+      }
+    },
+    "a11y.fleet.noGates" : {
+      "comment" : "Spoken label for the empty needs-you list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is waiting for you"
+          }
+        }
+      }
+    },
+    "a11y.fleet.status" : {
+      "comment" : "Spoken label for the fleet status line.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fleet status"
+          }
+        }
+      }
+    },
+    "a11y.fleet.updated" : {
+      "comment" : "Spoken label for when the fleet was last updated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last updated"
+          }
+        }
+      }
+    },
+    "a11y.gate.cancel" : {
+      "comment" : "Spoken label for the button that goes back to choosing a decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose again"
+          }
+        }
+      }
+    },
+    "a11y.gate.comment" : {
+      "comment" : "Spoken label for the comment field on a gate.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment"
+          }
+        }
+      }
+    },
+    "a11y.gate.confirm" : {
+      "comment" : "Spoken label for the button that sends the chosen decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send decision"
+          }
+        }
+      }
+    },
+    "a11y.gate.decision" : {
+      "comment" : "Spoken label for a decision button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decision"
+          }
+        }
+      }
+    },
+    "a11y.gate.failure" : {
+      "comment" : "Spoken label for the reason a decision was not sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The decision was not sent"
+          }
+        }
+      }
+    },
+    "a11y.gate.notice" : {
+      "comment" : "Spoken label for a notice explaining why no decision is offered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notice"
+          }
+        }
+      }
+    },
+    "a11y.gate.summary" : {
+      "comment" : "Spoken label for what a gate is about.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What is waiting"
+          }
+        }
+      }
+    },
     "a11y.root.purpose" : {
       "comment" : "Spoken label for the one-line purpose statement.",
       "extractionState" : "manual",
@@ -361,6 +769,90 @@
         }
       }
     },
+    "agent.health.down" : {
+      "comment" : "Agent state: no heartbeat for a long time.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Down"
+          }
+        }
+      }
+    },
+    "agent.health.idle" : {
+      "comment" : "Agent state: up, with nothing in hand.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idle"
+          }
+        }
+      }
+    },
+    "agent.health.notProvisioned" : {
+      "comment" : "Agent state: configured, never provisioned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not provisioned"
+          }
+        }
+      }
+    },
+    "agent.health.stale" : {
+      "comment" : "Agent state: heartbeats are late.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not responding"
+          }
+        }
+      }
+    },
+    "agent.health.stopped" : {
+      "comment" : "Agent state: deliberately not running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped"
+          }
+        }
+      }
+    },
+    "agent.health.unknown" : {
+      "comment" : "Agent state: the orchestrator reported no status.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        }
+      }
+    },
+    "agent.health.working" : {
+      "comment" : "Agent state: up, with a task in hand.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Working"
+          }
+        }
+      }
+    },
     "agent.openThread" : {
       "comment" : "Button that opens the thread.",
       "extractionState" : "manual",
@@ -381,6 +873,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Principal"
+          }
+        }
+      }
+    },
+    "agent.queued" : {
+      "comment" : "Prefix before the number of messages queued for an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queued"
           }
         }
       }
@@ -417,6 +921,546 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Unnamed agent"
+          }
+        }
+      }
+    },
+    "agentDetail.about.title" : {
+      "comment" : "Section heading for an agent's fixed details.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        }
+      }
+    },
+    "agentDetail.backgroundTasks" : {
+      "comment" : "Label for the number of background tasks an agent is running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Background tasks"
+          }
+        }
+      }
+    },
+    "agentDetail.gone.description" : {
+      "comment" : "Explains that the orchestrator stopped reporting an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator no longer reports this agent."
+          }
+        }
+      }
+    },
+    "agentDetail.gone.title" : {
+      "comment" : "Title shown when an agent is no longer listed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer listed"
+          }
+        }
+      }
+    },
+    "agentDetail.lastSeen" : {
+      "comment" : "Label before how long ago an agent last sent a heartbeat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Since last heartbeat"
+          }
+        }
+      }
+    },
+    "agentDetail.model" : {
+      "comment" : "Label for the model an agent runs on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model"
+          }
+        }
+      }
+    },
+    "agentDetail.name" : {
+      "comment" : "Label for an agent's name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
+    },
+    "agentDetail.priorityQueued" : {
+      "comment" : "Label for the number of priority messages queued for an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Priority messages"
+          }
+        }
+      }
+    },
+    "agentDetail.queued" : {
+      "comment" : "Label for the number of messages queued for an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queued messages"
+          }
+        }
+      }
+    },
+    "agentDetail.role" : {
+      "comment" : "Label for an agent's role.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Role"
+          }
+        }
+      }
+    },
+    "agentDetail.task.none" : {
+      "comment" : "Shown when an agent has no current task.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing in hand."
+          }
+        }
+      }
+    },
+    "agentDetail.task.title" : {
+      "comment" : "Section heading for the agent's current task.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current task"
+          }
+        }
+      }
+    },
+    "agentDetail.version" : {
+      "comment" : "Label for an agent's version.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "agentDetail.work.title" : {
+      "comment" : "Section heading for an agent's queued and background work.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        }
+      }
+    },
+    "connection.address" : {
+      "comment" : "Label for the address this device is connected to.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        }
+      }
+    },
+    "connection.done" : {
+      "comment" : "Button that closes the connection sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "connection.help" : {
+      "comment" : "Explains that a connection is changed by removing it and setting it up again.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To change the address or a token, remove this connection and set it up again."
+          }
+        }
+      }
+    },
+    "connection.mode" : {
+      "comment" : "Label for what the connection is allowed to do.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access"
+          }
+        }
+      }
+    },
+    "connection.mode.decide" : {
+      "comment" : "The connection can answer gates.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can answer what is waiting"
+          }
+        }
+      }
+    },
+    "connection.mode.readOnly" : {
+      "comment" : "The connection can only read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read-only"
+          }
+        }
+      }
+    },
+    "connection.proxy" : {
+      "comment" : "Label for how the connection passes the access proxy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access proxy"
+          }
+        }
+      }
+    },
+    "connection.proxy.none" : {
+      "comment" : "The connection uses no access proxy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        }
+      }
+    },
+    "connection.proxy.serviceToken" : {
+      "comment" : "The connection passes the access proxy with a service token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Service token"
+          }
+        }
+      }
+    },
+    "connection.remove" : {
+      "comment" : "Button that starts removing the connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove connection"
+          }
+        }
+      }
+    },
+    "connection.remove.cancel" : {
+      "comment" : "Button that cancels removing the connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep connection"
+          }
+        }
+      }
+    },
+    "connection.remove.confirm" : {
+      "comment" : "Button that confirms removing the connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from this device"
+          }
+        }
+      }
+    },
+    "connection.remove.help" : {
+      "comment" : "Explains what removing a connection does and does not do.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removing deletes the saved tokens from this device. Nothing is revoked on the server; if this device is lost, delete its service token at the access proxy."
+          }
+        }
+      }
+    },
+    "connection.title" : {
+      "comment" : "Title of the connection sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connection"
+          }
+        }
+      }
+    },
+    "controlSetup.address.label" : {
+      "comment" : "Field label for the dashboard address.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dashboard address"
+          }
+        }
+      }
+    },
+    "controlSetup.address.prompt" : {
+      "comment" : "Placeholder for the dashboard address field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "your-dashboard.example"
+          }
+        }
+      }
+    },
+    "controlSetup.clientId.label" : {
+      "comment" : "Field label for the access-proxy service token's client ID.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access client ID"
+          }
+        }
+      }
+    },
+    "controlSetup.clientSecret.label" : {
+      "comment" : "Field label for the access-proxy service token's client secret.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Access client secret"
+          }
+        }
+      }
+    },
+    "controlSetup.connect" : {
+      "comment" : "Button that connects to the orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "controlSetup.credentialUnavailable" : {
+      "comment" : "Shown when the stored control-plane connection could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The saved connection could not be read right now. Nothing was deleted; try again once the device has been unlocked."
+          }
+        }
+      }
+    },
+    "controlSetup.message.accessDenied" : {
+      "comment" : "The access proxy refused the connection attempt.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The access proxy in front of the dashboard refused this device. Check the service token, and that the proxy's policy accepts service tokens for this address."
+          }
+        }
+      }
+    },
+    "controlSetup.message.credentialWriteFailed" : {
+      "comment" : "The connection could not be saved to the Keychain.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The connection could not be saved on this device, so nothing was stored."
+          }
+        }
+      }
+    },
+    "controlSetup.message.notAnOrchestrator" : {
+      "comment" : "Something answered at the address and it was not an orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something answered at that address, but not a Fleet orchestrator. Check that it is the address you open the dashboard at."
+          }
+        }
+      }
+    },
+    "controlSetup.message.serviceTokenIncomplete" : {
+      "comment" : "Only one half of the service token was entered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter both the client ID and the client secret, or leave both empty."
+          }
+        }
+      }
+    },
+    "controlSetup.message.unreachable" : {
+      "comment" : "Nothing answered at the address.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing answered at that address. Check the address and your connection."
+          }
+        }
+      }
+    },
+    "controlSetup.optional.prompt" : {
+      "comment" : "Placeholder for a field that may be left empty.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional"
+          }
+        }
+      }
+    },
+    "controlSetup.purpose" : {
+      "comment" : "One line explaining what the control-plane connection is for.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See what your agents are doing and answer what is waiting for you. Enter the address you open the dashboard at."
+          }
+        }
+      }
+    },
+    "controlSetup.serviceToken.help" : {
+      "comment" : "Explains when the service token is needed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only needed when the dashboard sits behind an access proxy. Use a service token created for this device alone, so it can be revoked without affecting anything else."
+          }
+        }
+      }
+    },
+    "controlSetup.title" : {
+      "comment" : "Title of the control-plane setup screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect to your fleet"
+          }
+        }
+      }
+    },
+    "controlSetup.token.help" : {
+      "comment" : "Explains what the operator token is for and that it is optional.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needed to answer what is waiting. Leave it empty to connect read-only. It is checked the first time you send a decision, not now."
+          }
+        }
+      }
+    },
+    "controlSetup.token.label" : {
+      "comment" : "Field label for the orchestrator's operator token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operator token"
           }
         }
       }
@@ -1309,6 +2353,354 @@
         }
       }
     },
+    "fleet.agents.empty" : {
+      "comment" : "Shown when the orchestrator lists no agents.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No agents yet."
+          }
+        }
+      }
+    },
+    "fleet.agents.title" : {
+      "comment" : "Section heading for the list of agents.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agents"
+          }
+        }
+      }
+    },
+    "fleet.needsYou.empty" : {
+      "comment" : "Shown when no workflow run is waiting for a person.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is waiting for you."
+          }
+        }
+      }
+    },
+    "fleet.needsYou.title" : {
+      "comment" : "Section heading for workflow runs waiting for a person.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs you"
+          }
+        }
+      }
+    },
+    "fleet.status.accessDenied" : {
+      "comment" : "The access proxy refused a read of the fleet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The access proxy refused this device. Anything shown below may be out of date."
+          }
+        }
+      }
+    },
+    "fleet.status.loading" : {
+      "comment" : "Shown while the fleet is read for the first time.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the fleet…"
+          }
+        }
+      }
+    },
+    "fleet.status.unexpectedAnswer" : {
+      "comment" : "A read of the fleet was answered with something unexpected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server answered with something unexpected. Anything shown below may be out of date."
+          }
+        }
+      }
+    },
+    "fleet.status.unreachable" : {
+      "comment" : "The orchestrator did not answer a read of the fleet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator is not answering. Anything shown below may be out of date."
+          }
+        }
+      }
+    },
+    "fleet.title" : {
+      "comment" : "Title of the fleet screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fleet"
+          }
+        }
+      }
+    },
+    "fleet.updated.live" : {
+      "comment" : "Prefix before the time of the last update, when changes arrive on their own.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Live, updated"
+          }
+        }
+      }
+    },
+    "fleet.updated.polling" : {
+      "comment" : "Prefix before the time of the last update, when the fleet is re-read on a timer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Updated"
+          }
+        }
+      }
+    },
+    "gate.comment.prompt" : {
+      "comment" : "Placeholder for the comment sent with a decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional comment"
+          }
+        }
+      }
+    },
+    "gate.comment.requiredHint" : {
+      "comment" : "Explains why some decisions are unavailable without a comment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some decisions need a comment and stay unavailable until you write one."
+          }
+        }
+      }
+    },
+    "gate.comment.title" : {
+      "comment" : "Section heading for the comment sent with a decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comment"
+          }
+        }
+      }
+    },
+    "gate.confirm.cancel" : {
+      "comment" : "Button that goes back to choosing a decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose again"
+          }
+        }
+      }
+    },
+    "gate.confirm.help" : {
+      "comment" : "Warns that a sent decision cannot be undone from the app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending cannot be undone from here."
+          }
+        }
+      }
+    },
+    "gate.confirm.send" : {
+      "comment" : "Button that sends the chosen decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send decision"
+          }
+        }
+      }
+    },
+    "gate.decision.title" : {
+      "comment" : "Section heading for the available decisions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decision"
+          }
+        }
+      }
+    },
+    "gate.failure.accessDenied" : {
+      "comment" : "The access proxy refused the decision request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The access proxy refused this device, so nothing was sent."
+          }
+        }
+      }
+    },
+    "gate.failure.commentRequired" : {
+      "comment" : "The chosen decision needs a comment.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This decision needs a comment."
+          }
+        }
+      }
+    },
+    "gate.failure.gateChanged" : {
+      "comment" : "The gate changed between being shown and being answered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This changed while you were looking at it, so nothing was sent. Go back and check what is waiting now."
+          }
+        }
+      }
+    },
+    "gate.failure.outcomeUnknown" : {
+      "comment" : "The decision request did not complete and may or may not have been delivered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The request did not complete. It may or may not have been sent, so check what is waiting before trying again."
+          }
+        }
+      }
+    },
+    "gate.failure.readOnly" : {
+      "comment" : "A decision was refused because the connection is read-only.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This connection is read-only, so nothing was sent."
+          }
+        }
+      }
+    },
+    "gate.failure.refused" : {
+      "comment" : "The orchestrator refused the decision for another reason.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator did not accept this."
+          }
+        }
+      }
+    },
+    "gate.failure.tokenRejected" : {
+      "comment" : "The orchestrator refused the operator token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator refused the operator token, so nothing was sent. Remove the connection and set it up again with the right token."
+          }
+        }
+      }
+    },
+    "gate.notice.notWaiting" : {
+      "comment" : "The gate on screen is no longer waiting for an answer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This is no longer waiting for an answer."
+          }
+        }
+      }
+    },
+    "gate.notice.readOnly" : {
+      "comment" : "The connection has no operator token, so no decision is offered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This connection is read-only. Set it up again with an operator token to answer."
+          }
+        }
+      }
+    },
+    "gate.phase" : {
+      "comment" : "Label for the phase a workflow run is in.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phase"
+          }
+        }
+      }
+    },
+    "gate.runningFor" : {
+      "comment" : "Label before how long a workflow run has been running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running for"
+          }
+        }
+      }
+    },
     "root.purpose" : {
       "comment" : "One line explaining what the app is.",
       "extractionState" : "manual",
@@ -1329,6 +2721,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Phleet"
+          }
+        }
+      }
+    },
+    "run.issue" : {
+      "comment" : "Short prefix before an issue number.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue"
+          }
+        }
+      }
+    },
+    "run.pullRequest" : {
+      "comment" : "Short prefix before a pull request number.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PR"
+          }
+        }
+      }
+    },
+    "tab.chat" : {
+      "comment" : "Tab that shows the conversation thread.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat"
+          }
+        }
+      }
+    },
+    "tab.fleet" : {
+      "comment" : "Tab that shows the control plane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fleet"
           }
         }
       }
