@@ -193,8 +193,12 @@ final class DynamicTypeRenderingTests: XCTestCase {
             launchEnvironment: [:]
         )
         // The environment builds the thread's model from the stored credential, so this renders
-        // the composition the app actually runs. Nothing reaches the network: `run()` is started
-        // by `.task`, and `ImageRenderer` does not run tasks.
+        // the composition the app actually runs. Nothing reaches the network, but not because
+        // nothing runs: the view's `.task` **does** start under `ImageRenderer`, once per render,
+        // so several connection loops call the doubles above at the same time, from pool threads,
+        // as soon as the main actor is next free. The doubles have to tolerate that, and
+        // `FakeFleetAPI` guards its state for exactly this reason — see the note on its lock, and
+        // `FakeFleetAPIConcurrencyTests`.
         let model = try XCTUnwrap(environment.conversation)
 
         assertRenders(ConversationView(model: model).environment(environment), "the thread")
