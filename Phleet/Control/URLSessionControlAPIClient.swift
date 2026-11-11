@@ -111,6 +111,108 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         _ = try await perform(request)
     }
 
+    func performAgentAction(
+        _ connection: ControlConnection,
+        agentName: String,
+        action: AgentAction
+    ) async throws {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.agentActionPath(
+                agentName: agentName,
+                action: action
+            )
+        )
+        _ = try await perform(request)
+    }
+
+    func closedRuns(_ connection: ControlConnection, hours: Int) async throws -> [WorkflowRun] {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: "/api/workflows/completed",
+            query: [URLQueryItem(name: "hours", value: String(hours))]
+        )
+        let data = try await perform(request)
+        let list: LossyList<WorkflowRun> = try Self.decode(data, decoder)
+        return list.items
+    }
+
+    func runHistory(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String
+    ) async throws -> [WorkflowEvent] {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.runHistoryPath(
+                namespace: namespace,
+                workflowId: workflowId
+            )
+        )
+        let data = try await perform(request)
+        let list: LossyList<WorkflowEvent> = try Self.decode(data, decoder)
+        return list.items
+    }
+
+    func cancelRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.cancelRunPath(
+                namespace: namespace,
+                workflowId: workflowId
+            ),
+            // The run, not just the workflow: a workflow that has since been restarted under
+            // the same identifier must not have its new run cancelled by a stale screen.
+            query: [URLQueryItem(name: "runId", value: runId)]
+        )
+        _ = try await perform(request)
+    }
+
+    func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType] {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: "/api/workflow-types"
+        )
+        let data = try await perform(request)
+        let list: LossyList<WorkflowType> = try Self.decode(data, decoder)
+        return list.items
+    }
+
+    private struct StartedWorkflow: Decodable {
+        let workflowId: String
+    }
+
+    func startWorkflow(
+        _ connection: ControlConnection,
+        body: StartWorkflowBody
+    ) async throws -> String {
+        let payload: Data
+        do {
+            payload = try encoder.encode(body)
+        } catch {
+            throw ControlAPIError.decoding("request body could not be encoded")
+        }
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: "/api/workflows/start",
+            body: payload
+        )
+        let data = try await perform(request)
+        let started: StartedWorkflow = try Self.decode(data, decoder)
+        return started.workflowId
+    }
+
     // MARK: - Plumbing
 
     private func perform(_ request: URLRequest) async throws -> Data {
@@ -153,6 +255,8 @@ final class URLSessionControlAPIClient: ControlAPIClient {
 
     private struct ErrorBody: Decodable {
         let error: String?
+        /// Some routes answer with a problem document instead, whose message is `detail`.
+        let detail: String?
     }
 
     /// The orchestrator's `{ "error": … }`, when the body is one. Never the raw body: an error
@@ -160,7 +264,7 @@ final class URLSessionControlAPIClient: ControlAPIClient {
     static func serverMessage(in body: Data) -> String? {
         guard
             let decoded = try? JSONDecoder().decode(ErrorBody.self, from: body),
-            let message = decoded.error,
+            let message = decoded.error ?? decoded.detail,
             !message.isEmpty
         else { return nil }
         return message

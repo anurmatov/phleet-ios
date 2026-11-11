@@ -21,8 +21,8 @@ enum ControlAPIError: Error, Equatable, Sendable {
 
 /// The orchestrator routes the control plane uses.
 ///
-/// Three reads and one write. Everything a request needs arrives as a parameter, as on
-/// `FleetAPIClient`: setup probes an address before any credential is stored.
+/// Everything a request needs arrives as a parameter, as on `FleetAPIClient`: setup probes an
+/// address before any credential is stored.
 protocol ControlAPIClient {
 
     /// `GET /api/agents`
@@ -43,6 +43,42 @@ protocol ControlAPIClient {
         workflowId: String,
         body: SignalRequestBody
     ) async throws
+
+    /// `POST /api/agents/{name}/{start|stop|restart|cancel}`
+    func performAgentAction(
+        _ connection: ControlConnection,
+        agentName: String,
+        action: AgentAction
+    ) async throws
+
+    /// `GET /api/workflows/completed?hours=` — runs that closed in the window, **however** they
+    /// closed: the route's name notwithstanding, it lists failed, cancelled and terminated runs
+    /// too, newest first, capped by the orchestrator.
+    func closedRuns(_ connection: ControlConnection, hours: Int) async throws -> [WorkflowRun]
+
+    /// `GET /api/workflows/{namespace}/history/{workflowId}`
+    func runHistory(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String
+    ) async throws -> [WorkflowEvent]
+
+    /// `POST /api/workflows/{namespace}/cancel/{workflowId}?runId=`
+    func cancelRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws
+
+    /// `GET /api/workflow-types`
+    func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType]
+
+    /// `POST /api/workflows/start`. Returns the identifier of the run that was started.
+    func startWorkflow(
+        _ connection: ControlConnection,
+        body: StartWorkflowBody
+    ) async throws -> String
 }
 
 /// How control-plane requests are put on the wire.
@@ -65,6 +101,7 @@ enum ControlRequest {
         connection: ControlConnection,
         method: String,
         percentEncodedPath: String,
+        query: [URLQueryItem] = [],
         body: Data? = nil
     ) throws -> URLRequest {
         let changesState = method.uppercased() != "GET"
@@ -73,7 +110,11 @@ enum ControlRequest {
         }
 
         var request = URLRequest(
-            url: try url(origin: connection.origin, percentEncodedPath: percentEncodedPath)
+            url: try url(
+                origin: connection.origin,
+                percentEncodedPath: percentEncodedPath,
+                query: query
+            )
         )
         request.httpMethod = method
 
@@ -94,7 +135,13 @@ enum ControlRequest {
         return request
     }
 
-    static func url(origin: URL, percentEncodedPath: String) throws -> URL {
+    /// Builds a route URL. A query never carries a secret: the only values that ride in one
+    /// are a run identifier and a number of hours.
+    static func url(
+        origin: URL,
+        percentEncodedPath: String,
+        query: [URLQueryItem] = []
+    ) throws -> URL {
         guard var components = URLComponents(url: origin, resolvingAgainstBaseURL: false) else {
             throw ControlAPIError.transport("malformed origin")
         }
@@ -103,7 +150,7 @@ enum ControlRequest {
             base.removeLast()
         }
         components.percentEncodedPath = base + percentEncodedPath
-        components.query = nil
+        components.queryItems = query.isEmpty ? nil : query
         components.fragment = nil
 
         guard let built = components.url else {
@@ -119,6 +166,22 @@ enum ControlRequest {
     /// the orchestrator unescapes.
     static func signalPath(namespace: String, workflowId: String) -> String {
         "/api/workflows/" + escaped(namespace) + "/signal/" + escaped(workflowId)
+    }
+
+    static func agentActionPath(agentName: String, action: AgentAction) -> String {
+        "/api/agents/" + escaped(agentName) + "/" + action.rawValue
+    }
+
+    static func runHistoryPath(namespace: String, workflowId: String) -> String {
+        "/api/workflows/" + escaped(namespace) + "/history/" + escaped(workflowId)
+    }
+
+    static func cancelRunPath(namespace: String, workflowId: String) -> String {
+        "/api/workflows/" + escaped(namespace) + "/cancel/" + escaped(workflowId)
+    }
+
+    static func agentLogsPath(agentName: String) -> String {
+        "/ws/logs/" + escaped(agentName)
     }
 
     static func escaped(_ component: String) -> String {

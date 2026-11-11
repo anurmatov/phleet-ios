@@ -71,3 +71,123 @@ extension PendingGate {
         return first.uppercased() + label.dropFirst()
     }
 }
+
+extension AgentAction {
+
+    /// What is worth offering for an agent in a given state.
+    ///
+    /// Restart rather than start for an agent that has gone quiet: a restart brings a stopped
+    /// container up as well as recycling a hung one, so it is right whichever of the two "no
+    /// heartbeat" turns out to mean. An agent that was never provisioned has no container to act
+    /// on; that is done from the dashboard.
+    static func available(for health: AgentHealth) -> [AgentAction] {
+        switch health {
+        case .working: return [.cancelTask, .restart, .stop]
+        case .idle: return [.restart, .stop]
+        case .down, .stale, .unknown: return [.restart, .stop]
+        case .stopped: return [.start]
+        case .notProvisioned: return []
+        }
+    }
+
+    var titleKey: String {
+        switch self {
+        case .cancelTask: return "agentAction.cancelTask"
+        case .restart: return "agentAction.restart"
+        case .stop: return "agentAction.stop"
+        case .start: return "agentAction.start"
+        }
+    }
+
+    var localizedTitle: String {
+        String(localized: String.LocalizationValue(titleKey), bundle: .main)
+    }
+
+    var symbolName: String {
+        switch self {
+        case .cancelTask: return "xmark.circle"
+        case .restart: return "arrow.clockwise.circle"
+        case .stop: return "stop.circle"
+        case .start: return "play.circle"
+        }
+    }
+
+    /// Stopping and restarting interrupt whatever the agent is doing.
+    var isDisruptive: Bool {
+        switch self {
+        case .cancelTask, .restart, .stop: return true
+        case .start: return false
+        }
+    }
+}
+
+extension WorkflowRun.Outcome {
+
+    var symbolName: String {
+        switch self {
+        case .running: return "play.circle"
+        case .completed: return "checkmark.circle"
+        case .failed: return "exclamationmark.triangle"
+        case .canceled: return "xmark.circle"
+        case .other: return "questionmark.circle"
+        }
+    }
+
+    var labelKey: String {
+        switch self {
+        case .running: return "run.outcome.running"
+        case .completed: return "run.outcome.completed"
+        case .failed: return "run.outcome.failed"
+        case .canceled: return "run.outcome.canceled"
+        case .other: return "run.outcome.other"
+        }
+    }
+
+    /// An unrecognised status is shown as the orchestrator spelled it.
+    var localizedLabel: String {
+        if case .other(let raw) = self, !raw.isEmpty {
+            return raw
+        }
+        return String(localized: String.LocalizationValue(labelKey), bundle: .main)
+    }
+}
+
+extension WorkflowEvent {
+
+    /// The event's name with spaces: `ActivityCompleted` reads as "Activity completed".
+    var title: String {
+        var words: [String] = []
+        var current = ""
+        for character in eventType {
+            if character.isUppercase, !current.isEmpty {
+                words.append(current)
+                current = ""
+            }
+            current.append(character)
+        }
+        if !current.isEmpty {
+            words.append(current)
+        }
+        guard let first = words.first else { return eventType }
+        return ([first] + words.dropFirst().map { $0.lowercased() }).joined(separator: " ")
+    }
+
+    /// What the event was about, when it says: the agent, the activity, or the signal.
+    var subject: String? {
+        let parts = [agent, signalName ?? activityType].compactMap { value -> String? in
+            guard let value, !value.isEmpty else { return nil }
+            return value
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// The failure when there is one, the output otherwise.
+    var detail: String? {
+        for candidate in [failureMessage, outputSummary] {
+            if let candidate, !candidate.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return candidate
+            }
+        }
+        return nil
+    }
+}

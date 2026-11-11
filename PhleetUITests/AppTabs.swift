@@ -8,9 +8,10 @@ import XCTest
 enum AppTabs {
 
     static let fleetLabel = "Fleet"
+    static let runsLabel = "Runs"
     static let chatLabel = "Chat"
 
-    /// Fleet is the first tab and Chat the second.
+    /// Fleet is the first tab, Runs the second and Chat the third.
     static func select(
         _ label: String,
         position: Int,
@@ -40,7 +41,15 @@ enum AppTabs {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        select(chatLabel, position: 1, in: app, file: file, line: line)
+        select(chatLabel, position: 2, in: app, file: file, line: line)
+    }
+
+    static func selectRuns(
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        select(runsLabel, position: 1, in: app, file: file, line: line)
     }
 
     static func selectFleet(

@@ -17,6 +17,7 @@ struct LaunchDouble {
     let controlCredentialStore: ControlCredentialStore
     let controlAPI: ControlAPIClient
     let controlStream: ControlLiveStream
+    let controlLogStream: AgentLogStream
 
     static func make(from arguments: [String]) -> LaunchDouble? {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
@@ -31,7 +32,8 @@ struct LaunchDouble {
             stream: backend,
             controlCredentialStore: InMemoryControlCredentialStore(),
             controlAPI: controlBackend,
-            controlStream: controlBackend
+            controlStream: controlBackend,
+            controlLogStream: controlBackend
         )
     }
 }
@@ -271,15 +273,20 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
     }
 }
 
-/// The scripted orchestrator: three agents, and one run waiting at a merge gate.
+/// The scripted orchestrator: three agents, one run waiting at a merge gate, and a little history.
 ///
-/// Answering the gate moves the run out of its phase, which is what a real decision does, so the
-/// smoke test can watch the gate leave the list rather than merely watch a request go out.
-final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream {
+/// Every action changes what the next read returns, the way the real thing does. Answering the
+/// gate moves the run out of its phase; restarting the agent that is down brings it up; cancelling
+/// the run closes it; starting a workflow adds a run. A smoke test can therefore watch the
+/// *effect* of a tap rather than merely watch a request go out.
+final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLogStream {
 
     static let gatePhase = "merge-approval"
 
     private var phase: String? = ScriptedControlBackend.gatePhase
+    private var isCancelled = false
+    private var plannerStatus = "dead"
+    private var started: [WorkflowRun] = []
     private var continuation: AsyncStream<ControlLiveEvent>.Continuation?
 
     private var run: WorkflowRun {
@@ -288,11 +295,16 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream {
             runId: "scripted-run-1",
             workflowType: "ScriptedWorkflow",
             namespace: "scripted",
+            status: isCancelled ? "Canceled" : WorkflowRun.runningStatus,
             prNumber: 42,
             repo: "scripted/project",
             phase: phase,
             gateRef: phase == nil ? nil : "scripted-gate"
         )
+    }
+
+    private var running: [WorkflowRun] {
+        (isCancelled ? [] : [run]) + started
     }
 
     // MARK: - ControlAPIClient
@@ -313,13 +325,13 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream {
             FleetAgent(
                 agentName: "scripted-planner",
                 displayName: "Scripted planner",
-                effectiveStatus: "dead"
+                effectiveStatus: plannerStatus
             )
         ]
     }
 
     func workflows(_ connection: ControlConnection) async throws -> [WorkflowRun] {
-        [run]
+        running
     }
 
     func signalRegistry(
@@ -351,7 +363,118 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream {
         body: SignalRequestBody
     ) async throws {
         phase = "merging"
-        continuation?.yield(.frame(.workflows([run])))
+        continuation?.yield(.frame(.workflows(running)))
+    }
+
+    func performAgentAction(
+        _ connection: ControlConnection,
+        agentName: String,
+        action: AgentAction
+    ) async throws {
+        guard agentName == "scripted-planner" else { return }
+        switch action {
+        case .restart, .start: plannerStatus = "idle"
+        case .stop: plannerStatus = "offline"
+        case .cancelTask: break
+        }
+    }
+
+    func closedRuns(_ connection: ControlConnection, hours: Int) async throws -> [WorkflowRun] {
+        var closed = [
+            WorkflowRun(
+                workflowId: "scripted-finished",
+                runId: "scripted-finished-1",
+                workflowType: "ScriptedWorkflow",
+                namespace: "scripted",
+                status: "Completed",
+                prNumber: 40,
+                repo: "scripted/project"
+            ),
+            WorkflowRun(
+                workflowId: "scripted-failed",
+                runId: "scripted-failed-1",
+                workflowType: "ScriptedWorkflow",
+                namespace: "scripted",
+                status: "Failed",
+                prNumber: 41,
+                repo: "scripted/project"
+            )
+        ]
+        if isCancelled {
+            closed.insert(run, at: 0)
+        }
+        return closed
+    }
+
+    func runHistory(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String
+    ) async throws -> [WorkflowEvent] {
+        [
+            WorkflowEvent(eventId: 1, eventType: "WorkflowStarted"),
+            WorkflowEvent(
+                eventId: 2,
+                eventType: "ActivityCompleted",
+                activityType: "DelegateToAgentActivity",
+                agent: "scripted-builder",
+                outputSummary: "Scripted output"
+            ),
+            WorkflowEvent(
+                eventId: 3,
+                eventType: "ActivityFailed",
+                activityType: "DelegateToAgentActivity",
+                agent: "scripted-reviewer",
+                failureMessage: "Scripted failure"
+            )
+        ]
+    }
+
+    func cancelRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws {
+        if workflowId == "scripted-run" {
+            isCancelled = true
+        } else {
+            started.removeAll { $0.workflowId == workflowId }
+        }
+        continuation?.yield(.frame(.workflows(running)))
+    }
+
+    func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType] {
+        [
+            WorkflowType(
+                name: "ScriptedWorkflow",
+                description: "A scripted workflow",
+                namespace: "scripted",
+                taskQueue: "scripted",
+                fields: [
+                    WorkflowInputField(name: "topic", kind: .text, isRequired: true, help: nil),
+                    WorkflowInputField(name: "urgent", kind: .toggle, isRequired: false, help: nil)
+                ]
+            )
+        ]
+    }
+
+    func startWorkflow(
+        _ connection: ControlConnection,
+        body: StartWorkflowBody
+    ) async throws -> String {
+        let workflowId = "scripted-started-\(started.count + 1)"
+        started.append(
+            WorkflowRun(
+                workflowId: workflowId,
+                runId: workflowId + "-run",
+                workflowType: body.workflowType,
+                namespace: body.namespace,
+                phase: "implementation"
+            )
+        )
+        continuation?.yield(.frame(.workflows(running)))
+        return workflowId
     }
 
     // MARK: - ControlLiveStream
@@ -359,6 +482,15 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream {
     func frames(_ connection: ControlConnection) -> AsyncStream<ControlLiveEvent> {
         AsyncStream { continuation in
             self.continuation = continuation
+        }
+    }
+
+    // MARK: - AgentLogStream
+
+    func log(_ connection: ControlConnection, agentName: String) -> AsyncStream<AgentLogEvent> {
+        AsyncStream { continuation in
+            continuation.yield(.text("scripted log line one\nscripted log line two\n"))
+            continuation.yield(.text("scripted log line three"))
         }
     }
 }

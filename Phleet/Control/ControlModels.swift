@@ -189,6 +189,7 @@ struct WorkflowRun: Hashable, Sendable {
     let namespace: String
     let status: String
     let startTime: Date?
+    let closeTime: Date?
     let issueNumber: Int?
     let prNumber: Int?
     let repo: String?
@@ -200,6 +201,29 @@ struct WorkflowRun: Hashable, Sendable {
 
     var isRunning: Bool { status == Self.runningStatus }
 
+    /// One run, however many lists it appears in.
+    var identity: String { namespace + "\u{1F}" + workflowId + "\u{1F}" + runId }
+
+    /// How a run ended, reduced to what a list needs to show.
+    enum Outcome: Equatable, Sendable {
+        case running
+        case completed
+        /// Failed, timed out or was terminated: it stopped without finishing.
+        case failed
+        case canceled
+        case other(String)
+    }
+
+    var outcome: Outcome {
+        switch status {
+        case Self.runningStatus: return .running
+        case "Completed": return .completed
+        case "Failed", "TimedOut", "Terminated": return .failed
+        case "Canceled": return .canceled
+        default: return .other(status)
+        }
+    }
+
     init(
         workflowId: String,
         runId: String,
@@ -207,6 +231,7 @@ struct WorkflowRun: Hashable, Sendable {
         namespace: String,
         status: String = WorkflowRun.runningStatus,
         startTime: Date? = nil,
+        closeTime: Date? = nil,
         issueNumber: Int? = nil,
         prNumber: Int? = nil,
         repo: String? = nil,
@@ -219,6 +244,7 @@ struct WorkflowRun: Hashable, Sendable {
         self.namespace = namespace
         self.status = status
         self.startTime = startTime
+        self.closeTime = closeTime
         self.issueNumber = issueNumber
         self.prNumber = prNumber
         self.repo = repo
@@ -230,7 +256,7 @@ struct WorkflowRun: Hashable, Sendable {
 extension WorkflowRun: Decodable {
 
     private enum CodingKeys: String, CodingKey {
-        case workflowId, runId, workflowType, namespace, status, startTime
+        case workflowId, runId, workflowType, namespace, status, startTime, closeTime
         case issueNumber, prNumber, repo, phase, gateRef
     }
 
@@ -243,6 +269,8 @@ extension WorkflowRun: Decodable {
             namespace: try container.decode(String.self, forKey: .namespace),
             status: try container.decode(String.self, forKey: .status),
             startTime: container.lenient(String.self, .startTime)
+                .flatMap(ControlTimestamp.parse),
+            closeTime: container.lenient(String.self, .closeTime)
                 .flatMap(ControlTimestamp.parse),
             issueNumber: container.lenient(Int.self, .issueNumber),
             prNumber: container.lenient(Int.self, .prNumber),
@@ -383,5 +411,258 @@ enum ControlTimestamp {
         formatter.formatOptions = [.withInternetDateTime]
         guard let whole = formatter.date(from: text) else { return nil }
         return whole.addingTimeInterval(fraction)
+    }
+}
+
+// MARK: - Actions, history and starting
+
+/// What can be done to an agent from here.
+///
+/// The raw value is the last path segment of the orchestrator's route.
+enum AgentAction: String, CaseIterable, Sendable {
+    /// Ask the agent to drop the task it has in hand. The agent stays up.
+    case cancelTask = "cancel"
+    case restart
+    case stop
+    case start
+}
+
+/// One entry in a run's history, as the orchestrator summarises it.
+struct WorkflowEvent: Equatable, Sendable, Identifiable {
+    let eventId: Int
+    let eventType: String
+    let timestamp: Date?
+    let activityType: String?
+    let agent: String?
+    let inputSummary: String?
+    let outputSummary: String?
+    let signalName: String?
+    let failureMessage: String?
+
+    var id: Int { eventId }
+
+    /// Whether this entry records something going wrong.
+    var isFailure: Bool {
+        if let failureMessage, !failureMessage.isEmpty { return true }
+        return eventType.hasSuffix("Failed") || eventType.hasSuffix("TimedOut")
+    }
+
+    init(
+        eventId: Int,
+        eventType: String,
+        timestamp: Date? = nil,
+        activityType: String? = nil,
+        agent: String? = nil,
+        inputSummary: String? = nil,
+        outputSummary: String? = nil,
+        signalName: String? = nil,
+        failureMessage: String? = nil
+    ) {
+        self.eventId = eventId
+        self.eventType = eventType
+        self.timestamp = timestamp
+        self.activityType = activityType
+        self.agent = agent
+        self.inputSummary = inputSummary
+        self.outputSummary = outputSummary
+        self.signalName = signalName
+        self.failureMessage = failureMessage
+    }
+}
+
+extension WorkflowEvent: Decodable {
+
+    private enum CodingKeys: String, CodingKey {
+        case eventId, eventType, timestamp, activityType, agent
+        case inputSummary, outputSummary, signalName, failureMessage
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            eventId: try container.decode(Int.self, forKey: .eventId),
+            eventType: try container.decode(String.self, forKey: .eventType),
+            timestamp: container.lenient(String.self, .timestamp).flatMap(ControlTimestamp.parse),
+            activityType: container.lenient(String.self, .activityType),
+            agent: container.lenient(String.self, .agent),
+            inputSummary: container.lenient(String.self, .inputSummary),
+            outputSummary: container.lenient(String.self, .outputSummary),
+            signalName: container.lenient(String.self, .signalName),
+            failureMessage: container.lenient(String.self, .failureMessage)
+        )
+    }
+}
+
+/// A workflow that can be started, and the inputs it asks for.
+struct WorkflowType: Hashable, Sendable, Identifiable {
+    let name: String
+    let description: String?
+    let namespace: String
+    let taskQueue: String?
+    let fields: [WorkflowInputField]
+
+    var id: String { namespace + "\u{1F}" + name }
+
+    init(
+        name: String,
+        description: String? = nil,
+        namespace: String,
+        taskQueue: String? = nil,
+        fields: [WorkflowInputField] = []
+    ) {
+        self.name = name
+        self.description = description
+        self.namespace = namespace
+        self.taskQueue = taskQueue
+        self.fields = fields
+    }
+}
+
+extension WorkflowType: Decodable {
+
+    private enum CodingKeys: String, CodingKey {
+        case name, description, namespace, taskQueue, inputSchema
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            name: try container.decode(String.self, forKey: .name),
+            description: container.lenient(String.self, .description),
+            namespace: try container.decode(String.self, forKey: .namespace),
+            taskQueue: container.lenient(String.self, .taskQueue),
+            fields: WorkflowInputField.fields(
+                fromSchema: container.lenient(String.self, .inputSchema)
+            )
+        )
+    }
+}
+
+/// One input a workflow type asks for.
+struct WorkflowInputField: Hashable, Sendable, Identifiable {
+
+    enum Kind: String, Hashable, Sendable {
+        case text
+        case number
+        case toggle
+    }
+
+    let name: String
+    let kind: Kind
+    let isRequired: Bool
+    let help: String?
+
+    var id: String { name }
+
+    /// Reads the fields out of a JSON Schema, as text.
+    ///
+    /// Only what a phone form can honestly offer: top-level properties that are strings, numbers
+    /// or booleans, in name order. A property of any other shape — an array, a nested object —
+    /// is left out rather than rendered as a text box that could only produce the wrong type.
+    /// A schema that cannot be read yields no fields, which starts the workflow with no input.
+    static func fields(fromSchema schema: String?) -> [WorkflowInputField] {
+        guard
+            let schema,
+            let data = schema.data(using: .utf8),
+            let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+            let properties = root["properties"] as? [String: Any]
+        else { return [] }
+
+        let required = Set(root["required"] as? [String] ?? [])
+        return properties.keys.sorted().compactMap { name in
+            guard let property = properties[name] as? [String: Any] else { return nil }
+            let kind: Kind
+            switch property["type"] as? String {
+            case "string"?: kind = .text
+            case "integer"?, "number"?: kind = .number
+            case "boolean"?: kind = .toggle
+            default: return nil
+            }
+            return WorkflowInputField(
+                name: name,
+                kind: kind,
+                isRequired: required.contains(name),
+                help: property["description"] as? String
+            )
+        }
+    }
+}
+
+/// A JSON value a workflow input can take.
+enum WorkflowInputValue: Equatable, Sendable, Encodable {
+    case text(String)
+    case integer(Int)
+    case number(Double)
+    case toggle(Bool)
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        switch self {
+        case .text(let value): try container.encode(value)
+        case .integer(let value): try container.encode(value)
+        case .number(let value): try container.encode(value)
+        case .toggle(let value): try container.encode(value)
+        }
+    }
+}
+
+/// The body of `POST /api/workflows/start`.
+struct StartWorkflowBody: Equatable, Sendable, Encodable {
+    let workflowType: String
+    let namespace: String
+    let taskQueue: String?
+    let input: [String: WorkflowInputValue]
+}
+
+/// Why a start request could not be built.
+enum StartWorkflowError: Error, Equatable, Sendable {
+    /// A required input was left empty.
+    case missingRequired(String)
+    /// A number input holds something that is not a number.
+    case notANumber(String)
+}
+
+enum StartWorkflow {
+
+    /// Builds the request from what was typed.
+    ///
+    /// An optional input left empty is **omitted**, not sent as an empty string: a workflow that
+    /// tests "was this given" must not be told yes.
+    static func body(
+        type: WorkflowType,
+        text: [String: String],
+        toggles: [String: Bool]
+    ) throws -> StartWorkflowBody {
+        var input: [String: WorkflowInputValue] = [:]
+
+        for field in type.fields {
+            switch field.kind {
+            case .toggle:
+                input[field.name] = .toggle(toggles[field.name] ?? false)
+
+            case .text, .number:
+                let typed = (text[field.name] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                if typed.isEmpty {
+                    if field.isRequired { throw StartWorkflowError.missingRequired(field.name) }
+                    continue
+                }
+                if field.kind == .text {
+                    input[field.name] = .text(typed)
+                } else if let whole = Int(typed) {
+                    input[field.name] = .integer(whole)
+                } else if let fractional = Double(typed), fractional.isFinite {
+                    input[field.name] = .number(fractional)
+                } else {
+                    throw StartWorkflowError.notANumber(field.name)
+                }
+            }
+        }
+
+        return StartWorkflowBody(
+            workflowType: type.name,
+            namespace: type.namespace,
+            taskQueue: type.taskQueue,
+            input: input
+        )
     }
 }

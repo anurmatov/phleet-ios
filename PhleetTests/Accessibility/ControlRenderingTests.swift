@@ -104,6 +104,97 @@ final class ControlRenderingTests: XCTestCase {
         }
     }
 
+    func testARunRowRendersForEveryOutcome() {
+        for status in ["Running", "Completed", "Failed", "Canceled", "TimedOut", "ContinuedAsNew"] {
+            let run = WorkflowRun(
+                workflowId: "pr-synthetic-42",
+                runId: "run-1",
+                workflowType: "AWorkflowTypeWithANameLongEnoughToWrapAtLargeSizes",
+                namespace: "fleet",
+                status: status,
+                prNumber: 42,
+                repo: "example/a-repository-with-a-name-long-enough-to-wrap",
+                phase: "implementation"
+            )
+            assertRenders(RunRow(run: run), "a run row (\(status))")
+        }
+    }
+
+    func testARunEventRowRenders() {
+        let events = [
+            WorkflowEvent(eventId: 1, eventType: "WorkflowStarted"),
+            WorkflowEvent(
+                eventId: 2,
+                eventType: "ActivityFailed",
+                timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+                activityType: "DelegateToAgentActivity",
+                agent: "builder",
+                failureMessage: "A failure message long enough to wrap onto several lines at "
+                    + "accessibility sizes, which is where a row is most likely to collapse."
+            )
+        ]
+        for event in events {
+            assertRenders(RunEventRow(event: event), "a run event (\(event.eventType))")
+        }
+    }
+
+    func testEveryAgentActionStateRenders() {
+        let states: [ControlPlaneModel.AgentActionState] = [
+            .sending(.restart),
+            .requested(.stop),
+            .failed(.start, .tokenRejected),
+            .failed(.cancelTask, .refused("the orchestrator's own words"))
+        ]
+        for state in states {
+            assertRenders(AgentActionStateRow(state: state), "an agent action state")
+        }
+    }
+
+    func testEveryLogStateRenders() {
+        for state in [AgentLogModel.State.connecting, .following, .ended] {
+            for isEmpty in [true, false] {
+                assertRenders(AgentLogStateLine(state: state, isEmpty: isEmpty), "a log state")
+            }
+        }
+    }
+
+    func testEveryActionAndOutcomeHasItsOwnWords() {
+        let titles = AgentAction.allCases.map(\.localizedTitle)
+        XCTAssertEqual(Set(titles).count, AgentAction.allCases.count)
+        for action in AgentAction.allCases {
+            XCTAssertNotEqual(action.localizedTitle, action.titleKey)
+        }
+
+        let outcomes: [WorkflowRun.Outcome] = [.running, .completed, .failed, .canceled, .other("")]
+        XCTAssertEqual(Set(outcomes.map(\.localizedLabel)).count, outcomes.count)
+        XCTAssertEqual(Set(outcomes.map(\.symbolName)).count, outcomes.count)
+        for outcome in outcomes {
+            XCTAssertNotEqual(outcome.localizedLabel, outcome.labelKey)
+        }
+        XCTAssertEqual(WorkflowRun.Outcome.other("ContinuedAsNew").localizedLabel, "ContinuedAsNew")
+    }
+
+    func testARunRowSaysThePhaseWhileRunningAndTheOutcomeOnceClosed() {
+        let running = WorkflowRun(
+            workflowId: "w1",
+            runId: "r1",
+            workflowType: "T",
+            namespace: "fleet",
+            phase: "implementation"
+        )
+        XCTAssertEqual(RunRow.caption(for: running), "T · implementation")
+
+        let failed = WorkflowRun(
+            workflowId: "w1",
+            runId: "r1",
+            workflowType: "T",
+            namespace: "fleet",
+            status: "Failed",
+            phase: "implementation"
+        )
+        XCTAssertEqual(RunRow.caption(for: failed), "T · Failed")
+    }
+
     // MARK: - Wording
 
     func testEveryHealthStateHasItsOwnWordsAndSymbol() {

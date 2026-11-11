@@ -3,8 +3,13 @@ import SwiftUI
 /// One agent in full.
 ///
 /// Reads the agent from the model by name on every render, so what is on screen is its current
-/// state rather than the row that was tapped. Read-only in this slice: starting, stopping and
-/// restarting an agent are not offered yet.
+/// state rather than the row that was tapped — which matters most right after an action, when
+/// the state is the only evidence of whether it worked.
+/// Where the log link leads.
+struct AgentLogRoute: Hashable {
+    let agentName: String
+}
+
 struct AgentDetailView: View {
 
     let model: ControlPlaneModel
@@ -71,6 +76,20 @@ struct AgentDetailView: View {
                 }
             } header: {
                 Text("agentDetail.task.title")
+            }
+
+            AgentActionsSection(model: model, agent: agent)
+
+            Section {
+                NavigationLink(value: AgentLogRoute(agentName: agent.agentName)) {
+                    Label {
+                        Text("agentLog.open")
+                    } icon: {
+                        Image(systemName: "text.alignleft")
+                    }
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.agentLogOpen.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.agentLogOpen.localizedLabel)
             }
 
             Section {

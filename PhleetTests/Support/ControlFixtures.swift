@@ -50,6 +50,18 @@ enum ControlFixture {
         try JSONDecoder().decode(LossyList<WorkflowRun>.self, from: data("workflows")).items
     }
 
+    static func closedRuns() throws -> [WorkflowRun] {
+        try JSONDecoder().decode(LossyList<WorkflowRun>.self, from: data("closed")).items
+    }
+
+    static func history() throws -> [WorkflowEvent] {
+        try JSONDecoder().decode(LossyList<WorkflowEvent>.self, from: data("history")).items
+    }
+
+    static func workflowTypes() throws -> [WorkflowType] {
+        try JSONDecoder().decode(LossyList<WorkflowType>.self, from: data("workflow-types")).items
+    }
+
     static func registry() throws -> [String: [SignalDefinition]] {
         try JSONDecoder()
             .decode([String: LossyList<SignalDefinition>].self, from: data("signals"))

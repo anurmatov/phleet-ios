@@ -57,6 +57,10 @@ final class AppEnvironment {
     private(set) var controlCredential: ControlCredential?
     private(set) var controlPlane: ControlPlaneModel?
 
+    /// Closed runs, run history, cancelling and starting. Exists exactly when `controlPlane`
+    /// does: both are built from the same connection and torn down together.
+    private(set) var runs: RunsModel?
+
     /// The control-plane credential could not be read, for a reason other than "there is none".
     /// Shown as its own message, and nothing on this path deletes the item.
     private(set) var controlCredentialUnavailable = false
@@ -64,6 +68,7 @@ final class AppEnvironment {
     let controlCredentialStore: ControlCredentialStore
     let controlAPI: ControlAPIClient
     let controlStream: ControlLiveStream
+    let controlLogStream: AgentLogStream
 
     init(
         credentialStore: CredentialStore? = nil,
@@ -72,6 +77,7 @@ final class AppEnvironment {
         controlCredentialStore: ControlCredentialStore? = nil,
         controlAPI: ControlAPIClient? = nil,
         controlStream: ControlLiveStream? = nil,
+        controlLogStream: AgentLogStream? = nil,
         launchArguments: [String] = ProcessInfo.processInfo.arguments,
         launchEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) {
@@ -87,15 +93,18 @@ final class AppEnvironment {
         self.controlCredentialStore = controlCredentialStore ?? double?.controlCredentialStore
             ?? KeychainControlCredentialStore()
         if let controlAPI = controlAPI ?? double?.controlAPI,
-           let controlStream = controlStream ?? double?.controlStream {
+           let controlStream = controlStream ?? double?.controlStream,
+           let controlLogStream = controlLogStream ?? double?.controlLogStream {
             self.controlAPI = controlAPI
             self.controlStream = controlStream
+            self.controlLogStream = controlLogStream
         } else {
-            // One session for both, so a request and the socket share the same rules: no
+            // One session for all three, so a request and the sockets share the same rules: no
             // redirects followed, no cookies kept, nothing cached.
             let session = ControlTransport.makeSession()
             self.controlAPI = controlAPI ?? URLSessionControlAPIClient(session: session)
             self.controlStream = controlStream ?? URLSessionControlLiveStream(session: session)
+            self.controlLogStream = controlLogStream ?? URLSessionAgentLogStream(session: session)
         }
 
         self.serverProfile = ServerProfileResolution.resolve(
@@ -251,6 +260,7 @@ final class AppEnvironment {
     func removeControlConnection() {
         controlPlane?.stop()
         controlPlane = nil
+        runs = nil
         controlCredential = nil
         do {
             try controlCredentialStore.delete()
@@ -272,6 +282,17 @@ final class AppEnvironment {
             api: controlAPI,
             stream: controlStream,
             connection: connection
+        )
+        runs = RunsModel(api: controlAPI, connection: connection)
+    }
+
+    /// A log model for one agent's log screen, or `nil` when there is no connection.
+    func makeAgentLogModel(agentName: String) -> AgentLogModel? {
+        guard let connection = controlCredential?.connection else { return nil }
+        return AgentLogModel(
+            stream: controlLogStream,
+            connection: connection,
+            agentName: agentName
         )
     }
 }

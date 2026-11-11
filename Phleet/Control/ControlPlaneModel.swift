@@ -56,6 +56,41 @@ final class ControlPlaneModel {
         case failed(DecisionFailure)
     }
 
+    /// Why something other than a gate decision did not land: an agent action, a cancelled run,
+    /// a started workflow.
+    enum ActionFailure: Equatable, Sendable {
+        case readOnly
+        case tokenRejected
+        case accessDenied
+        /// The request did not complete, so it may or may not have taken effect.
+        case outcomeUnknown
+        case refused(String?)
+
+        static func from(_ error: Error) -> ActionFailure {
+            switch error as? ControlAPIError {
+            case .readOnly?:
+                return .readOnly
+            case .unauthorized?:
+                return .tokenRejected
+            case .accessDenied?:
+                return .accessDenied
+            case .gateChanged(let message)?:
+                return .refused(message)
+            case .refused(_, let message)?:
+                return .refused(message)
+            case .transport?, .decoding?, nil:
+                return .outcomeUnknown
+            }
+        }
+    }
+
+    enum AgentActionState: Equatable, Sendable {
+        case sending(AgentAction)
+        /// The orchestrator accepted the request. The agent's state follows on a later read.
+        case requested(AgentAction)
+        case failed(AgentAction, ActionFailure)
+    }
+
     // MARK: - Dependencies
 
     private let api: ControlAPIClient
@@ -81,6 +116,9 @@ final class ControlPlaneModel {
     private(set) var answeredGateIds: Set<String> = []
 
     private(set) var decisionStates: [String: DecisionState] = [:]
+
+    /// The last action sent to each agent, by agent name.
+    private(set) var agentActionStates: [String: AgentActionState] = [:]
 
     private var refreshLoop: Task<Void, Never>?
     private var liveLoop: Task<Void, Never>?
@@ -110,6 +148,13 @@ final class ControlPlaneModel {
 
     /// Whether this connection may change anything.
     var canDecide: Bool { connection.operatorToken != nil }
+
+    /// Runs that are in progress, oldest first.
+    var runningRuns: [WorkflowRun] {
+        runs.filter(\.isRunning).sorted {
+            ($0.startTime ?? .distantFuture, $0.identity) < ($1.startTime ?? .distantFuture, $1.identity)
+        }
+    }
 
     /// Every agent, the ones needing attention first.
     var agents: [FleetAgent] {
@@ -301,6 +346,43 @@ final class ControlPlaneModel {
         if case .failed? = decisionStates[gate.id] {
             decisionStates[gate.id] = nil
         }
+    }
+
+    // MARK: - Agent actions
+
+    func agentActionState(for agentName: String) -> AgentActionState? {
+        agentActionStates[agentName]
+    }
+
+    /// Sends one action to one agent.
+    ///
+    /// "Accepted" means the orchestrator took the request, not that the agent has changed: a
+    /// restart takes a while to show. The fleet is read again straight away, and the agent's
+    /// own state is what says whether it worked.
+    @discardableResult
+    func perform(_ action: AgentAction, on agentName: String) async -> Bool {
+        if case .sending? = agentActionStates[agentName] { return false }
+
+        agentActionStates[agentName] = .sending(action)
+        do {
+            try await api.performAgentAction(connection, agentName: agentName, action: action)
+        } catch {
+            let failure = ActionFailure.from(error)
+            agentActionStates[agentName] = .failed(action, failure)
+            if failure == .outcomeUnknown {
+                await refresh()
+            }
+            return false
+        }
+
+        agentActionStates[agentName] = .requested(action)
+        await refresh()
+        return true
+    }
+
+    func clearAgentActionState(for agentName: String) {
+        if case .sending? = agentActionStates[agentName] { return }
+        agentActionStates[agentName] = nil
     }
 
     private static func decisionFailure(for error: Error) -> DecisionFailure {
