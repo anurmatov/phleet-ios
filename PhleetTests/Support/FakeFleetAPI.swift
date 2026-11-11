@@ -26,6 +26,16 @@ final class FakeFleetAPI: FleetAPIClient {
     private(set) var calls: [Call] = []
     private(set) var accessTokensPresented: [String] = []
 
+    /// Guards everything a route method touches.
+    ///
+    /// These methods are `nonisolated async`, so each call runs on whatever thread the
+    /// concurrency pool hands it — and more than one caller can be in here at once. That is not
+    /// hypothetical: `DynamicTypeRenderingTests` renders the real thread view several times, each
+    /// render starts the view's connection loop, and every loop calls this one double. Two
+    /// unguarded `Array.append`s then corrupt the heap, and the test process dies with a
+    /// segmentation fault some tests later, blamed on whichever test happened to be running.
+    private let lock = NSLock()
+
     /// Runs when a catch-up request is made, before its result is produced. Lets a test act in
     /// the middle of the attach sequence.
     var onCatchUp: ((Int) -> Void)?
@@ -126,8 +136,10 @@ final class FakeFleetAPI: FleetAPIClient {
         origin: URL,
         enrollmentCode: String
     ) async throws -> RegisterDeviceResponse {
-        calls.append(.registerDevice(code: enrollmentCode))
-        return try Self.next(&registerResults)
+        try lock.withLock {
+            calls.append(.registerDevice(code: enrollmentCode))
+            return try Self.next(&registerResults)
+        }
     }
 
     func mintToken(
@@ -135,14 +147,18 @@ final class FakeFleetAPI: FleetAPIClient {
         deviceId: String,
         deviceSecret: String
     ) async throws -> MintTokenResponse {
-        calls.append(.mintToken(deviceId: deviceId, deviceSecret: deviceSecret))
-        return try Self.next(&mintResults)
+        try lock.withLock {
+            calls.append(.mintToken(deviceId: deviceId, deviceSecret: deviceSecret))
+            return try Self.next(&mintResults)
+        }
     }
 
     func session(origin: URL, accessToken: String) async throws -> SessionResponse {
-        calls.append(.session)
-        accessTokensPresented.append(accessToken)
-        return try Self.next(&sessionResults)
+        try lock.withLock {
+            calls.append(.session)
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&sessionResults)
+        }
     }
 
     func openConversation(
@@ -151,11 +167,13 @@ final class FakeFleetAPI: FleetAPIClient {
         externalRef: String,
         clientInstanceId: String
     ) async throws -> OpenConversationResponse {
-        calls.append(
-            .openConversation(externalRef: externalRef, clientInstanceId: clientInstanceId)
-        )
-        accessTokensPresented.append(accessToken)
-        return try Self.next(&openResults)
+        try lock.withLock {
+            calls.append(
+                .openConversation(externalRef: externalRef, clientInstanceId: clientInstanceId)
+            )
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&openResults)
+        }
     }
 
     func catchUp(
@@ -165,10 +183,14 @@ final class FakeFleetAPI: FleetAPIClient {
         afterSeq: Int,
         limit: Int
     ) async throws -> CatchUpResponse {
-        calls.append(
-            .catchUp(conversationId: conversationId, afterSeq: afterSeq, limit: limit)
-        )
-        accessTokensPresented.append(accessToken)
+        lock.withLock {
+            calls.append(
+                .catchUp(conversationId: conversationId, afterSeq: afterSeq, limit: limit)
+            )
+            accessTokensPresented.append(accessToken)
+        }
+        // Outside the lock: a test's hook may call back into this double, and the gate below
+        // suspends.
         onCatchUp?(afterSeq)
 
         if let catchUpGate {
@@ -178,7 +200,7 @@ final class FakeFleetAPI: FleetAPIClient {
                 yields += 1
             }
         }
-        return try Self.next(&catchUpResults)
+        return try lock.withLock { try Self.next(&catchUpResults) }
     }
 
     func submit(
@@ -187,16 +209,18 @@ final class FakeFleetAPI: FleetAPIClient {
         conversationId: String,
         body: SubmissionBody
     ) async throws -> SubmissionAcceptedResponse {
-        calls.append(
-            .submit(
-                conversationId: conversationId,
-                submissionId: body.submissionId,
-                idempotencyKey: body.idempotencyKey,
-                text: body.text
+        try lock.withLock {
+            calls.append(
+                .submit(
+                    conversationId: conversationId,
+                    submissionId: body.submissionId,
+                    idempotencyKey: body.idempotencyKey,
+                    text: body.text
+                )
             )
-        )
-        accessTokensPresented.append(accessToken)
-        return try Self.next(&submitResults)
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&submitResults)
+        }
     }
 
     func advanceCursor(
@@ -205,15 +229,17 @@ final class FakeFleetAPI: FleetAPIClient {
         conversationId: String,
         body: CursorBody
     ) async throws -> CursorAcceptedResponse {
-        calls.append(
-            .cursor(
-                conversationId: conversationId,
-                deliveredSeq: body.deliveredSeq,
-                readSeq: body.readSeq
+        try lock.withLock {
+            calls.append(
+                .cursor(
+                    conversationId: conversationId,
+                    deliveredSeq: body.deliveredSeq,
+                    readSeq: body.readSeq
+                )
             )
-        )
-        accessTokensPresented.append(accessToken)
-        return try Self.next(&cursorResults)
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&cursorResults)
+        }
     }
 
     /// Consumes the next scripted result, repeating the last one forever.
