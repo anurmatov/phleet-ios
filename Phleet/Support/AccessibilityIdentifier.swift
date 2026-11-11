@@ -48,6 +48,8 @@ enum AccessibilityIdentifier: String, CaseIterable {
 
 
     case controlSetupTitle = "controlSetup.title"
+    case controlSetupScan = "controlSetup.scan"
+    case controlSetupScanNotice = "controlSetup.scanNotice"
     case controlSetupAddressField = "controlSetup.addressField"
     case controlSetupAddressMessage = "controlSetup.addressMessage"
     case controlSetupClientIdField = "controlSetup.clientIdField"
@@ -58,6 +60,10 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case controlSetupConnect = "controlSetup.connect"
     case controlSetupFormMessage = "controlSetup.formMessage"
     case controlSetupCredentialUnavailable = "controlSetup.credentialUnavailable"
+
+    case scannerCamera = "scanner.camera"
+    case scannerUnavailable = "scanner.unavailable"
+    case scannerCancel = "scanner.cancel"
 
     case fleetStatus = "fleet.status"
     case fleetNoGates = "fleet.noGates"

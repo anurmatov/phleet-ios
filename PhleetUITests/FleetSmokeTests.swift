@@ -106,6 +106,65 @@ final class FleetSmokeTests: XCTestCase {
         XCTAssertTrue(element(in: app, .controlSetupConnect).exists)
     }
 
+    /// Scanning a setup code fills the form and stops there: the address it read is on screen,
+    /// and connecting is still a separate tap. A simulator has no camera, so the scripted
+    /// backend stands in for one and "scans" a valid code.
+    func testScanningASetupCodeFillsTheFormAndConnectingIsStillASeparateTap() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [LaunchArguments.scriptedBackend]
+        app.launch()
+
+        let scan = element(in: app, .controlSetupScan)
+        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the scan control is missing")
+        scan.tap()
+
+        XCTAssertTrue(
+            element(in: app, .controlSetupScanNotice).waitForExistence(timeout: 10),
+            "nothing said the code was read"
+        )
+        let address = element(in: app, .controlSetupAddressField)
+        XCTAssertEqual(address.value as? String, "https://scripted.example.invalid")
+        XCTAssertFalse(
+            element(in: app, .fleetAgent).exists,
+            "scanning connected on its own, before the address could be checked"
+        )
+
+        let filled = XCTAttachment(screenshot: app.screenshot())
+        filled.name = "Scanned"
+        filled.lifetime = .keepAlways
+        add(filled)
+
+        element(in: app, .controlSetupConnect).tap()
+        XCTAssertTrue(
+            element(in: app, .fleetAgent).waitForExistence(timeout: 30),
+            "the scanned connection never reached the fleet"
+        )
+    }
+
+    /// Some other QR code is refused by name and fills nothing.
+    func testAScanThatIsNotASetupCodeFillsNothing() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [
+            LaunchArguments.scriptedBackend,
+            LaunchArguments.unreadableSetupCode
+        ]
+        app.launch()
+
+        let scan = element(in: app, .controlSetupScan)
+        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the scan control is missing")
+        scan.tap()
+
+        let notice = app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.controlSetupScanNotice.identifier)
+            .matching(NSPredicate(format: "label CONTAINS %@", "not a setup code"))
+            .firstMatch
+        XCTAssertTrue(notice.waitForExistence(timeout: 10), "an unreadable code was not refused")
+
+        let address = element(in: app, .controlSetupAddressField)
+        let value = address.value as? String ?? ""
+        XCTAssertFalse(value.contains("example.invalid"), "an unreadable code filled the address")
+    }
+
     private func element(
         in app: XCUIApplication,
         _ identifier: AccessibilityIdentifier

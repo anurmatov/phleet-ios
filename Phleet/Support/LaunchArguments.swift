@@ -20,4 +20,9 @@ enum LaunchArguments {
     /// test something to scroll: against a thread that never scrolls, that assertion would pass
     /// without exercising anything.
     static let tallTranscript = "-phleet-tall-transcript"
+
+    /// Makes the scripted backend's stand-in for the camera "scan" a code that is not a setup
+    /// code, so the smoke test can watch the form refuse it. Without this argument the stand-in
+    /// scans a valid one.
+    static let unreadableSetupCode = "-phleet-unreadable-setup-code"
 }

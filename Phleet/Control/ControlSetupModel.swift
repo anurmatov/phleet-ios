@@ -34,6 +34,12 @@ final class ControlSetupModel {
         /// The orchestrator said the operator token is not its token.
         case operatorTokenRejected
         case credentialWriteFailed
+        /// What was scanned is not a setup code.
+        case setupCodeNotRecognised
+        /// What was scanned is a setup code in a format newer than this build reads.
+        case setupCodeNewerFormat
+        /// What was scanned is a setup code with a part missing.
+        case setupCodeIncomplete
     }
 
     /// What is known about the operator token that was stored.
@@ -60,6 +66,12 @@ final class ControlSetupModel {
     private(set) var formMessage: Message?
     private(set) var tokenMessage: Message?
 
+    /// Why the last scan filled nothing.
+    private(set) var scanMessage: Message?
+
+    /// The last scan filled the form. Cleared by the next scan or connection attempt.
+    private(set) var didFillFromScan = false
+
     /// Set by a successful `connect()`.
     private(set) var tokenVerification: TokenVerification = .noToken
 
@@ -78,6 +90,8 @@ final class ControlSetupModel {
         serviceTokenMessage = nil
         formMessage = nil
         tokenMessage = nil
+        scanMessage = nil
+        didFillFromScan = false
         tokenVerification = .noToken
 
         let origin: String
@@ -150,6 +164,39 @@ final class ControlSetupModel {
         }
         tokenVerification = verification
         return credential
+    }
+
+    /// Fills the form from a scanned setup code. **Never connects.**
+    ///
+    /// A code that cannot be read changes nothing that was typed. A code that can be read
+    /// replaces all four fields, including clearing the ones it does not carry: a read-only
+    /// code scanned over a form that already held an operator token must not leave that token
+    /// in place to be sent to the scanned address.
+    @discardableResult
+    func apply(scanned text: String) -> Bool {
+        scanMessage = nil
+        didFillFromScan = false
+
+        switch ControlSetupCode.parse(text) {
+        case .success(let code):
+            address = code.origin
+            accessClientId = code.accessClientId ?? ""
+            accessClientSecret = code.accessClientSecret ?? ""
+            operatorToken = code.operatorToken ?? ""
+            addressMessage = nil
+            serviceTokenMessage = nil
+            tokenMessage = nil
+            formMessage = nil
+            didFillFromScan = true
+            return true
+        case .failure(.notASetupCode):
+            scanMessage = .setupCodeNotRecognised
+        case .failure(.unsupportedVersion):
+            scanMessage = .setupCodeNewerFormat
+        case .failure(.missingAddress), .failure(.incompleteServiceToken):
+            scanMessage = .setupCodeIncomplete
+        }
+        return false
     }
 
     /// The same rules enrollment applies to an address, because it is the same kind of value: a

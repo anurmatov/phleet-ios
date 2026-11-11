@@ -76,6 +76,10 @@ final class AppEnvironment {
     let controlStream: ControlLiveStream
     let controlLogStream: AgentLogStream
 
+    /// Set only under the scripted backend, where it stands in for the camera. `nil` in a real
+    /// launch, where the scan button opens the scanner.
+    let scriptedSetupCode: String?
+
     init(
         credentialStore: CredentialStore? = nil,
         api: FleetAPIClient? = nil,
@@ -96,6 +100,7 @@ final class AppEnvironment {
         self.api = api ?? double?.api ?? URLSessionFleetAPIClient()
         self.stream = stream ?? double?.stream ?? URLSessionConversationStream()
 
+        self.scriptedSetupCode = double?.scannedSetupCode
         self.controlCredentialStore = controlCredentialStore ?? double?.controlCredentialStore
             ?? KeychainControlCredentialStore()
         if let controlAPI = controlAPI ?? double?.controlAPI,

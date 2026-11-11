@@ -14,6 +14,7 @@ struct ControlSetupView: View {
     @Environment(AppEnvironment.self) private var appEnvironment
 
     @State private var model: ControlSetupModel?
+    @State private var isScanning = false
 
     var body: some View {
         ScrollView {
@@ -46,6 +47,15 @@ struct ControlSetupView: View {
             .padding()
         }
         .scrollDismissesKeyboard(.interactively)
+        .sheet(isPresented: $isScanning) {
+            SetupCodeScannerSheet(
+                scanned: { text in
+                    model?.apply(scanned: text)
+                    isScanning = false
+                },
+                cancel: { isScanning = false }
+            )
+        }
         .onAppear {
             if model == nil {
                 model = appEnvironment.makeControlSetupModel()
@@ -71,6 +81,8 @@ struct ControlSetupView: View {
         @Bindable var model = model
 
         return VStack(alignment: .leading, spacing: 20) {
+            scanSection(model)
+
             labelled("controlSetup.address.label", help: nil) {
                 TextField("controlSetup.address.prompt", text: $model.address)
                     .textInputAutocapitalization(.never)
@@ -166,6 +178,49 @@ struct ControlSetupView: View {
         }
     }
 
+    /// Scan the dashboard's setup code instead of typing. Filling is all it does: the address
+    /// it read is on screen to be checked, and connecting is still a separate tap.
+    @ViewBuilder
+    private func scanSection(_ model: ControlSetupModel) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Button {
+                if let scripted = appEnvironment.scriptedSetupCode {
+                    // The scripted backend stands in for the camera, which a simulator lacks.
+                    model.apply(scanned: scripted)
+                } else {
+                    isScanning = true
+                }
+            } label: {
+                Label {
+                    Text("controlSetup.scan")
+                } icon: {
+                    Image(systemName: "qrcode.viewfinder")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(model.isConnecting)
+            .accessibilityIdentifier(AccessibilityIdentifier.controlSetupScan.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.controlSetupScan.localizedLabel)
+
+            if model.didFillFromScan {
+                Text("controlSetup.scan.filled")
+                    .font(.footnote)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier(
+                        AccessibilityIdentifier.controlSetupScanNotice.identifier
+                    )
+            } else if let message = model.scanMessage {
+                messageView(message, identifier: .controlSetupScanNotice)
+            } else {
+                Text("controlSetup.scan.help")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private func labelled<Field: View>(
         _ titleKey: LocalizedStringKey,
         help: LocalizedStringKey?,
@@ -212,6 +267,9 @@ extension ControlSetupModel.Message {
         case .unreachable: return "controlSetup.message.unreachable"
         case .notAnOrchestrator: return "controlSetup.message.notAnOrchestrator"
         case .operatorTokenRejected: return "controlSetup.message.operatorTokenRejected"
+        case .setupCodeNotRecognised: return "controlSetup.message.setupCodeNotRecognised"
+        case .setupCodeNewerFormat: return "controlSetup.message.setupCodeNewerFormat"
+        case .setupCodeIncomplete: return "controlSetup.message.setupCodeIncomplete"
         case .credentialWriteFailed: return "controlSetup.message.credentialWriteFailed"
         }
     }
