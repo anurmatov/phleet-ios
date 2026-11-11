@@ -1,0 +1,68 @@
+[
+  {
+    "workflowId": "pr-synthetic-42",
+    "runId": "run-merge-1",
+    "workflowType": "UwePrImplementationWorkflow",
+    "namespace": "fleet",
+    "taskQueue": "fleet",
+    "status": "Running",
+    "startTime": "2026-01-15T09:00:00.0000000+00:00",
+    "closeTime": null,
+    "issueNumber": 41,
+    "prNumber": 42,
+    "repo": "example/project",
+    "docPrs": null,
+    "phase": "merge-approval",
+    "gateRef": "gate-synthetic-a"
+  },
+  {
+    "workflowId": "design/synthetic 7",
+    "runId": "run-design-1",
+    "workflowType": "UweDesignWorkflow",
+    "namespace": "fleet",
+    "status": "Running",
+    "startTime": "2026-01-15T08:00:00+00:00",
+    "issueNumber": 7,
+    "repo": "example/project",
+    "phase": "design-approval",
+    "gateRef": null
+  },
+  {
+    "workflowId": "pr-synthetic-50",
+    "runId": "run-impl-1",
+    "workflowType": "UwePrImplementationWorkflow",
+    "namespace": "fleet",
+    "status": "Running",
+    "startTime": "2026-01-15T10:00:00+00:00",
+    "prNumber": 50,
+    "repo": "example/project",
+    "phase": "implementation"
+  },
+  {
+    "workflowId": "pr-synthetic-30",
+    "runId": "run-done-1",
+    "workflowType": "UwePrImplementationWorkflow",
+    "namespace": "fleet",
+    "status": "Completed",
+    "startTime": "2026-01-14T10:00:00+00:00",
+    "closeTime": "2026-01-14T12:00:00+00:00",
+    "phase": "merge-approval",
+    "gateRef": "gate-synthetic-old"
+  },
+  {
+    "workflowId": "advisory-synthetic-1",
+    "runId": "run-advisory-1",
+    "workflowType": "ExternalAdvisoryWorkflow",
+    "namespace": "fleet",
+    "status": "Running",
+    "startTime": "2026-01-15T07:00:00+00:00",
+    "phase": "review"
+  },
+  {
+    "workflowId": "a-run-with-no-run-id-which-cannot-be-addressed",
+    "workflowType": "UweDesignWorkflow",
+    "namespace": "fleet",
+    "status": "Running",
+    "phase": "design-approval"
+  }
+]

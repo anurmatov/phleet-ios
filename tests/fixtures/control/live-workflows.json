@@ -1,0 +1,1 @@
+{"type":"workflows","data":[{"workflowId":"pr-synthetic-42","runId":"run-merge-1","workflowType":"UwePrImplementationWorkflow","namespace":"fleet","status":"Running","startTime":"2026-01-15T09:00:00+00:00","prNumber":42,"repo":"example/project","phase":"merging","gateRef":null}]}

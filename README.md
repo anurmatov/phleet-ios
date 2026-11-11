@@ -18,12 +18,31 @@ signing-material file extension, or an absolute address. Its patterns are generi
 contains no list of real hosts, addresses, or identifiers, because publishing the list of things to
 hide is itself the leak.
 
-## Status — enrollment and one thread
+## Status — a fleet view, and one thread
 
-The app enrolls a device against a server you supply, shows the one agent that deployment binds,
-opens a thread, sends messages, and renders what comes back.
+The app has two tabs that share nothing but the app.
 
-What it does:
+**Fleet** connects to an orchestrator you supply and shows what is waiting for you and how every
+agent is doing. **Chat** enrolls a device against a server you supply, shows the one agent that
+deployment binds, opens a thread, sends messages, and renders what comes back.
+
+What Fleet does:
+
+- **connection** — type the address you open the dashboard at; optionally a service token for an
+  access proxy in front of it, and optionally the orchestrator's operator token. One read of the
+  agent list proves the address and the proxy before anything is stored
+- **credentials** — a second Keychain item, separate from the device credential and likewise
+  `AfterFirstUnlockThisDeviceOnly`; without an operator token the connection is read-only
+- **needs you** — the workflow runs waiting at a gate, oldest first, with the decisions the
+  orchestrator registers for that gate; a decision takes two taps and is sent with the run and
+  gate reference that were on screen, so a stale screen is refused rather than obeyed
+- **agents** — every agent, the ones that are down or late first, with its current task
+- **freshness** — HTTPS reads on a timer are the source of truth; the orchestrator's live socket
+  only makes changes arrive sooner, so a socket that cannot pass a proxy costs nothing but speed
+- **no redirects** — a request is never followed to another host, so a proxy's sign-in redirect
+  is reported as "not let in" instead of handing the service token to the next address
+
+What Chat does:
 
 - **enrollment** — type the origin, paste the operator-issued code; the credential is persisted
   before the token mint is attempted, and re-presenting the same code overwrites a rotated secret
@@ -37,6 +56,14 @@ What it does:
 
 What it still does not do:
 
+- **no agent actions** — an agent cannot be started, stopped or restarted from the app, and no
+  logs are shown
+- **no workflow management** — runs are listed only when they are waiting for a person; there is
+  no run history, cancel, or start
+- **no editing** — instructions, project contexts, workflow definitions, credentials and secret
+  bindings stay on the web dashboard
+- **no check of the operator token at setup** — the orchestrator asks for it only on a request
+  that changes something, so a wrong one is reported the first time a decision is sent
 - **no APNs registration** — the `aps-environment` entitlement is a static declaration and no code
   calls `registerForRemoteNotifications()`
 - **no voice, attachments, approvals, or multi-agent rooms**
@@ -46,7 +73,10 @@ What it still does not do:
   nothing to scan yet
 
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
-offline. Nothing here has been exercised against a live server yet.
+offline. Nothing here has been exercised against a live server yet — and for the Fleet tab that
+includes an access proxy: the orchestrator fixtures are written from its source, not captured
+from a running one, and whether its live socket passes a proxy with service-token headers is
+untested.
 
 ## Build and test
 
@@ -71,10 +101,10 @@ a `.pbxproj`; change `project.yml` and regenerate.
 |---|---|
 | `Phleet/` | app sources, resources, entitlements |
 | `PhleetTests/` | app-hosted unit tests |
-| `PhleetUITests/` | launch and conversation smoke tests, driven by an in-app scripted backend |
+| `PhleetUITests/` | launch, fleet and conversation smoke tests, driven by an in-app scripted backend |
 | `Config/` | `.xcconfig` build settings; local signing overrides are git-ignored |
 | `scripts/` | build-gate scripts, each with a `--self-test` mode, plus the app-icon generator |
-| `tests/fixtures/` | synthetic inputs for the script self-tests and recorded protocol event sequences |
+| `tests/fixtures/` | synthetic inputs for the script self-tests, recorded protocol event sequences, and orchestrator responses |
 | `docs/` | toolchain, signing/release, and architecture notes |
 
 ## Documentation

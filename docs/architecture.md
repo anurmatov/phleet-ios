@@ -8,8 +8,10 @@ simplification of each one fails quietly.
 A native iOS client for the public [phleet](https://github.com/anurmatov/phleet) platform,
 targeting iOS 17.0 and built with SwiftUI.
 
-It enrolls a device against a server you supply, shows the one agent that deployment binds, opens
-a thread, sends messages, and renders what comes back. The wire contract is
+It has two tabs. **Chat** enrolls a device against a server you supply, shows the one agent that
+deployment binds, opens a thread, sends messages, and renders what comes back. **Fleet** connects
+to an orchestrator and shows what is waiting for a person and how every agent is doing; it is
+described under [The control plane](#the-control-plane). For the thread, the wire contract is
 [`docs/first-party-api.md`](https://github.com/anurmatov/phleet/blob/main/docs/first-party-api.md)
 (the north boundary) and
 [`docs/conversation-protocol.md`](https://github.com/anurmatov/phleet/blob/main/docs/conversation-protocol.md)
@@ -21,10 +23,12 @@ Not in this slice, and not partially present either:
 
 - no APNs registration; the `aps-environment` entitlement is a static declaration and nothing
   calls `registerForRemoteNotifications()`
-- no voice, attachments, approvals, or multi-agent rooms
+- no voice, attachments, or multi-agent rooms
 - no steer or cancel interface — the routes exist, this app does not surface them
 - no local persistence of conversation history: no database, no file store, no user defaults
 - no QR enrollment
+- no agent actions (start, stop, restart, logs), no run history, and no editing of instructions,
+  contexts, workflow definitions or secrets — those stay on the web dashboard
 
 The app also ships **no server address**. There is no `Info.plist` key, no `.xcconfig` key, and
 no source literal holding a host.
@@ -43,6 +47,7 @@ Phleet/
   Enrollment/                  register → mint → session, and the screen
   Agents/                      the single session-derived agent entry
   Conversation/                attach, catch up, buffer, send, render
+  Control/                     the Fleet tab: orchestrator connection, agents, gates, decisions
   Configuration/               server profile: model, store seam, resolution
   Support/                     accessibility identifiers, launch arguments
   Resources/                   string catalog, asset catalog
@@ -184,6 +189,90 @@ There is no agent-list route on the north boundary. `GET /v1/session` returns a 
 `agentLabel`, and the deployment binds exactly one agent name. So this renders one entry, not a
 one-row list with a selection model that would have to be rebuilt when the real shape lands.
 `agentLabel` is cosmetic and non-authoritative; nothing routes on it.
+
+## The control plane
+
+The Fleet tab talks to a **different server surface** from the thread, with a different
+credential, and the two are independent in both directions.
+
+| | Chat | Fleet |
+|---|---|---|
+| Surface | the device boundary (`/v1/…`) | the orchestrator's operator API (`/api/…`, `/ws`) |
+| How a device gets in | enrollment code → its own revocable device secret | whatever guards the address, plus one shared operator token |
+| Keychain item | `DeviceCredential` | `ControlCredential` |
+| Removing it | only a `401` from the token mint | a person, from the connection sheet |
+
+The orchestrator's operator API has no enrollment and no per-device identity: reads need no token
+at all and every write takes the same operator token. That is why this is meant to sit behind an
+access proxy, and why the connection stores a **service token** for one. The service token is
+what makes a lost phone recoverable — it is deleted at the proxy, and the operator token on the
+device is then unreachable.
+
+```
+AppEnvironment
+  ├── ControlCredentialStore        KeychainControlCredentialStore in the app
+  ├── ControlAPIClient              three reads and one write
+  ├── ControlLiveStream             the orchestrator's socket, as a sequence
+  └── ControlPlaneModel             built when a connection exists; the Fleet tab's state
+```
+
+### The operator token rides only on writes
+
+`ControlRequest.make` attaches the service token to every request and the operator token only to
+one that changes something. The orchestrator does not ask for it on a read, and a secret that is
+not sent cannot be logged in transit. A connection stored without an operator token is
+**read-only**: it cannot build a write at all, and the interface says so instead of offering a
+control that fails.
+
+Setup cannot verify the operator token, and does not pretend to. There is no request that needs
+the token and changes nothing, and making a write to learn whether writes are allowed is not a
+check. A wrong token is reported the first time a decision is sent.
+
+### No redirect is ever followed
+
+An orchestrator never redirects. A proxy that does not recognise the caller does: it answers with
+a redirect to a sign-in page. Following it would send the service-token headers to the next host
+and return a web page where a list of agents was expected. `RedirectRefusingDelegate` refuses
+every redirect, so the secrets stay on the origin they were stored for and "not let in" arrives
+as a status this client can name — distinct from `401`, which means the orchestrator refused the
+operator token. The session is ephemeral and keeps no cookies and no cache.
+
+### HTTPS is the truth, the socket is the shortcut
+
+`ControlPlaneModel` reads agents, runs and the signal registry over HTTPS every thirty seconds
+while the screen is in use. The live socket applies the same facts sooner. Nothing depends on the
+socket: whether it passes an access proxy with service-token headers is untested, and a control
+plane that went blank when it did not would be worse than one thirty seconds behind.
+
+A read **replaces** the agent list rather than merging into it, so an agent the orchestrator no
+longer lists is gone. A failed read keeps what was on screen and says why it may be stale.
+
+### What counts as waiting
+
+A run is on the "needs you" list when it is running, reports a phase, and its workflow type
+registers a signal that **names** that phase (`PendingGates.derive`). A signal with no phase list
+is one the orchestrator accepts at any time; it says nothing about whether anyone is waiting, and
+listing every such run would bury the ones that are.
+
+### A decision is sent as it was shown
+
+The gate screen holds the gate as it was tapped, and the request carries that snapshot's `runId`
+and `expectedGateRef`. They are never refreshed on the way out: the orchestrator compares them
+with the run's current state and answers `409` when the question on screen is no longer the
+question being asked. The identifier of a gate includes its phase and gate reference, so a second
+visit to the same gate is a new question and does not inherit "already answered".
+
+A request that does not complete is `outcomeUnknown`, not a failure: it may have reached the
+workflow. The model reads again, and the gate is either still there or gone.
+
+Every decision takes two taps — choose, then send — because an approval sent by a thumb reaching
+for something else cannot be undone from here.
+
+### Decoding is forgiving, addressing is strict
+
+`LossyList` keeps every element it can read. An agent needs only a name; any other field that is
+absent or misshapen costs that field. A run needs its five identity fields, because a decision is
+addressed to exactly one run and a run that cannot be addressed must not be offered one.
 
 ## Accessibility
 

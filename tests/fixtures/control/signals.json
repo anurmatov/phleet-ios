@@ -1,0 +1,50 @@
+{
+  "ExternalAdvisoryWorkflow": [
+    {
+      "name": "advisory-review",
+      "label": "advisory review",
+      "buttons": [
+        { "label": "Approve", "payload": "{\"Decision\":\"approved\"}", "requiresComment": false },
+        { "label": "Reject", "payload": "{\"Decision\":\"rejected\"}", "requiresComment": true }
+      ],
+      "validPhases": null,
+      "bindAttribute": null
+    }
+  ],
+  "UweDesignWorkflow": [
+    {
+      "name": "design-approval",
+      "label": "design approval",
+      "buttons": [
+        { "label": "Approve", "payload": "{\"Decision\":\"approved\"}", "requiresComment": false },
+        { "label": "Request Changes", "payload": "{\"Decision\":\"changes_requested\"}", "requiresComment": true },
+        { "label": "Reject", "payload": "{\"Decision\":\"rejected\"}", "requiresComment": true }
+      ],
+      "validPhases": ["design-approval"],
+      "bindAttribute": null
+    }
+  ],
+  "UwePrImplementationWorkflow": [
+    {
+      "name": "human-review",
+      "label": "human review",
+      "buttons": [
+        { "label": "Approve", "payload": "{\"Decision\":\"approved\"}", "requiresComment": false }
+      ],
+      "validPhases": ["human-review"],
+      "bindAttribute": null
+    },
+    {
+      "name": "merge-approval",
+      "label": "merge approval",
+      "buttons": [
+        { "label": "Approve Merge", "payload": "{\"Decision\":\"approved\"}", "requiresComment": false },
+        { "label": "Request Changes", "payload": "{\"Decision\":\"changes_requested\"}", "requiresComment": true },
+        { "label": "Reject", "payload": "{\"Decision\":\"rejected\"}", "requiresComment": true },
+        { "label": "A button with no payload, which must be dropped" }
+      ],
+      "validPhases": ["merge-approval"],
+      "bindAttribute": "GateRef"
+    }
+  ]
+}

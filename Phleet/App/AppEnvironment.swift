@@ -47,10 +47,31 @@ final class AppEnvironment {
 
     private var tokens: AccessTokenHolder?
 
+    // MARK: - Control plane
+
+    /// The orchestrator this device is connected to, or `nil` when it is not.
+    ///
+    /// Independent of enrollment in both directions. The thread and the control plane talk to
+    /// different surfaces with different credentials, and either can be set up without the
+    /// other.
+    private(set) var controlCredential: ControlCredential?
+    private(set) var controlPlane: ControlPlaneModel?
+
+    /// The control-plane credential could not be read, for a reason other than "there is none".
+    /// Shown as its own message, and nothing on this path deletes the item.
+    private(set) var controlCredentialUnavailable = false
+
+    let controlCredentialStore: ControlCredentialStore
+    let controlAPI: ControlAPIClient
+    let controlStream: ControlLiveStream
+
     init(
         credentialStore: CredentialStore? = nil,
         api: FleetAPIClient? = nil,
         stream: ConversationStream? = nil,
+        controlCredentialStore: ControlCredentialStore? = nil,
+        controlAPI: ControlAPIClient? = nil,
+        controlStream: ControlLiveStream? = nil,
         launchArguments: [String] = ProcessInfo.processInfo.arguments,
         launchEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) {
@@ -63,6 +84,20 @@ final class AppEnvironment {
         self.api = api ?? double?.api ?? URLSessionFleetAPIClient()
         self.stream = stream ?? double?.stream ?? URLSessionConversationStream()
 
+        self.controlCredentialStore = controlCredentialStore ?? double?.controlCredentialStore
+            ?? KeychainControlCredentialStore()
+        if let controlAPI = controlAPI ?? double?.controlAPI,
+           let controlStream = controlStream ?? double?.controlStream {
+            self.controlAPI = controlAPI
+            self.controlStream = controlStream
+        } else {
+            // One session for both, so a request and the socket share the same rules: no
+            // redirects followed, no cookies kept, nothing cached.
+            let session = ControlTransport.makeSession()
+            self.controlAPI = controlAPI ?? URLSessionControlAPIClient(session: session)
+            self.controlStream = controlStream ?? URLSessionControlLiveStream(session: session)
+        }
+
         self.serverProfile = ServerProfileResolution.resolve(
             store: CredentialBackedServerProfileStore(credentialStore: self.credentialStore),
             launchEnvironment: launchEnvironment,
@@ -70,6 +105,7 @@ final class AppEnvironment {
         )
 
         restoreEnrollment()
+        restoreControlPlane()
     }
 
     // MARK: - Routing
@@ -183,5 +219,59 @@ final class AppEnvironment {
         serverProfile = nil
         wasRevoked = true
         route = .enrollment
+    }
+
+    // MARK: - Control plane
+
+    private func restoreControlPlane() {
+        do {
+            guard let credential = try controlCredentialStore.load() else { return }
+            adoptControl(credential)
+        } catch {
+            controlCredentialUnavailable = true
+        }
+    }
+
+    func makeControlSetupModel() -> ControlSetupModel {
+        ControlSetupModel(api: controlAPI, credentialStore: controlCredentialStore)
+    }
+
+    /// Adopts a connection that setup has already proved and stored.
+    func finishControlSetup(_ credential: ControlCredential) {
+        controlCredentialUnavailable = false
+        adoptControl(credential)
+    }
+
+    /// Removes the connection from this device.
+    ///
+    /// Deletes the stored credential, which is the whole point: an operator token should not
+    /// outlive the decision to stop using this device for it. Nothing is revoked on the server —
+    /// there is nothing device-specific there to revoke — and the thread's own credential is a
+    /// different Keychain item that this does not touch.
+    func removeControlConnection() {
+        controlPlane?.stop()
+        controlPlane = nil
+        controlCredential = nil
+        do {
+            try controlCredentialStore.delete()
+        } catch {
+            // The connection is gone from this launch either way. Saying so is what keeps a
+            // failed delete from looking like a successful removal on the next launch.
+            controlCredentialUnavailable = true
+        }
+    }
+
+    private func adoptControl(_ credential: ControlCredential) {
+        guard let connection = credential.connection else {
+            controlCredentialUnavailable = true
+            return
+        }
+        controlPlane?.stop()
+        controlCredential = credential
+        controlPlane = ControlPlaneModel(
+            api: controlAPI,
+            stream: controlStream,
+            connection: connection
+        )
     }
 }

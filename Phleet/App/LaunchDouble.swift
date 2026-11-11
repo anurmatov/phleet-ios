@@ -14,16 +14,24 @@ struct LaunchDouble {
     let api: FleetAPIClient
     let stream: ConversationStream
 
+    let controlCredentialStore: ControlCredentialStore
+    let controlAPI: ControlAPIClient
+    let controlStream: ControlLiveStream
+
     static func make(from arguments: [String]) -> LaunchDouble? {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
         let backend = ScriptedBackend(
             tallTranscript: arguments.contains(LaunchArguments.tallTranscript)
         )
+        let controlBackend = ScriptedControlBackend()
         return LaunchDouble(
             credentialStore: InMemoryCredentialStore(),
             api: backend,
-            stream: backend
+            stream: backend,
+            controlCredentialStore: InMemoryControlCredentialStore(),
+            controlAPI: controlBackend,
+            controlStream: controlBackend
         )
     }
 }
@@ -260,5 +268,97 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
                 )
             )
         )
+    }
+}
+
+/// The scripted orchestrator: three agents, and one run waiting at a merge gate.
+///
+/// Answering the gate moves the run out of its phase, which is what a real decision does, so the
+/// smoke test can watch the gate leave the list rather than merely watch a request go out.
+final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream {
+
+    static let gatePhase = "merge-approval"
+
+    private var phase: String? = ScriptedControlBackend.gatePhase
+    private var continuation: AsyncStream<ControlLiveEvent>.Continuation?
+
+    private var run: WorkflowRun {
+        WorkflowRun(
+            workflowId: "scripted-run",
+            runId: "scripted-run-1",
+            workflowType: "ScriptedWorkflow",
+            namespace: "scripted",
+            prNumber: 42,
+            repo: "scripted/project",
+            phase: phase,
+            gateRef: phase == nil ? nil : "scripted-gate"
+        )
+    }
+
+    // MARK: - ControlAPIClient
+
+    func agents(_ connection: ControlConnection) async throws -> [FleetAgent] {
+        [
+            FleetAgent(
+                agentName: "scripted-builder",
+                displayName: "Scripted builder",
+                currentTask: "Building the scripted change",
+                effectiveStatus: "busy"
+            ),
+            FleetAgent(
+                agentName: "scripted-reviewer",
+                displayName: "Scripted reviewer",
+                effectiveStatus: "idle"
+            ),
+            FleetAgent(
+                agentName: "scripted-planner",
+                displayName: "Scripted planner",
+                effectiveStatus: "dead"
+            )
+        ]
+    }
+
+    func workflows(_ connection: ControlConnection) async throws -> [WorkflowRun] {
+        [run]
+    }
+
+    func signalRegistry(
+        _ connection: ControlConnection
+    ) async throws -> [String: [SignalDefinition]] {
+        [
+            "ScriptedWorkflow": [
+                SignalDefinition(
+                    name: "merge-approval",
+                    label: "merge approval",
+                    buttons: [
+                        SignalButton(label: "Approve Merge", payload: #"{"Decision":"approved"}"#),
+                        SignalButton(
+                            label: "Request Changes",
+                            payload: #"{"Decision":"changes_requested"}"#,
+                            requiresComment: true
+                        )
+                    ],
+                    validPhases: [ScriptedControlBackend.gatePhase]
+                )
+            ]
+        ]
+    }
+
+    func sendSignal(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        body: SignalRequestBody
+    ) async throws {
+        phase = "merging"
+        continuation?.yield(.frame(.workflows([run])))
+    }
+
+    // MARK: - ControlLiveStream
+
+    func frames(_ connection: ControlConnection) -> AsyncStream<ControlLiveEvent> {
+        AsyncStream { continuation in
+            self.continuation = continuation
+        }
     }
 }

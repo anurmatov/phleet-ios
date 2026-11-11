@@ -60,6 +60,11 @@ targets:
       - path: tests/fixtures/protocol
         type: folder
         buildPhase: resources
+      # The orchestrator responses the control-plane tests decode. Read from the bundle's
+      # `control` subdirectory.
+      - path: tests/fixtures/control
+        type: folder
+        buildPhase: resources
     dependencies:
       - target: Phleet
     settings:
