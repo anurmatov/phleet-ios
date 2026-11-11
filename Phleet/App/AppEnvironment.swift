@@ -55,6 +55,12 @@ final class AppEnvironment {
     /// different surfaces with different credentials, and either can be set up without the
     /// other.
     private(set) var controlCredential: ControlCredential?
+
+    /// What setup learned about the operator token, for this launch only.
+    ///
+    /// Not stored. It describes a check made at one moment against one orchestrator; after a
+    /// relaunch the honest answer is "not checked since", which is what `nil` shows as nothing.
+    private(set) var controlTokenVerification: ControlSetupModel.TokenVerification?
     private(set) var controlPlane: ControlPlaneModel?
 
     /// Closed runs, run history, cancelling and starting. Exists exactly when `controlPlane`
@@ -246,9 +252,13 @@ final class AppEnvironment {
     }
 
     /// Adopts a connection that setup has already proved and stored.
-    func finishControlSetup(_ credential: ControlCredential) {
+    func finishControlSetup(
+        _ credential: ControlCredential,
+        tokenVerification: ControlSetupModel.TokenVerification? = nil
+    ) {
         controlCredentialUnavailable = false
         adoptControl(credential)
+        controlTokenVerification = tokenVerification
     }
 
     /// Removes the connection from this device.
@@ -262,6 +272,7 @@ final class AppEnvironment {
         controlPlane = nil
         runs = nil
         controlCredential = nil
+        controlTokenVerification = nil
         do {
             try controlCredentialStore.delete()
         } catch {

@@ -277,6 +277,18 @@
         }
       }
     },
+    "a11y.connection.tokenNote" : {
+      "comment" : "Spoken label for what is known about the operator token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operator token"
+          }
+        }
+      }
+    },
     "a11y.controlSetup.addressField" : {
       "comment" : "Spoken label for the dashboard address field.",
       "extractionState" : "manual",
@@ -393,6 +405,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Operator token, optional"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.tokenMessage" : {
+      "comment" : "Spoken label for a problem with the operator token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Operator token problem"
           }
         }
       }
@@ -1849,6 +1873,42 @@
         }
       }
     },
+    "connection.token.notRequired" : {
+      "comment" : "The orchestrator does not gate writes with a token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This orchestrator does not require an operator token, so the one you entered was not checked."
+          }
+        }
+      }
+    },
+    "connection.token.unverified" : {
+      "comment" : "The operator token could not be checked at setup.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The operator token could not be checked: this orchestrator has no way to ask. A wrong token shows up the first time you change something."
+          }
+        }
+      }
+    },
+    "connection.token.verified" : {
+      "comment" : "The orchestrator accepted the operator token at setup.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator accepted the operator token when this connection was set up."
+          }
+        }
+      }
+    },
     "controlSetup.address.label" : {
       "comment" : "Field label for the dashboard address.",
       "extractionState" : "manual",
@@ -1957,6 +2017,18 @@
         }
       }
     },
+    "controlSetup.message.operatorTokenRejected" : {
+      "comment" : "The orchestrator said the operator token is not its token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator did not accept this operator token. Check it and try again, or leave it empty to connect read-only."
+          }
+        }
+      }
+    },
     "controlSetup.message.serviceTokenIncomplete" : {
       "comment" : "Only one half of the service token was entered.",
       "extractionState" : "manual",
@@ -2036,7 +2108,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Needed to answer what is waiting. Leave it empty to connect read-only. It is checked the first time you send a decision, not now."
+            "value" : "Needed to change anything. Leave it empty to connect read-only. It is checked when you connect, if the orchestrator can check it."
           }
         }
       }

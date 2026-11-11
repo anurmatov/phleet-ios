@@ -17,6 +17,7 @@ final class FakeControlAPI: ControlAPIClient {
         case cancelRun(namespace: String, workflowId: String, runId: String)
         case workflowTypes
         case startWorkflow(StartWorkflowBody)
+        case checkOperatorToken
     }
 
     private(set) var calls: [Call] = []
@@ -32,6 +33,7 @@ final class FakeControlAPI: ControlAPIClient {
     var cancelResult: Result<Void, Error> = .success(())
     var typesResult: Result<[WorkflowType], Error> = .success([])
     var startResult: Result<String, Error> = .success("started-1")
+    var tokenCheckResult: Result<OperatorTokenCheck, Error> = .success(.accepted)
 
     /// Runs when an agent action is sent, before its result is produced.
     var onAgentAction: (() -> Void)?
@@ -136,6 +138,11 @@ extension FakeControlAPI {
     ) async throws -> String {
         record(.startWorkflow(body), connection)
         return try startResult.get()
+    }
+
+    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck {
+        record(.checkOperatorToken, connection)
+        return try tokenCheckResult.get()
     }
 }
 

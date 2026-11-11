@@ -31,7 +31,8 @@ What Fleet does:
 
 - **connection** — type the address you open the dashboard at; optionally a service token for an
   access proxy in front of it, and optionally the orchestrator's operator token. One read of the
-  agent list proves the address and the proxy before anything is stored
+  agent list proves the address and the proxy before anything is stored, and the operator token
+  is checked with the orchestrator's token-check read: a token it rejects is refused at setup
 - **credentials** — a second Keychain item, separate from the device credential and likewise
   `AfterFirstUnlockThisDeviceOnly`; without an operator token the connection is read-only
 - **needs you** — the workflow runs waiting at a gate, oldest first, with the decisions the
@@ -71,8 +72,8 @@ What it still does not do:
   the dashboard
 - **no editing** — instructions, project contexts, workflow definitions, credentials and secret
   bindings stay on the web dashboard
-- **no check of the operator token at setup** — the orchestrator asks for it only on a request
-  that changes something, so a wrong one is reported the first time a decision is sent
+- **no token check against an older orchestrator** — one without `GET /api/operator-token` cannot
+  be asked, so the token is stored unverified and the connection sheet says so
 - **no APNs registration** — the `aps-environment` entitlement is a static declaration and no code
   calls `registerForRemoteNotifications()`
 - **no voice, attachments, approvals, or multi-agent rooms**

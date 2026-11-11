@@ -477,6 +477,14 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         return workflowId
     }
 
+    /// The one token the scripted orchestrator rejects, so the smoke test can watch setup
+    /// refuse it.
+    static let rejectedToken = "a-token-the-scripted-orchestrator-rejects"
+
+    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck {
+        connection.operatorToken == ScriptedControlBackend.rejectedToken ? .rejected : .accepted
+    }
+
     // MARK: - ControlLiveStream
 
     func frames(_ connection: ControlConnection) -> AsyncStream<ControlLiveEvent> {

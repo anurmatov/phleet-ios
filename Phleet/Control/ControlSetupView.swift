@@ -136,6 +136,10 @@ struct ControlSetupView: View {
                     )
             }
 
+            if let message = model.tokenMessage {
+                messageView(message, identifier: .controlSetupTokenMessage)
+            }
+
             if let message = model.formMessage {
                 messageView(message, identifier: .controlSetupFormMessage)
             }
@@ -143,7 +147,10 @@ struct ControlSetupView: View {
             Button {
                 Task {
                     if let credential = await model.connect() {
-                        appEnvironment.finishControlSetup(credential)
+                        appEnvironment.finishControlSetup(
+                            credential,
+                            tokenVerification: model.tokenVerification
+                        )
                     }
                 }
             } label: {
@@ -204,6 +211,7 @@ extension ControlSetupModel.Message {
         case .accessDenied: return "controlSetup.message.accessDenied"
         case .unreachable: return "controlSetup.message.unreachable"
         case .notAnOrchestrator: return "controlSetup.message.notAnOrchestrator"
+        case .operatorTokenRejected: return "controlSetup.message.operatorTokenRejected"
         case .credentialWriteFailed: return "controlSetup.message.credentialWriteFailed"
         }
     }

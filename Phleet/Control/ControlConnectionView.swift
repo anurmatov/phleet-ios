@@ -8,6 +8,8 @@ import SwiftUI
 struct ControlConnectionView: View {
 
     let credential: ControlCredential
+    /// What setup learned about the operator token in this launch, if setup ran in it.
+    let tokenVerification: ControlSetupModel.TokenVerification?
     let remove: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -30,6 +32,15 @@ struct ControlConnectionView: View {
                         Text("connection.mode")
                     }
                     .accessibilityIdentifier(AccessibilityIdentifier.connectionMode.identifier)
+
+                    if let tokenNoteKey {
+                        Text(tokenNoteKey)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .accessibilityIdentifier(
+                                AccessibilityIdentifier.connectionTokenNote.identifier
+                            )
+                    }
 
                     LabeledContent {
                         Text(proxyKey)
@@ -97,6 +108,16 @@ struct ControlConnectionView: View {
     // Typed explicitly so each is looked up in the catalog rather than shown as its own key.
     private var modeKey: LocalizedStringKey {
         credential.canDecide ? "connection.mode.decide" : "connection.mode.readOnly"
+    }
+
+    /// Says what is actually known about the operator token, and nothing when nothing is.
+    private var tokenNoteKey: LocalizedStringKey? {
+        switch tokenVerification {
+        case .verified?: return "connection.token.verified"
+        case .unverified?: return "connection.token.unverified"
+        case .notRequired?: return "connection.token.notRequired"
+        case .noToken?, nil: return nil
+        }
     }
 
     private var proxyKey: LocalizedStringKey {
