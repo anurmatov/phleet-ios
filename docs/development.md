@@ -104,11 +104,24 @@ Every gating script takes injected input, so none of them needs the real environ
 ./scripts/check-release-inputs.sh --self-test          # runs itself under env -i
 ./scripts/check-app-icon.sh --self-test                # against tests/fixtures/appicon/
 ./scripts/check-app-icon.sh DIR                        # one-shot against your own icon set
+./scripts/print-crash-reports.sh --self-test           # against tests/fixtures/crashreport/
+./scripts/print-crash-reports.sh FILE                  # one-shot against your own report
 ```
 
 Each self-test asserts both directions — the passing case and the case that must fail. A check
 that can only go green is not a check, and `make selftest` runs before the gates themselves in
 CI so a gate that has stopped being able to fail is caught rather than trusted.
+
+## When the test process dies
+
+If the app-hosted test process exits unexpectedly, the xcodebuild log says only "Restarting after
+unexpected exit, crash, or test timeout" and names the test that happened to be running. The
+report that says why is written on the runner. CI prints the part that matters — the exception,
+the termination reason, any runtime message and the frames of the thread that died — in the
+**Print crash and hang reports** step, which runs only when the test step failed.
+[`scripts/print-crash-reports.sh`](../scripts/print-crash-reports.sh) is a diagnostic, not a
+gate: it never fails the job. A process that was killed for not responding may leave no report,
+and the step says so rather than printing nothing.
 
 ## The app icon is generated, and the generator is the source
 

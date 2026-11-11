@@ -1,0 +1,2 @@
+some other kind of diagnostic
+with two lines

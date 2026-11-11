@@ -68,6 +68,7 @@ selftest:
 	./scripts/check-no-private-values.sh --self-test
 	./scripts/check-release-inputs.sh --self-test
 	./scripts/check-app-icon.sh --self-test
+	./scripts/print-crash-reports.sh --self-test
 
 # The icon is committed, because Xcode needs the file to exist at build time. This target
 # regenerates it from scripts/make-app-icon.py so the artwork stays reviewable as source: change

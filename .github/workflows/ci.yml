@@ -49,6 +49,14 @@ jobs:
       - name: Build and test
         run: make test
 
+      - name: Print crash and hang reports
+        # A test process that exits unexpectedly leaves only "Restarting after unexpected exit"
+        # in the log above. The report that says why is on this runner. The result bundle
+        # carries it too, but that is a hundred megabytes to download for forty lines, so they
+        # are printed here. Never fails the job: it is a diagnostic, not a gate.
+        if: failure()
+        run: ./scripts/print-crash-reports.sh
+
       - name: Upload result bundle
         if: always()
         uses: actions/upload-artifact@v4
