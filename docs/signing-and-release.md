@@ -123,7 +123,11 @@ account has to do them.
       `CODE_SIGN_IDENTITY="Apple Distribution"`, so a legacy `iPhone Distribution` identity
       fails to match
 - [ ] The app record exists in App Store Connect
-- [ ] An APNs key exists for later slices — **it is not used by any code in this repository yet**
+- [ ] An APNs key exists, and the app identifier has the Push Notifications capability. The key
+      is **not** a secret of this repository: the orchestrator signs and sends notifications, so
+      the key goes in the orchestrator's configuration (see `docs/push-notifications.md` in the
+      platform repository). A key limited to the production environment delivers to TestFlight
+      and App Store builds only, not to a build run from Xcode
 
 ### Local signed build
 

@@ -61,6 +61,24 @@ struct RootView: View {
             }
             .tag(Pane.chat)
         }
+        .onAppear {
+            // A notification tapped while the app was not running is reported before this view
+            // exists, so the request is already waiting.
+            open(appEnvironment.requestedDestination)
+        }
+        .onChange(of: appEnvironment.requestedDestination) { _, destination in
+            open(destination)
+        }
+    }
+
+    /// Takes a tapped notification to its tab, and clears the request so it is honoured once.
+    private func open(_ destination: PushDestination?) {
+        guard let destination else { return }
+        switch destination {
+        case .fleet: selection = .fleet
+        case .runs: selection = .runs
+        }
+        appEnvironment.requestedDestination = nil
     }
 
     // MARK: - Fleet
@@ -72,7 +90,8 @@ struct RootView: View {
             FleetView(
                 model: model,
                 credential: credential,
-                tokenVerification: appEnvironment.controlTokenVerification
+                tokenVerification: appEnvironment.controlTokenVerification,
+                push: appEnvironment.pushNotifications
             ) {
                 appEnvironment.removeControlConnection()
             }

@@ -10,6 +10,8 @@ struct ControlConnectionView: View {
     let credential: ControlCredential
     /// What setup learned about the operator token in this launch, if setup ran in it.
     let tokenVerification: ControlSetupModel.TokenVerification?
+    /// Notifications for this connection, or `nil` when there is nothing to offer.
+    let push: PushNotificationsModel?
     let remove: () -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -49,6 +51,10 @@ struct ControlConnectionView: View {
                     }
                 } footer: {
                     Text("connection.help")
+                }
+
+                if let push {
+                    PushNotificationsSection(model: push)
                 }
 
                 Section {

@@ -83,6 +83,17 @@ protocol ControlAPIClient {
     /// `GET /api/operator-token` — whether the orchestrator accepts this connection's operator
     /// token. Changes nothing.
     func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck
+
+    /// `PUT /api/push/devices/{deviceId}` — tell the orchestrator where to send this install's
+    /// notifications.
+    func registerPushDevice(
+        _ connection: ControlConnection,
+        deviceId: String,
+        token: String
+    ) async throws
+
+    /// `DELETE /api/push/devices/{deviceId}`
+    func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws
 }
 
 /// What the orchestrator said about the operator token.
@@ -190,6 +201,10 @@ enum ControlRequest {
     }
 
     static let operatorTokenPath = "/api/operator-token"
+
+    static func pushDevicePath(deviceId: String) -> String {
+        "/api/push/devices/" + escaped(deviceId)
+    }
 
     static func agentActionPath(agentName: String, action: AgentAction) -> String {
         "/api/agents/" + escaped(agentName) + "/" + action.rawValue

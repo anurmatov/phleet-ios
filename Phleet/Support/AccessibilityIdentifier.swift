@@ -119,6 +119,10 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case connectionAddress = "connection.address"
     case connectionMode = "connection.mode"
     case connectionTokenNote = "connection.tokenNote"
+    case pushState = "push.state"
+    case pushTurnOn = "push.turnOn"
+    case pushTurnOff = "push.turnOff"
+
     case connectionRemove = "connection.remove"
     case connectionRemoveConfirm = "connection.removeConfirm"
     case connectionRemoveCancel = "connection.removeCancel"

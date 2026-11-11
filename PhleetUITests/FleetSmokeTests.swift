@@ -106,6 +106,56 @@ final class FleetSmokeTests: XCTestCase {
         XCTAssertTrue(element(in: app, .controlSetupConnect).exists)
     }
 
+    /// Notifications are turned on and off from the connection sheet, and the state is said in
+    /// words each time. Under the scripted backend the system's permission prompt and Apple's
+    /// token are stood in for, so this covers the app's own steps and not the system's.
+    func testNotificationsCanBeTurnedOnAndOff() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [LaunchArguments.scriptedBackend]
+        app.launch()
+
+        let scan = element(in: app, .controlSetupScan)
+        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the setup form never appeared")
+        scan.tap()
+        element(in: app, .controlSetupConnect).tap()
+        XCTAssertTrue(
+            element(in: app, .fleetAgent).waitForExistence(timeout: 30),
+            "the fleet never appeared"
+        )
+
+        element(in: app, .fleetConnection).tap()
+
+        let turnOn = element(in: app, .pushTurnOn)
+        XCTAssertTrue(turnOn.waitForExistence(timeout: 30), "notifications are not offered")
+        XCTAssertTrue(state(in: app, beginning: "Off").exists, "notifications did not start off")
+        turnOn.tap()
+
+        XCTAssertTrue(
+            state(in: app, beginning: "On").waitForExistence(timeout: 30),
+            "notifications never reported being on"
+        )
+
+        let sheet = XCTAttachment(screenshot: app.screenshot())
+        sheet.name = "Notifications"
+        sheet.lifetime = .keepAlways
+        add(sheet)
+
+        let turnOff = element(in: app, .pushTurnOff)
+        XCTAssertTrue(turnOff.waitForExistence(timeout: 10), "turning off is not offered once on")
+        turnOff.tap()
+        XCTAssertTrue(
+            state(in: app, beginning: "Off").waitForExistence(timeout: 30),
+            "notifications never reported being off"
+        )
+    }
+
+    private func state(in app: XCUIApplication, beginning prefix: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.pushState.identifier)
+            .matching(NSPredicate(format: "label BEGINSWITH %@", prefix))
+            .firstMatch
+    }
+
     /// Scanning a setup code fills the form and stops there: the address it read is on screen,
     /// and connecting is still a separate tap. A simulator has no camera, so the scripted
     /// backend stands in for one and "scans" a valid code.

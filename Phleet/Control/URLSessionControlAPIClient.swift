@@ -246,6 +246,39 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         }
     }
 
+    private struct PushRegistration: Encodable {
+        let token: String
+    }
+
+    func registerPushDevice(
+        _ connection: ControlConnection,
+        deviceId: String,
+        token: String
+    ) async throws {
+        let payload: Data
+        do {
+            payload = try encoder.encode(PushRegistration(token: token))
+        } catch {
+            throw ControlAPIError.decoding("request body could not be encoded")
+        }
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "PUT",
+            percentEncodedPath: ControlRequest.pushDevicePath(deviceId: deviceId),
+            body: payload
+        )
+        _ = try await perform(request)
+    }
+
+    func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "DELETE",
+            percentEncodedPath: ControlRequest.pushDevicePath(deviceId: deviceId)
+        )
+        _ = try await perform(request)
+    }
+
     // MARK: - Plumbing
 
     private func perform(_ request: URLRequest) async throws -> Data {

@@ -18,6 +18,8 @@ final class FakeControlAPI: ControlAPIClient {
         case workflowTypes
         case startWorkflow(StartWorkflowBody)
         case checkOperatorToken
+        case registerPush(deviceId: String, token: String)
+        case unregisterPush(deviceId: String)
     }
 
     private(set) var calls: [Call] = []
@@ -34,6 +36,8 @@ final class FakeControlAPI: ControlAPIClient {
     var typesResult: Result<[WorkflowType], Error> = .success([])
     var startResult: Result<String, Error> = .success("started-1")
     var tokenCheckResult: Result<OperatorTokenCheck, Error> = .success(.accepted)
+    var registerPushResult: Result<Void, Error> = .success(())
+    var unregisterPushResult: Result<Void, Error> = .success(())
 
     /// Runs when an agent action is sent, before its result is produced.
     var onAgentAction: (() -> Void)?
@@ -144,6 +148,20 @@ extension FakeControlAPI {
         record(.checkOperatorToken, connection)
         return try tokenCheckResult.get()
     }
+
+    func registerPushDevice(
+        _ connection: ControlConnection,
+        deviceId: String,
+        token: String
+    ) async throws {
+        record(.registerPush(deviceId: deviceId, token: token), connection)
+        try registerPushResult.get()
+    }
+
+    func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {
+        record(.unregisterPush(deviceId: deviceId), connection)
+        try unregisterPushResult.get()
+    }
 }
 
 /// A scripted agent log. Each attach replays its script and ends.
@@ -192,4 +210,26 @@ final class FakeControlLiveStream: ControlLiveStream {
             continuation.finish()
         }
     }
+}
+
+/// A scripted notification system. Records what was asked of it; a test delivers the token.
+@MainActor
+final class FakePushSystem: PushSystem {
+
+    var onDeviceToken: ((String) -> Void)?
+    var onRegistrationFailed: (() -> Void)?
+    var onOpened: ((PushDestination) -> Void)?
+
+    var permission: PushPermission = .granted
+    private(set) var permissionRequests = 0
+    private(set) var registerCalls = 0
+    private(set) var unregisterCalls = 0
+
+    func requestPermission() async -> PushPermission {
+        permissionRequests += 1
+        return permission
+    }
+
+    func registerForRemoteNotifications() { registerCalls += 1 }
+    func unregisterForRemoteNotifications() { unregisterCalls += 1 }
 }
