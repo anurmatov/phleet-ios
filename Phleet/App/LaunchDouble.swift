@@ -19,6 +19,15 @@ struct LaunchDouble {
     let controlStream: ControlLiveStream
     let controlLogStream: AgentLogStream
 
+    /// What the stand-in for the camera "scans". A simulator has no camera, so under the
+    /// scripted backend the scan button applies this text instead of opening one.
+    let scannedSetupCode: String
+
+    /// A valid setup code for the scripted orchestrator. Obviously synthetic.
+    static let scriptedSetupCode =
+        #"{"phleet":"control-setup","v":1,"origin":"https://scripted.example.invalid","#
+        + #""operatorToken":"scripted-operator-token"}"#
+
     static func make(from arguments: [String]) -> LaunchDouble? {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
@@ -33,7 +42,10 @@ struct LaunchDouble {
             controlCredentialStore: InMemoryControlCredentialStore(),
             controlAPI: controlBackend,
             controlStream: controlBackend,
-            controlLogStream: controlBackend
+            controlLogStream: controlBackend,
+            scannedSetupCode: arguments.contains(LaunchArguments.unreadableSetupCode)
+                ? "not a setup code"
+                : LaunchDouble.scriptedSetupCode
         )
     }
 }

@@ -247,6 +247,30 @@ without the route the app does not fall back to making a write to find out: that
 The result is kept for the launch that made it and shown on the connection sheet; it is not
 stored, because after a relaunch the honest answer is "not checked since".
 
+### A setup code fills the form and never connects
+
+The dashboard can show the three setup values as one QR code
+([`docs/phone-setup-code.md`](https://github.com/anurmatov/phleet/blob/main/docs/phone-setup-code.md)
+in the platform repository). `ControlSetupCode.parse` reads it and
+`ControlSetupModel.apply(scanned:)` puts it in the form. That is all a scan does.
+
+A QR code is whatever someone printed, so it is read as untrusted input:
+
+- The kind and the version are checked before anything else is read. Some other QR code is "not
+  a setup code"; a newer version is refused by name rather than read with today's field names.
+- A readable code replaces **all four** fields, clearing the ones it does not carry. A read-only
+  code scanned over a form that already held an operator token must not leave that token in place
+  to be sent to the scanned address.
+- An unreadable code changes nothing that was typed.
+- The scanned address gets no special treatment: it is shown for a person to check, and the same
+  rule that refuses a typed `http://` address refuses a scanned one.
+
+The camera is `DataScannerViewController`, restricted to QR codes, in a sheet that hands back the
+first code's text and nothing else. Camera access is asked for when the sheet opens, never at
+launch. A simulator has no camera, so under the scripted backend the scan button applies a fixed
+code instead of opening one; that is what the UI tests drive, and it means **the camera path
+itself is not covered by CI**.
+
 ### No redirect is ever followed
 
 An orchestrator never redirects. A proxy that does not recognise the caller does: it answers with

@@ -33,6 +33,8 @@ What Fleet does:
   access proxy in front of it, and optionally the orchestrator's operator token. One read of the
   agent list proves the address and the proxy before anything is stored, and the operator token
   is checked with the orchestrator's token-check read: a token it rejects is refused at setup
+- **setup code** — scan the QR code the dashboard shows instead of typing; scanning fills the
+  form and never connects, so the address it read is on screen to be checked first
 - **credentials** — a second Keychain item, separate from the device credential and likewise
   `AfterFirstUnlockThisDeviceOnly`; without an operator token the connection is read-only
 - **needs you** — the workflow runs waiting at a gate, oldest first, with the decisions the
@@ -79,14 +81,16 @@ What it still does not do:
 - **no voice, attachments, approvals, or multi-agent rooms**
 - **no steer or cancel interface** — the routes exist; this app does not surface them
 - **no local persistence of conversation history** — the transcript is in memory only
-- **no QR enrollment** — the operator's code-issuing path prints to a terminal, so there is
-  nothing to scan yet
+- **no QR enrollment for Chat** — the operator's code-issuing path prints to a terminal, so there
+  is nothing to scan yet. (The Fleet tab's setup code is a different thing: it carries an address
+  and tokens an operator already holds, not a single-use enrollment.)
 
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
 offline. Nothing here has been exercised against a live server yet — and for the Fleet tab that
 includes an access proxy: the orchestrator fixtures are written from its source, not captured
 from a running one, and whether its sockets (live state, agent logs) pass a proxy with
-service-token headers is untested.
+service-token headers is untested. The camera scanner cannot run on a simulator, so CI covers
+reading a setup code and what it may do, not the camera itself.
 
 ## Build and test
 

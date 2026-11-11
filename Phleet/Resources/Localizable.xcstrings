@@ -373,6 +373,30 @@
         }
       }
     },
+    "a11y.controlSetup.scan" : {
+      "comment" : "Spoken label for the button that opens the setup-code scanner.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan setup code"
+          }
+        }
+      }
+    },
+    "a11y.controlSetup.scanNotice" : {
+      "comment" : "Spoken label for the result of scanning a setup code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan result"
+          }
+        }
+      }
+    },
     "a11y.controlSetup.serviceTokenMessage" : {
       "comment" : "Spoken label for a problem with the service token.",
       "extractionState" : "manual",
@@ -1017,6 +1041,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "a11y.scanner.camera" : {
+      "comment" : "Spoken label for the camera view of the scanner.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera, looking for a setup code"
+          }
+        }
+      }
+    },
+    "a11y.scanner.cancel" : {
+      "comment" : "Spoken label for the button that closes the scanner.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "a11y.scanner.unavailable" : {
+      "comment" : "Spoken label shown when scanning is not possible.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanning is not available"
           }
         }
       }
@@ -2041,6 +2101,42 @@
         }
       }
     },
+    "controlSetup.message.setupCodeIncomplete" : {
+      "comment" : "What was scanned is a setup code with a part missing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That setup code is incomplete. Show it again on the dashboard, or type the values instead."
+          }
+        }
+      }
+    },
+    "controlSetup.message.setupCodeNewerFormat" : {
+      "comment" : "What was scanned is a setup code in a newer format.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That setup code is in a format this version of the app cannot read. Update the app, or type the values instead."
+          }
+        }
+      }
+    },
+    "controlSetup.message.setupCodeNotRecognised" : {
+      "comment" : "What was scanned is not a setup code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That is not a setup code. Scan the code your dashboard shows under Credentials, then Phone."
+          }
+        }
+      }
+    },
     "controlSetup.message.unreachable" : {
       "comment" : "Nothing answered at the address.",
       "extractionState" : "manual",
@@ -2073,6 +2169,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "See what your agents are doing and answer what is waiting for you. Enter the address you open the dashboard at."
+          }
+        }
+      }
+    },
+    "controlSetup.scan" : {
+      "comment" : "Button that opens the setup-code scanner.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan setup code"
+          }
+        }
+      }
+    },
+    "controlSetup.scan.filled" : {
+      "comment" : "Shown after a setup code filled the form.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setup code read. Check the address below, then connect."
+          }
+        }
+      }
+    },
+    "controlSetup.scan.help" : {
+      "comment" : "Explains where a setup code comes from.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your dashboard shows one under Credentials, then Phone."
           }
         }
       }
@@ -3753,6 +3885,78 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Not connected"
+          }
+        }
+      }
+    },
+    "scanner.cancel" : {
+      "comment" : "Button that closes the scanner without scanning.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "scanner.denied.description" : {
+      "comment" : "Explains how to allow camera access and what to do instead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow camera access for this app in Settings to scan a setup code, or type the values instead."
+          }
+        }
+      }
+    },
+    "scanner.denied.title" : {
+      "comment" : "Title shown when camera access is not allowed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Camera access is off"
+          }
+        }
+      }
+    },
+    "scanner.title" : {
+      "comment" : "Title of the setup-code scanner.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan setup code"
+          }
+        }
+      }
+    },
+    "scanner.unsupported.description" : {
+      "comment" : "Explains that the device cannot scan and what to do instead.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device cannot scan a code. Type the values instead."
+          }
+        }
+      }
+    },
+    "scanner.unsupported.title" : {
+      "comment" : "Title shown when the device cannot scan.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scanning is not available"
           }
         }
       }
