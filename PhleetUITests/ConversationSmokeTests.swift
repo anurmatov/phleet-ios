@@ -242,7 +242,17 @@ final class ConversationSmokeTests: XCTestCase {
         let liveReply = app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS %@", "Scripted reply.")
         ).firstMatch
-        XCTAssertTrue(liveReply.waitForExistence(timeout: 30), "the reply never rendered")
+        guard liveReply.waitForExistence(timeout: 30) else {
+            // This has failed intermittently, and the failure alone does not say which of two
+            // different things went wrong: the reply was never produced, or it was produced below
+            // the fold, where a lazy stack does not build it and so it "does not exist". The
+            // element tree settles it — the transcript's entries and their frames are in it —
+            // and printing it here puts the answer in the job log instead of in a result bundle.
+            return XCTFail(
+                "the reply never rendered. Sent messages on screen: "
+                    + "\(entries(in: app).count). Element tree:\n\(app.debugDescription)"
+            )
+        }
         XCTAssertTrue(liveReply.isHittable, "sending did not keep the newest entry visible")
     }
 
