@@ -22,8 +22,7 @@ the workflow runs in progress and recently closed. They are described under
 
 Not in this slice, and not partially present either:
 
-- no APNs registration; the `aps-environment` entitlement is a static declaration and nothing
-  calls `registerForRemoteNotifications()`
+- no notifications for the thread: an agent's reply does not notify. Only the control plane does
 - no voice, attachments, or multi-agent rooms
 - no steer or cancel interface — the routes exist, this app does not surface them
 - no local persistence of conversation history: no database, no file store, no user defaults
@@ -270,6 +269,39 @@ first code's text and nothing else. Camera access is asked for when the sheet op
 launch. A simulator has no camera, so under the scripted backend the scan button applies a fixed
 code instead of opening one; that is what the UI tests drive, and it means **the camera path
 itself is not covered by CI**.
+
+### Notifications are three steps, and each can say no
+
+Turning notifications on needs the person's permission, a device token from Apple, and the
+orchestrator accepting that token. `PushNotificationsModel` gives every way one of them stops its
+own state, because each is fixed somewhere different: Settings, the network or the build's
+signing, the orchestrator's configuration, or the connection's operator token.
+
+- **The wish is stored with the connection**, as `pushDeviceId` on `ControlCredential`, and it is
+  stored before the token arrives. It then survives a launch in which Apple or the orchestrator
+  could not be reached, and the next launch asks Apple again, because a token can change.
+- **An orchestrator that will not send is never shown as "on".** `503 push_disabled` and a
+  missing route both clear the wish and say which it was.
+- **Turning off stops the phone first.** The app unregisters with the system whether or not the
+  orchestrator could be told to forget the device.
+- **A registration that finishes late changes nothing.** The wish changes before anything is
+  awaited, and a registration answered after it has changed — turned off, turned on again, or sent
+  again with a newer token — cannot turn notifications back on, show a stale failure or clear the
+  newer wish. If the orchestrator accepted it for a device no longer wanted, the app tells it to
+  forget that device again. A new wish always gets a new device identifier, so this never removes
+  it. Registrations go one at a time, so the orchestrator stores tokens in the order Apple issued
+  them; one overtaken while it waits is not sent.
+- **A read-only connection is told before the person is asked.** Registering is a write; a
+  permission prompt for something that could never be used is a prompt for nothing.
+- **Permission is asked for from the connection sheet**, in answer to a tap, never at launch.
+
+The system side sits behind `PushSystem`. The real one, `SystemPushSystem`, is a single object
+because the application delegate and the notification-centre delegate are created by the system
+and have nothing else to report to. A tapped notification carries a `kind`; `PushDestination`
+maps it to the Fleet or Runs tab, and an unknown kind opens the fleet rather than nothing.
+
+The app holds no key. The orchestrator signs and sends; see `docs/push-notifications.md` in the
+platform repository.
 
 ### No redirect is ever followed
 

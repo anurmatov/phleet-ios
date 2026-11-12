@@ -80,6 +80,14 @@ final class AppEnvironment {
     /// launch, where the scan button opens the scanner.
     let scriptedSetupCode: String?
 
+    /// Notifications for the current connection. Exists exactly when `controlPlane` does.
+    private(set) var pushNotifications: PushNotificationsModel?
+
+    /// Where a tapped notification asked to land. The root view takes it and clears it.
+    var requestedDestination: PushDestination?
+
+    let pushSystem: PushSystem
+
     init(
         credentialStore: CredentialStore? = nil,
         api: FleetAPIClient? = nil,
@@ -88,6 +96,7 @@ final class AppEnvironment {
         controlAPI: ControlAPIClient? = nil,
         controlStream: ControlLiveStream? = nil,
         controlLogStream: AgentLogStream? = nil,
+        pushSystem: PushSystem? = nil,
         launchArguments: [String] = ProcessInfo.processInfo.arguments,
         launchEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) {
@@ -101,6 +110,7 @@ final class AppEnvironment {
         self.stream = stream ?? double?.stream ?? URLSessionConversationStream()
 
         self.scriptedSetupCode = double?.scannedSetupCode
+        self.pushSystem = pushSystem ?? double?.pushSystem ?? SystemPushSystem.shared
         self.controlCredentialStore = controlCredentialStore ?? double?.controlCredentialStore
             ?? KeychainControlCredentialStore()
         if let controlAPI = controlAPI ?? double?.controlAPI,
@@ -123,6 +133,18 @@ final class AppEnvironment {
             launchEnvironment: launchEnvironment,
             overrideAllowed: ServerProfileResolution.overrideAllowedForCurrentBuild
         )
+
+        // Set before anything is restored: restoring a connection with notifications on asks
+        // Apple for the token again, and the answer has to have somewhere to go.
+        self.pushSystem.onDeviceToken = { [weak self] token in
+            Task { await self?.pushNotifications?.handleDeviceToken(token) }
+        }
+        self.pushSystem.onRegistrationFailed = { [weak self] in
+            self?.pushNotifications?.handleRegistrationFailed()
+        }
+        self.pushSystem.onOpened = { [weak self] destination in
+            self?.requestedDestination = destination
+        }
 
         restoreEnrollment()
         restoreControlPlane()
@@ -276,6 +298,12 @@ final class AppEnvironment {
         controlPlane?.stop()
         controlPlane = nil
         runs = nil
+        // Told to forget this device before the credential that could tell it is gone. Best
+        // effort, and the phone has stopped receiving either way.
+        if let push = pushNotifications {
+            Task { await push.forget() }
+        }
+        pushNotifications = nil
         controlCredential = nil
         controlTokenVerification = nil
         do {
@@ -300,6 +328,30 @@ final class AppEnvironment {
             connection: connection
         )
         runs = RunsModel(api: controlAPI, connection: connection)
+
+        let push = PushNotificationsModel(
+            api: controlAPI,
+            system: pushSystem,
+            connection: connection,
+            deviceId: credential.pushDeviceId,
+            persist: { [weak self] deviceId in
+                self?.persistPushDeviceId(deviceId)
+            }
+        )
+        pushNotifications = push
+        push.resume()
+    }
+
+    /// Records, with the connection, whether notifications are wanted.
+    ///
+    /// The models are not rebuilt: this changes nothing about how the orchestrator is reached.
+    /// A failed write is not surfaced. The worst outcome is that the wish is forgotten on the
+    /// next launch and has to be stated again, which the notifications control then shows.
+    private func persistPushDeviceId(_ deviceId: String?) {
+        guard let current = controlCredential else { return }
+        let updated = current.withPushDeviceId(deviceId)
+        controlCredential = updated
+        try? controlCredentialStore.save(updated)
     }
 
     /// A log model for one agent's log screen, or `nil` when there is no connection.

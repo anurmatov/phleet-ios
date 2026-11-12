@@ -18,6 +18,8 @@ final class FakeControlAPI: ControlAPIClient {
         case workflowTypes
         case startWorkflow(StartWorkflowBody)
         case checkOperatorToken
+        case registerPush(deviceId: String, token: String)
+        case unregisterPush(deviceId: String)
     }
 
     private(set) var calls: [Call] = []
@@ -34,6 +36,27 @@ final class FakeControlAPI: ControlAPIClient {
     var typesResult: Result<[WorkflowType], Error> = .success([])
     var startResult: Result<String, Error> = .success("started-1")
     var tokenCheckResult: Result<OperatorTokenCheck, Error> = .success(.accepted)
+    var registerPushResult: Result<Void, Error> = .success(())
+    var unregisterPushResult: Result<Void, Error> = .success(())
+
+    /// Push registrations held open, by token, and push removals held open, by device, until a
+    /// test lets them finish. Lets a test choose whether a call completes before or after
+    /// something else the person does. Read from whichever thread runs the call, so guarded.
+    private var heldRegistrations: Set<String> = []
+    private var heldRemovals: Set<String> = []
+
+    /// What the orchestrator would hold: the token each device's registration stored. A write is
+    /// applied when its call is answered, so a test can see which of two writes landed last.
+    private var registeredTokens: [String: String] = [:]
+
+    /// The answer for a particular held registration, by token, given when the test releases it.
+    /// Without one, a registration answers with `registerPushResult`.
+    private var registrationAnswers: [String: Result<Void, Error>] = [:]
+
+    /// Guards what a held push call shares with the test: the recorded calls, the held sets and
+    /// the answers. The route methods are `nonisolated async`, so a held call waits on another
+    /// thread while the test, and the next call, carry on.
+    private let lock = NSLock()
 
     /// Runs when an agent action is sent, before its result is produced.
     var onAgentAction: (() -> Void)?
@@ -50,12 +73,47 @@ final class FakeControlAPI: ControlAPIClient {
     }
 
     func count(of call: Call) -> Int {
-        calls.filter { $0 == call }.count
+        lock.withLock { calls.filter { $0 == call }.count }
     }
 
     func record(_ call: Call, _ connection: ControlConnection) {
-        calls.append(call)
-        connections.append(connection)
+        lock.withLock {
+            calls.append(call)
+            connections.append(connection)
+        }
+    }
+
+    func registeredToken(of deviceId: String) -> String? {
+        lock.withLock { registeredTokens[deviceId] }
+    }
+
+    func hold(registrationOf token: String) {
+        lock.withLock { _ = heldRegistrations.insert(token) }
+    }
+
+    func release(registrationOf token: String, answering answer: Result<Void, Error>? = nil) {
+        lock.withLock {
+            if let answer { registrationAnswers[token] = answer }
+            _ = heldRegistrations.remove(token)
+        }
+    }
+
+    func hold(removalOf deviceId: String) {
+        lock.withLock { _ = heldRemovals.insert(deviceId) }
+    }
+
+    func release(removalOf deviceId: String) {
+        lock.withLock { _ = heldRemovals.remove(deviceId) }
+    }
+
+    /// Waits while `isHeld` says so, within the same bound as the other doubles' gates, so a hold
+    /// that is never released fails the test instead of hanging the suite.
+    private func waitWhileHeld(_ isHeld: () -> Bool) async {
+        var yields = 0
+        while lock.withLock(isHeld), yields < FakeFleetAPI.maxGateYields {
+            await Task.yield()
+            yields += 1
+        }
     }
 
     func agents(_ connection: ControlConnection) async throws -> [FleetAgent] {
@@ -144,6 +202,28 @@ extension FakeControlAPI {
         record(.checkOperatorToken, connection)
         return try tokenCheckResult.get()
     }
+
+    func registerPushDevice(
+        _ connection: ControlConnection,
+        deviceId: String,
+        token: String
+    ) async throws {
+        record(.registerPush(deviceId: deviceId, token: token), connection)
+        await waitWhileHeld { heldRegistrations.contains(token) }
+        try lock.withLock {
+            try (registrationAnswers[token] ?? registerPushResult).get()
+            registeredTokens[deviceId] = token
+        }
+    }
+
+    func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {
+        record(.unregisterPush(deviceId: deviceId), connection)
+        await waitWhileHeld { heldRemovals.contains(deviceId) }
+        try lock.withLock {
+            try unregisterPushResult.get()
+            registeredTokens[deviceId] = nil
+        }
+    }
 }
 
 /// A scripted agent log. Each attach replays its script and ends.
@@ -192,4 +272,26 @@ final class FakeControlLiveStream: ControlLiveStream {
             continuation.finish()
         }
     }
+}
+
+/// A scripted notification system. Records what was asked of it; a test delivers the token.
+@MainActor
+final class FakePushSystem: PushSystem {
+
+    var onDeviceToken: ((String) -> Void)?
+    var onRegistrationFailed: (() -> Void)?
+    var onOpened: ((PushDestination) -> Void)?
+
+    var permission: PushPermission = .granted
+    private(set) var permissionRequests = 0
+    private(set) var registerCalls = 0
+    private(set) var unregisterCalls = 0
+
+    func requestPermission() async -> PushPermission {
+        permissionRequests += 1
+        return permission
+    }
+
+    func registerForRemoteNotifications() { registerCalls += 1 }
+    func unregisterForRemoteNotifications() { unregisterCalls += 1 }
 }

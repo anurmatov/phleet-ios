@@ -47,6 +47,9 @@ What Fleet does:
 - **runs** — in progress, stopped without finishing, and finished in the last day; a run's
   history; cancel, addressed to that run rather than to its workflow name
 - **start a workflow** — pick a type and fill in its text, number and switch inputs
+- **notifications** — turned on from the connection sheet; the orchestrator then tells this phone
+  when a gate is waiting, a workflow failed or an agent went down, and tapping one opens the tab
+  that shows it. Every reason they are not on is said in words
 - **freshness** — HTTPS reads on a timer are the source of truth; the orchestrator's live socket
   only makes changes arrive sooner, so a socket that cannot pass a proxy costs nothing but speed
 - **no redirects** — a request is never followed to another host, so a proxy's sign-in redirect
@@ -76,8 +79,9 @@ What it still does not do:
   bindings stay on the web dashboard
 - **no token check against an older orchestrator** — one without `GET /api/operator-token` cannot
   be asked, so the token is stored unverified and the connection sheet says so
-- **no APNs registration** — the `aps-environment` entitlement is a static declaration and no code
-  calls `registerForRemoteNotifications()`
+- **no opening the exact item from a notification** — a tap opens the Fleet or Runs tab, not the
+  particular gate, run or agent
+- **no notifications for Chat** — an agent's reply does not notify; only the control plane does
 - **no voice, attachments, approvals, or multi-agent rooms**
 - **no steer or cancel interface** — the routes exist; this app does not surface them
 - **no local persistence of conversation history** — the transcript is in memory only
@@ -90,7 +94,9 @@ offline. Nothing here has been exercised against a live server yet — and for t
 includes an access proxy: the orchestrator fixtures are written from its source, not captured
 from a running one, and whether its sockets (live state, agent logs) pass a proxy with
 service-token headers is untested. The camera scanner cannot run on a simulator, so CI covers
-reading a setup code and what it may do, not the camera itself.
+reading a setup code and what it may do, not the camera itself. Notifications are covered the
+same way: the app's own steps run against a stand-in for the system, and no test asks Apple for a
+device token or receives a real notification.
 
 ## Build and test
 

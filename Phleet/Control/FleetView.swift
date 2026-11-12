@@ -16,6 +16,7 @@ struct FleetView: View {
     let model: ControlPlaneModel
     let credential: ControlCredential
     let tokenVerification: ControlSetupModel.TokenVerification?
+    let push: PushNotificationsModel?
     let removeConnection: () -> Void
 
     @Environment(\.scenePhase) private var scenePhase
@@ -52,7 +53,11 @@ struct FleetView: View {
             }
         }
         .sheet(isPresented: $isShowingConnection) {
-            ControlConnectionView(credential: credential, tokenVerification: tokenVerification) {
+            ControlConnectionView(
+                credential: credential,
+                tokenVerification: tokenVerification,
+                push: push
+            ) {
                 isShowingConnection = false
                 removeConnection()
             }

@@ -28,6 +28,10 @@ struct LaunchDouble {
         #"{"phleet":"control-setup","v":1,"origin":"https://scripted.example.invalid","#
         + #""operatorToken":"scripted-operator-token"}"#
 
+    /// Stands in for the notification system: permission is granted and a token arrives.
+    let pushSystem: PushSystem
+
+    @MainActor
     static func make(from arguments: [String]) -> LaunchDouble? {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
@@ -45,7 +49,8 @@ struct LaunchDouble {
             controlLogStream: controlBackend,
             scannedSetupCode: arguments.contains(LaunchArguments.unreadableSetupCode)
                 ? "not a setup code"
-                : LaunchDouble.scriptedSetupCode
+                : LaunchDouble.scriptedSetupCode,
+            pushSystem: ScriptedPushSystem()
         )
     }
 }
@@ -497,6 +502,14 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         connection.operatorToken == ScriptedControlBackend.rejectedToken ? .rejected : .accepted
     }
 
+    func registerPushDevice(
+        _ connection: ControlConnection,
+        deviceId: String,
+        token: String
+    ) async throws {}
+
+    func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {}
+
     // MARK: - ControlLiveStream
 
     func frames(_ connection: ControlConnection) -> AsyncStream<ControlLiveEvent> {
@@ -513,4 +526,29 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
             continuation.yield(.text("scripted log line three"))
         }
     }
+}
+
+/// The scripted notification system. The person always says yes, and Apple always answers.
+///
+/// A simulator may or may not hand out a device token, and a UI test cannot answer the system's
+/// permission prompt reliably, so under the scripted backend neither is asked for real.
+@MainActor
+final class ScriptedPushSystem: PushSystem {
+
+    static let deviceToken = String(repeating: "ab", count: 32)
+
+    var onDeviceToken: ((String) -> Void)?
+    var onRegistrationFailed: (() -> Void)?
+    var onOpened: ((PushDestination) -> Void)?
+
+    func requestPermission() async -> PushPermission { .granted }
+
+    func registerForRemoteNotifications() {
+        // Later, not now: the real token also arrives after the call that asked for it returns.
+        Task { @MainActor in
+            self.onDeviceToken?(ScriptedPushSystem.deviceToken)
+        }
+    }
+
+    func unregisterForRemoteNotifications() {}
 }

@@ -31,16 +31,37 @@ struct ControlCredential: Equatable, Sendable, Codable {
     /// as unavailable rather than left to fail on the first tap.
     let operatorToken: String?
 
+    /// This install's name for itself on the orchestrator's list of phones to notify, or `nil`
+    /// when notifications are off.
+    ///
+    /// Its presence is the record that the person turned notifications on. It lives with the
+    /// connection because it belongs to it: a device registered with one orchestrator means
+    /// nothing to another, and removing the connection removes this with it.
+    let pushDeviceId: String?
+
     init(
         origin: String,
         accessClientId: String?,
         accessClientSecret: String?,
-        operatorToken: String?
+        operatorToken: String?,
+        pushDeviceId: String? = nil
     ) {
         self.origin = origin
         self.accessClientId = Self.nonEmpty(accessClientId)
         self.accessClientSecret = Self.nonEmpty(accessClientSecret)
         self.operatorToken = Self.nonEmpty(operatorToken)
+        self.pushDeviceId = Self.nonEmpty(pushDeviceId)
+    }
+
+    /// The same connection with notifications turned on under this identifier, or off for `nil`.
+    func withPushDeviceId(_ pushDeviceId: String?) -> ControlCredential {
+        ControlCredential(
+            origin: origin,
+            accessClientId: accessClientId,
+            accessClientSecret: accessClientSecret,
+            operatorToken: operatorToken,
+            pushDeviceId: pushDeviceId
+        )
     }
 
     /// The origin as a URL, or `nil` if the stored string will not parse.

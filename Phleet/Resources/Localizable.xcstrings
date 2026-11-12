@@ -901,6 +901,42 @@
         }
       }
     },
+    "a11y.push.state" : {
+      "comment" : "Spoken label for the notification state.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        }
+      }
+    },
+    "a11y.push.turnOff" : {
+      "comment" : "Spoken label for the button that turns notifications off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off notifications"
+          }
+        }
+      }
+    },
+    "a11y.push.turnOn" : {
+      "comment" : "Spoken label for the button that turns notifications on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on notifications"
+          }
+        }
+      }
+    },
     "a11y.root.purpose" : {
       "comment" : "Spoken label for the one-line purpose statement.",
       "extractionState" : "manual",
@@ -3489,6 +3525,234 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Running for"
+          }
+        }
+      }
+    },
+    "push.detail.denied" : {
+      "comment" : "Explains how to allow notifications after refusing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow notifications for this app in Settings, then turn them on here."
+          }
+        }
+      }
+    },
+    "push.detail.disabledOnServer" : {
+      "comment" : "Explains that notifications must be enabled on the orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are set up on the orchestrator first. Once they are on there, turn them on here."
+          }
+        }
+      }
+    },
+    "push.detail.readOnly" : {
+      "comment" : "Explains why a read-only connection cannot register for notifications.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Registering this phone is a change, so it needs the operator token. Set the connection up again with one."
+          }
+        }
+      }
+    },
+    "push.detail.tokenUnavailable" : {
+      "comment" : "Explains what to check when Apple issued no device token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check the connection and try again. A build that was not signed for notifications cannot register."
+          }
+        }
+      }
+    },
+    "push.detail.unsupportedServer" : {
+      "comment" : "Explains that the orchestrator is too old for notifications.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This orchestrator is older than notifications. Update it, then turn them on here."
+          }
+        }
+      }
+    },
+    "push.help" : {
+      "comment" : "Explains what the app notifies about.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When on, the orchestrator tells this phone when something is waiting for you, a workflow failed, or an agent went down."
+          }
+        }
+      }
+    },
+    "push.state.asking" : {
+      "comment" : "Notification state: waiting for the person to answer the system prompt.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for your answer…"
+          }
+        }
+      }
+    },
+    "push.state.denied" : {
+      "comment" : "Notification state: the person did not allow notifications.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not allowed on this phone"
+          }
+        }
+      }
+    },
+    "push.state.disabledOnServer" : {
+      "comment" : "Notification state: the orchestrator has notifications switched off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Switched off on the orchestrator"
+          }
+        }
+      }
+    },
+    "push.state.failed" : {
+      "comment" : "Notification state: the orchestrator could not be told.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not reach the orchestrator"
+          }
+        }
+      }
+    },
+    "push.state.off" : {
+      "comment" : "Notification state: off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "push.state.on" : {
+      "comment" : "Notification state: on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        }
+      }
+    },
+    "push.state.readOnly" : {
+      "comment" : "Notification state: unavailable on a read-only connection.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not available on a read-only connection"
+          }
+        }
+      }
+    },
+    "push.state.registering" : {
+      "comment" : "Notification state: registering with Apple and the orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning on…"
+          }
+        }
+      }
+    },
+    "push.state.tokenUnavailable" : {
+      "comment" : "Notification state: Apple issued no device token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not register with Apple"
+          }
+        }
+      }
+    },
+    "push.state.unsupportedServer" : {
+      "comment" : "Notification state: the orchestrator does not support notifications.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not supported by this orchestrator"
+          }
+        }
+      }
+    },
+    "push.title" : {
+      "comment" : "Section heading for notifications.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        }
+      }
+    },
+    "push.turnOff" : {
+      "comment" : "Button that turns notifications off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off notifications"
+          }
+        }
+      }
+    },
+    "push.turnOn" : {
+      "comment" : "Button that turns notifications on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on notifications"
           }
         }
       }

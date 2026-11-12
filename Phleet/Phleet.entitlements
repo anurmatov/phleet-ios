@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0">
 <dict>
-	<!-- Static declaration only. No code in this slice calls
-	     registerForRemoteNotifications(), and the app contacts no Apple service. -->
+	<!-- Needed for remote notifications: the app asks Apple for a device token only after
+	     the person turns notifications on for an orchestrator connection. The value here is
+	     the development environment; a distribution build is signed with a profile whose
+	     value is production, and that is the one that ends up in the shipped app. -->
 	<key>aps-environment</key>
 	<string>development</string>
 
