@@ -26,21 +26,11 @@ final class SignedInControlAPI: ControlAPIClient {
         _ connection: ControlConnection,
         _ operation: (ControlConnection) async throws -> Value
     ) async throws -> Value {
-        let first = try await bearer()
         do {
-            return try await operation(connection.bearing(first))
-        } catch ControlAPIError.unauthorized {
-            await tokens.invalidateToken()
-            let fresh = try await bearer()
-            return try await operation(connection.bearing(fresh))
-        }
-    }
-
-    /// A current token. A device credential the orchestrator refused, or none at all, reads to
-    /// the models as the request being refused: the sign-in itself is being torn down above them.
-    private func bearer() async throws -> String {
-        do {
-            return try await tokens.accessToken()
+            try await tokens.validateSession(for: connection)
+            return try await tokens.authorized { token in
+                try await operation(connection.bearing(token))
+            }
         } catch is AccessTokenHolder.Failure {
             throw ControlAPIError.unauthorized
         }
@@ -173,9 +163,8 @@ final class SignedInControlAPI: ControlAPIClient {
 
 /// The orchestrator's live socket, signed in as this phone.
 ///
-/// A socket is opened with the token current at that moment; the orchestrator does not ask again
-/// while it stays open. When one ends, the model above opens the next, which takes the token
-/// current then.
+/// A socket opens with its originating sign-in's current token and stops relaying when that
+/// generation retires. Reconnecting cannot adopt a replacement sign-in's credential.
 @MainActor
 final class SignedInControlLiveStream: ControlLiveStream {
 
@@ -200,12 +189,16 @@ final class SignedInControlLiveStream: ControlLiveStream {
         _ connection: ControlConnection,
         into continuation: AsyncStream<ControlLiveEvent>.Continuation
     ) async {
-        guard let token = try? await tokens.accessToken() else {
+        guard (try? tokens.validateSession(for: connection)) != nil,
+              let token = try? await tokens.accessToken(),
+              (try? tokens.validateSession(for: connection)) != nil,
+              !Task.isCancelled else {
             continuation.yield(.ended)
             continuation.finish()
             return
         }
         for await event in base.frames(connection.bearing(token)) {
+            guard (try? tokens.validateSession(for: connection)) != nil, !Task.isCancelled else { break }
             continuation.yield(event)
         }
         continuation.finish()
@@ -241,12 +234,16 @@ final class SignedInAgentLogStream: AgentLogStream {
         agentName: String,
         into continuation: AsyncStream<AgentLogEvent>.Continuation
     ) async {
-        guard let token = try? await tokens.accessToken() else {
+        guard (try? tokens.validateSession(for: connection)) != nil,
+              let token = try? await tokens.accessToken(),
+              (try? tokens.validateSession(for: connection)) != nil,
+              !Task.isCancelled else {
             continuation.yield(.ended)
             continuation.finish()
             return
         }
         for await event in base.log(connection.bearing(token), agentName: agentName) {
+            guard (try? tokens.validateSession(for: connection)) != nil, !Task.isCancelled else { break }
             continuation.yield(event)
         }
         continuation.finish()

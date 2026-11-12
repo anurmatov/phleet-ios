@@ -80,6 +80,8 @@ final class AppEnvironment {
     private let injectedChatAPI: FleetAPIClient?
     private let injectedChatStream: ConversationStream?
 
+    private var sessionGeneration = UUID()
+    private var activeTokens: AccessTokenHolder?
     private var signedInAPI: SignedInControlAPI?
     private var signedInLogStream: AgentLogStream?
 
@@ -186,6 +188,16 @@ final class AppEnvironment {
 
     /// Adopts a sign-in that setup has already stored.
     func finishSetup(_ outcome: SetupOutcome) {
+        // A cancelled setup may finish its mint after another setup has already been adopted.
+        // Never let that old completion replace the newer sign-in or revive retired tokens.
+        guard let stored = try? credentialStore.load(),
+              stored.isSameSignIn(as: outcome.credential),
+              let connection = outcome.credential.connection,
+              (try? outcome.tokens.validateSession(for: connection)) != nil else {
+            if activeTokens !== outcome.tokens { outcome.tokens.invalidateSession() }
+            if credential == nil { signedOutNotice = .credentialUnavailable }
+            return
+        }
         var credential = outcome.credential
         if credential.pushDeviceId == nil,
            let wish = legacyWish,
@@ -208,8 +220,14 @@ final class AppEnvironment {
         }
         controlPlane?.stop()
 
+        if activeTokens !== tokens { activeTokens?.invalidateSession() }
+        let generation = UUID()
+        sessionGeneration = generation
+        activeTokens = tokens
+        isSigningOut = false
         tokens.onDeviceRevoked = { [weak self] in
-            self?.handleDeviceRevoked()
+            guard let self, self.sessionGeneration == generation else { return }
+            self.handleDeviceRevoked()
         }
         self.credential = credential
         serverProfile = try? FleetServerProfile(
@@ -270,7 +288,8 @@ final class AppEnvironment {
             connection: connection,
             deviceId: credential.pushDeviceId,
             persist: { [weak self] deviceId in
-                self?.persistPushDeviceId(deviceId)
+                guard let self, self.sessionGeneration == generation else { return }
+                self.persistPushDeviceId(deviceId)
             }
         )
         pushNotifications = push
@@ -294,7 +313,7 @@ final class AppEnvironment {
     // MARK: - Signing out
 
     /// The orchestrator refused this phone's credential, and the token holder has **already**
-    /// deleted it: that is the one place allowed to on this path.
+    /// attempted to delete only its own credential: that is the one place allowed to on this path.
     ///
     /// Notifications are stopped on the phone. The orchestrator cannot be told any more, but
     /// Apple tells it the token is gone the next time it sends, and it drops the row then.
@@ -315,13 +334,15 @@ final class AppEnvironment {
     /// revoked there.
     func signOut() async {
         guard !isSigningOut, let credential, let api = signedInAPI else { return }
+        let generation = sessionGeneration
         isSigningOut = true
-        defer { isSigningOut = false }
+        defer { if sessionGeneration == generation { isSigningOut = false } }
 
         if let push = pushNotifications {
             await push.forget()
         }
 
+        guard sessionGeneration == generation else { return }
         var serverTold = false
         if let connection = credential.connection {
             do {
@@ -337,9 +358,12 @@ final class AppEnvironment {
             }
         }
 
+        guard sessionGeneration == generation else { return }
         tearDown()
         do {
-            try credentialStore.delete()
+            if let stored = try credentialStore.load(), stored.isSameSignIn(as: credential) {
+                try credentialStore.delete()
+            }
             signedOutNotice = serverTold ? nil : .serverNotTold
         } catch {
             signedOutNotice = .credentialUnavailable
@@ -347,6 +371,10 @@ final class AppEnvironment {
     }
 
     private func tearDown() {
+        sessionGeneration = UUID()
+        activeTokens?.invalidateSession()
+        activeTokens = nil
+        isSigningOut = false
         controlPlane?.stop()
         controlPlane = nil
         runs = nil

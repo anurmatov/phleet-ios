@@ -96,6 +96,11 @@ struct DeviceCredential: Equatable, Sendable, Codable {
         )
     }
 
+    /// Notification preference is mutable metadata, not a new enrollment or credential.
+    func isSameSignIn(as other: DeviceCredential) -> Bool {
+        withPushDeviceId(nil) == other.withPushDeviceId(nil)
+    }
+
     private static func nonEmpty(_ value: String?) -> String? {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty

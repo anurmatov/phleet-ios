@@ -38,6 +38,8 @@ final class AccessTokenHolder {
         case deviceRevoked
         /// There is no credential to mint against.
         case notEnrolled
+        /// This holder's sign-in was replaced or signed out. It can never join a later sign-in.
+        case sessionEnded
     }
 
     /// How far ahead of the deadline a refresh starts.
@@ -51,6 +53,8 @@ final class AccessTokenHolder {
     }
 
     private let credentialStore: CredentialStore
+    private let enrollment: Result<DeviceCredential?, Error>
+    private var retired = false
     private let mint: (DeviceCredential) async throws -> MintTokenResponse
     private let clock: MonotonicClock
 
@@ -70,8 +74,30 @@ final class AccessTokenHolder {
         mint: @escaping (DeviceCredential) async throws -> MintTokenResponse
     ) {
         self.credentialStore = credentialStore
+        self.enrollment = Result { try credentialStore.load() }
         self.clock = clock
         self.mint = mint
+    }
+
+    /// Permanently retire this generation, even if its network operation ignores cancellation.
+    func invalidateSession() {
+        retired = true
+        invalidateToken()
+        inFlight?.cancel()
+        onDeviceRevoked = nil
+    }
+
+    private func activeCredential() throws -> DeviceCredential {
+        guard !retired else { throw Failure.sessionEnded }
+        guard let credential = try enrollment.get() else { throw Failure.notEnrolled }
+        return credential
+    }
+
+    /// A retained wrapper cannot use this holder's token on another connection.
+    func validateSession(for connection: ControlConnection) throws {
+        let credential = try activeCredential()
+        guard credential.originURL == connection.origin,
+              credential.serviceToken == connection.serviceToken else { throw Failure.sessionEnded }
     }
 
     /// Drops the in-memory token without touching the credential.
@@ -84,10 +110,13 @@ final class AccessTokenHolder {
 
     /// A usable access token, minting one if the current token is absent or near its deadline.
     func accessToken() async throws -> String {
+        _ = try activeCredential()
         if let token, let deadline, clock.uptimeSeconds < deadline - Self.refreshLeadSeconds {
             return token
         }
-        return try await refresh()
+        let refreshed = try await refresh()
+        _ = try activeCredential()
+        return refreshed
     }
 
     /// Runs an authenticated operation, replaying it once against a fresh token on `401`.
@@ -99,11 +128,22 @@ final class AccessTokenHolder {
     func authorized<T>(_ operation: (String) async throws -> T) async throws -> T {
         let first = try await accessToken()
         do {
-            return try await operation(first)
-        } catch FleetAPIError.unauthorized {
+            let value = try await operation(first)
+            _ = try activeCredential()
+            return value
+        } catch {
+            _ = try activeCredential()
+            guard Self.isRefusal(error) else { throw error }
             invalidateToken()
             let retried = try await accessToken()
-            return try await operation(retried)
+            do {
+                let value = try await operation(retried)
+                _ = try activeCredential()
+                return value
+            } catch {
+                _ = try activeCredential()
+                throw error
+            }
         }
     }
 
@@ -115,9 +155,8 @@ final class AccessTokenHolder {
         // Created in a `@MainActor` context, so the body runs there too and can touch this
         // object's state directly.
         let task = Task { () throws -> String in
-            guard let credential = try self.credentialStore.load() else {
-                throw Failure.notEnrolled
-            }
+            // Captured at construction, never reloaded to mint after a late 401.
+            let credential = try self.activeCredential()
 
             let response: MintTokenResponse
             do {
@@ -125,12 +164,24 @@ final class AccessTokenHolder {
             } catch let error where Self.isRefusal(error) {
                 // The one condition. Spending the device credential is the only thing that can
                 // distinguish "expired token" from "revoked device", and this is that answer.
+                _ = try self.activeCredential()
+                // Setup may have persisted a replacement before it was adopted by the UI.
+                // Compare synchronously before deletion, ignoring notification-only updates.
+                guard let stored = try self.credentialStore.load(),
+                      stored.isSameSignIn(as: credential) else {
+                    self.invalidateSession()
+                    throw Failure.sessionEnded
+                }
                 try? self.credentialStore.delete()
+                let callback = self.onDeviceRevoked
+                self.invalidateSession()
+                callback?()
                 throw Failure.deviceRevoked
             }
 
             // Absolute, and measured at receipt rather than at request time: the deadline the
             // server issued starts when this client learned about it.
+            _ = try self.activeCredential()
             self.token = response.accessToken
             self.deadline = self.clock.uptimeSeconds + Double(response.expiresInSeconds)
             self.mintCount += 1
@@ -140,13 +191,6 @@ final class AccessTokenHolder {
         inFlight = task
         defer { inFlight = nil }
 
-        do {
-            return try await task.value
-        } catch Failure.deviceRevoked {
-            token = nil
-            deadline = nil
-            onDeviceRevoked?()
-            throw Failure.deviceRevoked
-        }
+        return try await task.value
     }
 }

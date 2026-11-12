@@ -28,6 +28,10 @@ final class FakeControlAPI: ControlAPIClient {
     private(set) var calls: [Call] = []
     private(set) var connections: [ControlConnection] = []
 
+    var onAgents: (() async throws -> [FleetAgent])?
+    var onRevoke: (() async throws -> Void)?
+    var onMint: (() async throws -> MintTokenResponse)?
+
     var agentsResult: Result<[FleetAgent], Error> = .success([])
     var workflowsResult: Result<[WorkflowRun], Error> = .success([])
     var registryResult: Result<[String: [SignalDefinition]], Error> = .success([:])
@@ -154,6 +158,7 @@ final class FakeControlAPI: ControlAPIClient {
     func agents(_ connection: ControlConnection) async throws -> [FleetAgent] {
         record(.agents, connection)
         try refuseIfAsked(connection)
+        if let onAgents { return try await onAgents() }
         return try agentsResult.get()
     }
 
@@ -270,7 +275,11 @@ extension FakeControlAPI {
         deviceId: String,
         deviceSecret: String
     ) async throws -> MintTokenResponse {
-        try lock.withLock {
+        if let onMint {
+            record(.mintToken(deviceId: deviceId, deviceSecret: deviceSecret), connection)
+            return try await onMint()
+        }
+        return try lock.withLock {
             calls.append(.mintToken(deviceId: deviceId, deviceSecret: deviceSecret))
             connections.append(connection)
             guard let first = mintResults.first else {
@@ -286,6 +295,7 @@ extension FakeControlAPI {
     func revokeDevice(_ connection: ControlConnection, deviceId: String) async throws {
         record(.revokeDevice(deviceId: deviceId), connection)
         try refuseIfAsked(connection)
+        if let onRevoke { return try await onRevoke() }
         try revokeResult.get()
     }
 
