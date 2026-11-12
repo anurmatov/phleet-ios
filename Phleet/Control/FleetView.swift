@@ -236,10 +236,15 @@ struct AgentRow: View {
 
     let agent: FleetAgent
 
+    /// One column for the state symbol, as wide at every text size as the widest of them.
+    /// Without it each symbol takes its own width and the names beside them do not line up.
+    @ScaledMetric(relativeTo: .body) private var symbolColumn: CGFloat = 24
+
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Image(systemName: agent.health.symbolName)
                 .foregroundStyle(agent.health.tint)
+                .frame(width: symbolColumn)
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 2) {
