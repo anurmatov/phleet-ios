@@ -98,11 +98,16 @@ final class PushNotificationsModel {
     /// Non-nil while notifications are wanted. Mirrors what is stored with the connection.
     private(set) var deviceId: String?
 
-    /// Moves on with every change of mind and every registration sent. A registration that
+    /// Moves on with every change of mind and every token from Apple. A registration that
     /// finishes after it has moved on was made for a wish that no longer stands, so it changes
     /// nothing: it cannot turn notifications back on, report a stale failure, or clear a newer
     /// wish.
     private var generation = 0
+
+    /// The registration with the orchestrator now, or the last one waiting for it. They go one at
+    /// a time, so the orchestrator stores tokens in the order Apple issued them: an older token
+    /// answered late can never replace a newer one.
+    private var registration: Task<Void, Never>?
 
     init(
         api: ControlAPIClient,
@@ -161,11 +166,25 @@ final class PushNotificationsModel {
         system.registerForRemoteNotifications()
     }
 
-    /// Apple issued a token. Tells the orchestrator, if notifications are wanted.
+    /// Apple issued a token. Tells the orchestrator, if notifications are wanted, once every
+    /// earlier registration has been answered.
     func handleDeviceToken(_ token: String) async {
-        guard let deviceId else { return }
+        guard deviceId != nil else { return }
         generation += 1
         let sent = generation
+        let previous = registration
+        let current = Task {
+            await previous?.value
+            await self.register(token, generation: sent)
+        }
+        registration = current
+        await current.value
+    }
+
+    /// Sends one token. One overtaken while it waited — by a newer token or a change of mind — is
+    /// not sent at all.
+    private func register(_ token: String, generation sent: Int) async {
+        guard sent == generation, let deviceId else { return }
         do {
             try await api.registerPushDevice(connection, deviceId: deviceId, token: token)
             guard sent == generation else {

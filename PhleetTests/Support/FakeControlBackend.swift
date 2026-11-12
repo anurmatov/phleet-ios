@@ -45,6 +45,14 @@ final class FakeControlAPI: ControlAPIClient {
     private var heldRegistrations: Set<String> = []
     private var heldRemovals: Set<String> = []
 
+    /// What the orchestrator would hold: the token each device's registration stored. A write is
+    /// applied when its call is answered, so a test can see which of two writes landed last.
+    private var registeredTokens: [String: String] = [:]
+
+    /// The answer for a particular held registration, by token, given when the test releases it.
+    /// Without one, a registration answers with `registerPushResult`.
+    private var registrationAnswers: [String: Result<Void, Error>] = [:]
+
     /// Guards what a held push call shares with the test: the recorded calls, the held sets and
     /// the answers. The route methods are `nonisolated async`, so a held call waits on another
     /// thread while the test, and the next call, carry on.
@@ -75,12 +83,19 @@ final class FakeControlAPI: ControlAPIClient {
         }
     }
 
+    func registeredToken(of deviceId: String) -> String? {
+        lock.withLock { registeredTokens[deviceId] }
+    }
+
     func hold(registrationOf token: String) {
         lock.withLock { _ = heldRegistrations.insert(token) }
     }
 
-    func release(registrationOf token: String) {
-        lock.withLock { _ = heldRegistrations.remove(token) }
+    func release(registrationOf token: String, answering answer: Result<Void, Error>? = nil) {
+        lock.withLock {
+            if let answer { registrationAnswers[token] = answer }
+            _ = heldRegistrations.remove(token)
+        }
     }
 
     func hold(removalOf deviceId: String) {
@@ -195,13 +210,19 @@ extension FakeControlAPI {
     ) async throws {
         record(.registerPush(deviceId: deviceId, token: token), connection)
         await waitWhileHeld { heldRegistrations.contains(token) }
-        try lock.withLock { try registerPushResult.get() }
+        try lock.withLock {
+            try (registrationAnswers[token] ?? registerPushResult).get()
+            registeredTokens[deviceId] = token
+        }
     }
 
     func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {
         record(.unregisterPush(deviceId: deviceId), connection)
         await waitWhileHeld { heldRemovals.contains(deviceId) }
-        try lock.withLock { try unregisterPushResult.get() }
+        try lock.withLock {
+            try unregisterPushResult.get()
+            registeredTokens[deviceId] = nil
+        }
     }
 }
 

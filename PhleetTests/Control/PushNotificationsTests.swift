@@ -248,8 +248,7 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertEqual(model.state, .off, "the wish goes before the orchestrator answers")
         if !registrationAnswersFirst { await turningOff.value }
 
-        api.registerPushResult = answer
-        api.release(registrationOf: Self.token)
+        api.release(registrationOf: Self.token, answering: answer)
         if registrationAnswersFirst {
             if case .success = answer {
                 // A late success is handled once it takes the registration back.
@@ -287,6 +286,7 @@ final class PushNotificationsTests: XCTestCase {
             )
 
             assertStaysOff(model, system, stored)
+            XCTAssertNil(api.registeredToken(of: "device-0001"), "the orchestrator ends up without it")
             // The removal may have reached the orchestrator before the registration did, so it
             // is told once more.
             XCTAssertEqual(api.calls, [
@@ -310,6 +310,7 @@ final class PushNotificationsTests: XCTestCase {
                 )
 
                 assertStaysOff(model, system, stored)
+                XCTAssertNil(api.registeredToken(of: "device-0001"))
                 XCTAssertEqual(api.calls, [
                     .registerPush(deviceId: "device-0001", token: Self.token),
                     .unregisterPush(deviceId: "device-0001"),
@@ -336,6 +337,13 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertNil(stored.deviceId)
     }
 
+    /// Gives a token every chance to reach the orchestrator early, as it would if registrations
+    /// did not wait for one another. Only what is asserted afterwards matters, and that does not
+    /// depend on how many of these yields the scheduler uses.
+    private func yieldGenerously() async {
+        for _ in 0..<1_000 { await Task.yield() }
+    }
+
     func testTurningOnAgainIsNotUndoneByTheOldRegistration() async {
         // A late registration of the old device is taken back; a refused one needs nothing more.
         let cases: [(answer: Result<Void, Error>, oldRemovals: Int)] = [
@@ -355,12 +363,11 @@ final class PushNotificationsTests: XCTestCase {
 
             await model.turnOff()
             await model.turnOn()
-            await model.handleDeviceToken(Self.newerToken)
-            XCTAssertEqual(model.state, .on)
-
-            api.registerPushResult = answer
-            api.release(registrationOf: Self.token)
+            let newer = Task { await model.handleDeviceToken(Self.newerToken) }
+            await yieldGenerously()
+            api.release(registrationOf: Self.token, answering: answer)
             await old.value
+            await newer.value
 
             XCTAssertEqual(model.state, .on)
             XCTAssertEqual(model.deviceId, "device-0002")
@@ -368,13 +375,16 @@ final class PushNotificationsTests: XCTestCase {
             XCTAssertEqual(system.unregisterCalls, 1, "only turning off stops the phone")
             XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0002")), 0, "the newer wish is never removed")
             XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0001")), oldRemovals)
+            XCTAssertEqual(api.registeredToken(of: "device-0002"), Self.newerToken)
+            XCTAssertNil(api.registeredToken(of: "device-0001"))
         }
     }
 
-    func testAnOlderRegistrationOfTheSameDeviceCannotUndoANewerOne() async {
+    func testAnOlderTokenAnsweredLateNeverReplacesTheNewerOne() async {
         let answers: [Result<Void, Error>] = [
             .success(()),
             .failure(ControlAPIError.refused(status: 503, message: "push_disabled")),
+            .failure(ControlAPIError.transport("offline")),
         ]
         for answer in answers {
             let api = FakeControlAPI()
@@ -386,19 +396,29 @@ final class PushNotificationsTests: XCTestCase {
             let older = Task { await model.handleDeviceToken(Self.token) }
             await settle { api.count(of: .registerPush(deviceId: "device-0001", token: Self.token)) == 1 }
 
-            // Apple issued a newer token, and the orchestrator took it.
-            await model.handleDeviceToken(Self.newerToken)
-            XCTAssertEqual(model.state, .on)
+            // Apple issues a newer token while the older one is still with the orchestrator. If it
+            // went at once it would be stored first, and the older one, answered last, would
+            // replace it. It waits its turn instead.
+            let newer = Task { await model.handleDeviceToken(Self.newerToken) }
+            await yieldGenerously()
+            XCTAssertEqual(
+                api.count(of: .registerPush(deviceId: "device-0001", token: Self.newerToken)), 0,
+                "a newer token is not sent while an older one is unanswered"
+            )
 
-            api.registerPushResult = answer
-            api.release(registrationOf: Self.token)
+            api.release(registrationOf: Self.token, answering: answer)
             await older.value
+            await newer.value
 
+            XCTAssertEqual(api.registeredToken(of: "device-0001"), Self.newerToken)
+            XCTAssertEqual(api.calls, [
+                .registerPush(deviceId: "device-0001", token: Self.token),
+                .registerPush(deviceId: "device-0001", token: Self.newerToken),
+            ])
             XCTAssertEqual(model.state, .on)
             XCTAssertEqual(model.deviceId, "device-0001")
             XCTAssertEqual(stored.deviceId, "device-0001")
             XCTAssertEqual(system.unregisterCalls, 0)
-            XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0001")), 0)
         }
     }
 

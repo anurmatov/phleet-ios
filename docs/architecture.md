@@ -289,7 +289,8 @@ signing, the orchestrator's configuration, or the connection's operator token.
   again with a newer token — cannot turn notifications back on, show a stale failure or clear the
   newer wish. If the orchestrator accepted it for a device no longer wanted, the app tells it to
   forget that device again. A new wish always gets a new device identifier, so this never removes
-  it.
+  it. Registrations go one at a time, so the orchestrator stores tokens in the order Apple issued
+  them; one overtaken while it waits is not sent.
 - **A read-only connection is told before the person is asked.** Registering is a write; a
   permission prompt for something that could never be used is a prompt for nothing.
 - **Permission is asked for from the connection sheet**, in answer to a tap, never at launch.
