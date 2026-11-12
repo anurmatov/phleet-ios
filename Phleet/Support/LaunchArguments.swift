@@ -13,6 +13,13 @@ enum LaunchArguments {
     /// `make lint` fails on a second, and a UI test runs against the app as built.
     static let scriptedBackend = "-phleet-scripted-backend"
 
+    /// Exact-request journeys through the production gate view, still using synthetic data.
+    static let humanInputChoice = "-phleet-human-input-choice"
+    static let humanInputText = "-phleet-human-input-text"
+    static let humanInputPreset = "-phleet-human-input-preset"
+    static let humanInputUnavailable = "-phleet-human-input-unavailable"
+    static let humanInputReadOnly = "-phleet-human-input-read-only"
+
     /// Makes the scripted backend seed catch-up with a thread taller than any viewport.
     ///
     /// Seeded on *open* rather than in the reply to the first send, because that is the only

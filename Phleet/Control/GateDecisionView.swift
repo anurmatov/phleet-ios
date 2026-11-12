@@ -18,6 +18,11 @@ struct GateDecisionView: View {
     @State private var comment = ""
     @State private var chosen: SignalButton?
     @State private var wasSent = false
+    @State private var humanValue = ""
+    @State private var confirmedHumanValue: String?
+
+    private var isHumanSignal: Bool { gate.signal.name == "request-input" }
+    private var humanRequest: HumanInputRequest? { model.humanInput(for: gate) }
 
     private var isSending: Bool {
         model.decisionState(for: gate) == .sending
@@ -47,7 +52,9 @@ struct GateDecisionView: View {
                 }
             }
 
-            if model.canDecide && isWaiting {
+            if isHumanSignal {
+                humanInputSection
+            } else if model.canDecide && isWaiting {
                 commentSection
                 decisionSection
             }
@@ -60,6 +67,9 @@ struct GateDecisionView: View {
         }
         .navigationTitle(Text(verbatim: gate.heading))
         .navigationBarTitleDisplayMode(.inline)
+        .task(id: gate) {
+            if isHumanSignal { await model.loadHumanInput(for: gate) }
+        }
     }
 
     /// Why no decision is offered, when none is.
@@ -97,6 +107,105 @@ struct GateDecisionView: View {
                     Text(startTime, style: .relative)
                 } label: {
                     Text("gate.runningFor")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var humanInputSection: some View {
+        Section {
+            Text(verbatim: gate.run.namespace).fixedSize(horizontal: false, vertical: true)
+            Text(verbatim: gate.run.workflowId).fixedSize(horizontal: false, vertical: true)
+            Text(verbatim: gate.run.runId).fixedSize(horizontal: false, vertical: true)
+        } header: { Text("humanInput.identity") }
+
+        if let request = humanRequest {
+            Section {
+                ForEach(Array(request.origin.enumerated()), id: \.offset) { item in
+                    Text(verbatim: item.element).fixedSize(horizontal: false, vertical: true)
+                }
+            } header: { Text("humanInput.requester") }
+            Section {
+                LabeledContent { Text(verbatim: request.mode.rawValue) }
+                    label: { Text("humanInput.mode") }
+            }
+            Section {
+                Text(verbatim: request.question)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier(AccessibilityIdentifier.humanInputQuestion.identifier)
+            } header: { Text("humanInput.question") }
+            Section {
+                Text(verbatim: request.context).fixedSize(horizontal: false, vertical: true)
+            } header: { Text("humanInput.context") }
+
+            if model.canDecide && isWaiting {
+                Section {
+                    if request.mode == .text {
+                        TextField("humanInput.answer", text: $humanValue, axis: .vertical)
+                            .accessibilityIdentifier(AccessibilityIdentifier.humanInputAnswer.identifier)
+                            .accessibilityLabel(AccessibilityIdentifier.humanInputAnswer.localizedLabel)
+                    } else {
+                        ForEach(request.choices) { choice in
+                            Button { humanValue = choice.id } label: {
+                                HStack {
+                                    Text(verbatim: choice.label)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    if humanValue == choice.id { Image(systemName: "checkmark") }
+                                }
+                            }
+                            .accessibilityIdentifier(AccessibilityIdentifier.humanInputChoice.identifier)
+                            .accessibilityLabel(choice.label)
+                            .accessibilityAddTraits(humanValue == choice.id ? .isSelected : [])
+                        }
+                    }
+                } header: { Text("humanInput.answer") }
+                  footer: { Text("humanInput.limits") }
+                .disabled(isSending || confirmedHumanValue != nil)
+
+                commentSection.disabled(confirmedHumanValue != nil)
+                Section {
+                    if let value = confirmedHumanValue {
+                        Text(verbatim: request.choices.first { $0.id == value }?.label ?? value)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button("gate.confirm.send") {
+                            Task {
+                                let accepted = await model.answerHumanInput(gate: gate, value: value, comment: comment)
+                                confirmedHumanValue = nil
+                                if accepted { wasSent = true; dismiss() }
+                            }
+                        }
+                        .disabled(isSending || !request.valid(value: value, comment: comment))
+                        .accessibilityIdentifier(AccessibilityIdentifier.gateConfirm.identifier)
+                        .accessibilityLabel(AccessibilityIdentifier.gateConfirm.localizedLabel)
+                        Button("gate.confirm.cancel", role: .cancel) { confirmedHumanValue = nil }
+                            .disabled(isSending)
+                            .accessibilityIdentifier(AccessibilityIdentifier.gateCancel.identifier)
+                            .accessibilityLabel(AccessibilityIdentifier.gateCancel.localizedLabel)
+                    } else {
+                        Button("humanInput.review") { confirmedHumanValue = humanValue }
+                            .disabled(!request.valid(value: humanValue, comment: comment))
+                            .accessibilityIdentifier(AccessibilityIdentifier.gateDecision.identifier)
+                            .accessibilityLabel(String(localized: "humanInput.review"))
+                    }
+                } footer: { Text("humanInput.dataOnly") }
+            }
+        } else if isWaiting {
+            Section {
+                if model.humanInputStates[gate.id] == .loading {
+                    Text("humanInput.loading")
+                } else {
+                    Text("humanInput.unavailable")
+                    Button("humanInput.reload") {
+                        humanValue = ""
+                        confirmedHumanValue = nil
+                        Task {
+                            await model.refresh()
+                            await model.loadHumanInput(for: gate)
+                        }
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.humanInputReload.identifier)
+                    .accessibilityLabel(AccessibilityIdentifier.humanInputReload.localizedLabel)
                 }
             }
         }

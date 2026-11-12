@@ -157,6 +157,24 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         return list.items
     }
 
+    func exactRunHistory(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> [WorkflowEvent] {
+        guard !runId.isEmpty else { throw ControlAPIError.decoding("exact run required") }
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.runHistoryPath(namespace: namespace, workflowId: workflowId),
+            query: [URLQueryItem(name: "runId", value: runId)]
+        )
+        let data = try await perform(request)
+        // Unlike display-only history, an unreadable event must fail the entire read.
+        return try Self.decode(data, decoder)
+    }
+
     func cancelRun(
         _ connection: ControlConnection,
         namespace: String,

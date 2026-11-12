@@ -73,6 +73,11 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case fleetUpdated = "fleet.updated"
     case fleetConnection = "fleet.connection"
 
+    case humanInputQuestion = "humanInput.question"
+    case humanInputAnswer = "humanInput.answer"
+    case humanInputChoice = "humanInput.choice"
+    case humanInputReload = "humanInput.reload"
+
     case gateSummary = "gate.summary"
     case gateComment = "gate.comment"
     case gateDecision = "gate.decision"

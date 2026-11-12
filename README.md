@@ -40,6 +40,12 @@ What Fleet does:
 - **needs you** — the workflow runs waiting at a gate, oldest first, with the decisions the
   orchestrator registers for that gate; a decision takes two taps and is sent with the run and
   gate reference that were on screen, so a stale screen is refused rather than obeyed
+- **human input** — the existing gate screen loads the original Question, Context and requester
+  from exact namespace/workflow/run history, literally and in full; choose one ordered option,
+  enter multiline text, or choose the approve/reject preset, then confirm separately
+- **answer safety** — Value and optional Comment are preserved unchanged (2000 UTF-16 units each);
+  input is data only, never authority to execute work; missing/invalid history, read-only,
+  loading and stale requests cannot send, and an uncertain send refreshes the same run without replay
 - **agents** — every agent, the ones that are down or late first, with its current task
 - **agent actions** — restart, stop, start, or cancel the task in hand; which are offered follows
   the agent's state, each takes two taps, and the agent's own state afterwards is the evidence
@@ -79,8 +85,11 @@ What it still does not do:
   bindings stay on the web dashboard
 - **no token check against an older orchestrator** — one without `GET /api/operator-token` cannot
   be asked, so the token is stored unverified and the connection sheet says so
-- **no opening the exact item from a notification** — a tap opens the Fleet or Runs tab, not the
-  particular gate, run or agent
+- **limited notification destinations** — a human-input tap with complete run identity refreshes
+  Fleet and opens only the matching pending request; missing or stale identities stay on the list,
+  and other notifications still open the Fleet or Runs tab
+- **human-input compatibility** — requires the shipped human-input backend contract and exact-run
+  history support; older or unknown request formats remain unavailable rather than guessed
 - **no notifications for Chat** — an agent's reply does not notify; only the control plane does
 - **no voice, attachments, approvals, or multi-agent rooms**
 - **no steer or cancel interface** — the routes exist; this app does not surface them

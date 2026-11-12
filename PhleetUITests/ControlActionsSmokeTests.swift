@@ -132,10 +132,121 @@ final class ControlActionsSmokeTests: XCTestCase {
         )
     }
 
+    func testHumanInputChoiceKeepsOrderAndNeedsExplicitConfirmation() throws {
+        let app = launchConnected(humanMode: LaunchArguments.humanInputChoice)
+        try openHumanInput(app, mode: "choice")
+        let second = app.buttons["Second choice 🧭"]
+        scrollTo(second, in: app)
+        XCTAssertTrue(second.exists)
+        let choices = app.buttons.matching(identifier: AccessibilityIdentifier.humanInputChoice.identifier)
+        XCTAssertEqual(choices.count, 2)
+        XCTAssertEqual(choices.element(boundBy: 0).label, "Second choice 🧭")
+        XCTAssertEqual(choices.element(boundBy: 1).label, "First choice {{literal}}")
+        let review = element(in: app, .gateDecision)
+        scrollTo(review, in: app)
+        XCTAssertFalse(review.isEnabled, "no default answer")
+        scrollTo(second, in: app)
+        second.tap()
+        try confirmHumanInput(app, mode: "choice")
+    }
+
+    func testHumanInputTextKeepsLiteralMultilineAnswer() throws {
+        let app = launchConnected(humanMode: LaunchArguments.humanInputText)
+        try openHumanInput(app, mode: "text")
+        let answer = element(in: app, .humanInputAnswer)
+        scrollTo(answer, in: app)
+        answer.focusAndType("  literal {{answer}}\nsecond line  ")
+        app.swipeUp()
+        try confirmHumanInput(app, mode: "text")
+    }
+
+    func testHumanInputPresetCancelSendsNothing() throws {
+        let app = launchConnected(humanMode: LaunchArguments.humanInputPreset)
+        try openHumanInput(app, mode: "preset")
+        let reject = app.buttons["Reject"]
+        scrollTo(reject, in: app)
+        reject.tap()
+        let review = element(in: app, .gateDecision)
+        scrollTo(review, in: app)
+        review.tap()
+        let cancel = element(in: app, .gateCancel)
+        scrollTo(cancel, in: app)
+        cancel.tap()
+        XCTAssertFalse(element(in: app, .gateConfirm).exists)
+        XCTAssertTrue(element(in: app, .gateDecision).exists)
+        try confirmHumanInput(app, mode: "preset")
+    }
+
+    func testHumanInputHistoryFailureOffersNoAnswerControls() throws {
+        let app = launchConnected(humanMode: LaunchArguments.humanInputChoice,
+                                  extra: [LaunchArguments.humanInputUnavailable])
+        element(in: app, .fleetGate).tap()
+        XCTAssertTrue(element(in: app, .humanInputReload).waitForExistence(timeout: 30))
+        XCTAssertFalse(element(in: app, .gateConfirm).exists)
+        XCTAssertFalse(element(in: app, .humanInputChoice).exists)
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(element(in: app, .fleetGate).waitForExistence(timeout: 10))
+    }
+
+    func testHumanInputReadOnlyShowsLiteralQuestionWithoutSend() throws {
+        let app = launchConnected(humanMode: LaunchArguments.humanInputText,
+                                  extra: [LaunchArguments.humanInputReadOnly])
+        try openHumanInput(app, mode: "read-only")
+        let notice = element(in: app, .gateNotice)
+        scrollTo(notice, in: app)
+        XCTAssertTrue(notice.exists)
+        XCTAssertFalse(element(in: app, .humanInputAnswer).exists)
+        XCTAssertFalse(element(in: app, .gateDecision).exists)
+        XCTAssertFalse(element(in: app, .gateConfirm).exists)
+    }
+
+    private func openHumanInput(_ app: XCUIApplication, mode: String) throws {
+        let gate = element(in: app, .fleetGate)
+        XCTAssertTrue(gate.waitForExistence(timeout: 30))
+        gate.tap()
+        let question = element(in: app, .humanInputQuestion)
+        XCTAssertTrue(question.waitForExistence(timeout: 30))
+        scrollTo(question, in: app)
+        XCTAssertEqual(question.label, "Which \"answer\"?\n{{literal}} 🧭")
+        captureHumanInput(app, name: mode + "-literal-request")
+    }
+
+    private func confirmHumanInput(_ app: XCUIApplication, mode: String) throws {
+        let review = element(in: app, .gateDecision)
+        scrollTo(review, in: app)
+        XCTAssertTrue(review.isEnabled)
+        XCTAssertFalse(element(in: app, .gateConfirm).exists)
+        review.tap()
+        let send = element(in: app, .gateConfirm)
+        scrollTo(send, in: app)
+        XCTAssertTrue(send.waitForExistence(timeout: 10))
+        captureHumanInput(app, name: mode + "-confirm")
+        send.tap()
+        XCTAssertTrue(element(in: app, .fleetNoGates).waitForExistence(timeout: 30))
+    }
+
+    private func captureHumanInput(_ app: XCUIApplication, name: String) {
+        let screen = XCTAttachment(screenshot: app.screenshot())
+        screen.name = "human-input-" + name
+        screen.lifetime = .keepAlways
+        add(screen)
+        let accessibility = XCTAttachment(string: app.debugDescription)
+        accessibility.name = "human-input-accessibility-" + name
+        accessibility.lifetime = .keepAlways
+        add(accessibility)
+    }
+
+    private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
+        for _ in 0..<12 where !element.isHittable {
+            if element.exists && element.frame.minY < app.frame.midY { app.swipeDown() }
+            else { app.swipeUp() }
+        }
+    }
+
     /// Setup through to the fleet. Shared so each test asserts its own behaviour.
-    private func launchConnected() -> XCUIApplication {
+    private func launchConnected(humanMode: String? = nil, extra: [String] = []) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend]
+        app.launchArguments = [LaunchArguments.scriptedBackend] + (humanMode.map { [$0] } ?? []) + extra
         app.launch()
 
         // The scripted stand-in for the camera fills the form, so nothing here types. Typing

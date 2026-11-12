@@ -82,10 +82,10 @@ final class PushNotificationDelegate: NSObject, UNUserNotificationCenterDelegate
         _ center: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse
     ) async {
-        // Only the kind crosses to the main actor: a plain string, read out of the payload here.
-        let kind = PushDestination.kind(in: response.notification.request.content.userInfo)
+        // Only the parsed identity crosses actors, never the notification's content.
+        let destination = PushDestination.destination(in: response.notification.request.content.userInfo)
         await MainActor.run {
-            SystemPushSystem.shared.onOpened?(PushDestination.destination(forKind: kind))
+            SystemPushSystem.shared.onOpened?(destination)
         }
     }
 }
