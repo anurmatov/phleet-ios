@@ -5,7 +5,7 @@ enum ControlAPIError: Error, Equatable, Sendable {
     /// Whatever sits in front of the orchestrator turned the request away: a redirect to a
     /// sign-in page, or a `403`. The orchestrator itself never saw it.
     case accessDenied
-    /// `401`: the orchestrator refused the operator token.
+    /// `401`: the orchestrator refused this phone's sign-in.
     case unauthorized
     /// `409`: the run or its gate is no longer what was on screen. Carries the server's code.
     case gateChanged(String?)
@@ -15,8 +15,6 @@ enum ControlAPIError: Error, Equatable, Sendable {
     case transport(String)
     /// The response completed and was not what an orchestrator answers with.
     case decoding(String)
-    /// This connection has no operator token, so nothing that changes state can be sent.
-    case readOnly
 }
 
 /// The orchestrator routes the control plane uses.
@@ -80,10 +78,6 @@ protocol ControlAPIClient {
         body: StartWorkflowBody
     ) async throws -> String
 
-    /// `GET /api/operator-token` — whether the orchestrator accepts this connection's operator
-    /// token. Changes nothing.
-    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck
-
     /// `PUT /api/push/devices/{deviceId}` — tell the orchestrator where to send this install's
     /// notifications.
     func registerPushDevice(
@@ -94,27 +88,46 @@ protocol ControlAPIClient {
 
     /// `DELETE /api/push/devices/{deviceId}`
     func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws
+
+    // MARK: - Signing in
+
+    /// `POST /api/auth/devices` — registers this phone with a one-time enrollment code. Sent
+    /// with no access token: it is how a device is obtained.
+    func registerDevice(
+        _ connection: ControlConnection,
+        enrollmentCode: String,
+        deviceName: String?
+    ) async throws -> RegisteredDevice
+
+    /// `POST /api/auth/token` — a fifteen-minute access token for this phone. Sent with no access
+    /// token: it is how one is obtained.
+    func mintToken(
+        _ connection: ControlConnection,
+        deviceId: String,
+        deviceSecret: String
+    ) async throws -> MintTokenResponse
+
+    /// `POST /api/auth/devices/{deviceId}/revoke` — this phone signing itself out.
+    func revokeDevice(_ connection: ControlConnection, deviceId: String) async throws
+
+    // MARK: - Chat
+
+    /// `GET /api/chat/agents` — the agents a person can chat with.
+    func chatAgents(_ connection: ControlConnection) async throws -> ChatAgentList
 }
 
-/// What the orchestrator said about the operator token.
-enum OperatorTokenCheck: Equatable, Sendable {
-    /// It is the operator token.
-    case accepted
-    /// It is not.
-    case rejected
-    /// The orchestrator has no operator token configured, so writes are not gated at all. The
-    /// token that was sent was not checked against anything.
-    case notRequired
-    /// The orchestrator has no such route: it predates the check. Nothing was learned.
-    case unsupported
+/// What registering a device returned. The secret is stored in the Keychain and nowhere else.
+struct RegisteredDevice: Equatable, Sendable, Decodable {
+    let deviceId: String
+    let deviceSecret: String
 }
 
 /// How control-plane requests are put on the wire.
 ///
-/// Static and reachable from the tests on purpose. The properties worth asserting — the operator
-/// token rides only on requests that change something, neither secret ever appears in a URL, and
-/// a read-only connection cannot build a write — are properties of these functions, and
-/// asserting them on a double that is merely handed the values would prove nothing.
+/// Static and reachable from the tests on purpose. The properties worth asserting — the access
+/// token rides in a header on every signed-in request, reads included, and neither it nor the
+/// service token ever appears in a URL — are properties of these functions, and asserting them
+/// on a double that is merely handed the values would prove nothing.
 enum ControlRequest {
 
     static let accessClientIdHeader = "CF-Access-Client-Id"
@@ -123,24 +136,16 @@ enum ControlRequest {
     /// Builds a request.
     ///
     /// - The service token goes on **every** request: the proxy in front authenticates reads too.
-    /// - The operator token goes on a request only when it changes something. The orchestrator
-    ///   does not ask for it on a read, and a secret that is not sent cannot be logged in transit.
-    /// - The one exception is `presentsOperatorToken`: the read whose whole purpose is to ask
-    ///   whether the token is right.
+    /// - The access token goes on every request that has one, reads included: through the
+    ///   dashboard's address the orchestrator answers nothing without a sign-in. Only the routes
+    ///   that obtain a token are built without one.
     static func make(
         connection: ControlConnection,
         method: String,
         percentEncodedPath: String,
         query: [URLQueryItem] = [],
-        body: Data? = nil,
-        presentsOperatorToken: Bool = false
+        body: Data? = nil
     ) throws -> URLRequest {
-        let changesState = method.uppercased() != "GET"
-        let needsOperatorToken = changesState || presentsOperatorToken
-        if needsOperatorToken && connection.operatorToken == nil {
-            throw ControlAPIError.readOnly
-        }
-
         var request = URLRequest(
             url: try url(
                 origin: connection.origin,
@@ -157,8 +162,8 @@ enum ControlRequest {
                 forHTTPHeaderField: accessClientSecretHeader
             )
         }
-        if needsOperatorToken, let operatorToken = connection.operatorToken {
-            request.setValue("Bearer " + operatorToken, forHTTPHeaderField: "Authorization")
+        if let accessToken = connection.accessToken {
+            request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
         }
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -200,7 +205,13 @@ enum ControlRequest {
         "/api/workflows/" + escaped(namespace) + "/signal/" + escaped(workflowId)
     }
 
-    static let operatorTokenPath = "/api/operator-token"
+    static let registerDevicePath = "/api/auth/devices"
+    static let mintTokenPath = "/api/auth/token"
+    static let chatAgentsPath = "/api/chat/agents"
+
+    static func revokeDevicePath(deviceId: String) -> String {
+        "/api/auth/devices/" + escaped(deviceId) + "/revoke"
+    }
 
     static func pushDevicePath(deviceId: String) -> String {
         "/api/push/devices/" + escaped(deviceId)

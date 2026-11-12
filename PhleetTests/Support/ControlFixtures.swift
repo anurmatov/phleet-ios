@@ -71,17 +71,29 @@ enum ControlFixture {
 
 extension ControlConnection {
 
-    /// A connection that can decide, behind a proxy. Every value is obviously synthetic.
+    /// A signed-in connection behind a proxy. Every value is obviously synthetic.
     static let fixture = ControlConnection(
         origin: URL(string: "https://fleet.example.invalid")!,
         serviceToken: AccessServiceToken(clientId: "client-id-1", clientSecret: "client-secret-1"),
-        operatorToken: "operator-token-1"
+        accessToken: "access-token-1"
     )
 
-    /// The same connection with no operator token.
-    static let readOnlyFixture = ControlConnection(
+    /// The same server as the models hold it: no access token until one is put on a request.
+    static let unsignedFixture = ControlConnection(
         origin: URL(string: "https://fleet.example.invalid")!,
-        serviceToken: AccessServiceToken(clientId: "client-id-1", clientSecret: "client-secret-1"),
-        operatorToken: nil
+        serviceToken: AccessServiceToken(clientId: "client-id-1", clientSecret: "client-secret-1")
+    )
+}
+
+extension DeviceCredential {
+
+    /// A sign-in to the fixture server. Every value is obviously synthetic.
+    static let fixture = DeviceCredential(
+        origin: "https://fleet.example.invalid",
+        accessClientId: "client-id-1",
+        accessClientSecret: "client-secret-1",
+        deviceId: "device-1",
+        deviceSecret: "secret-1",
+        clientInstanceId: "instance-1"
     )
 }

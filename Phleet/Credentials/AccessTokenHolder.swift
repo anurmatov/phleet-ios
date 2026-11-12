@@ -43,6 +43,13 @@ final class AccessTokenHolder {
     /// How far ahead of the deadline a refresh starts.
     nonisolated static let refreshLeadSeconds: Double = 60
 
+    /// Whether a failed mint was the server refusing the device credential: a `401`, however the
+    /// client that made the request names it. The orchestrator's sign-in routes answer through
+    /// `ControlAPIError`; the chat client's through `FleetAPIError`.
+    nonisolated static func isRefusal(_ error: Error) -> Bool {
+        (error as? FleetAPIError) == .unauthorized || (error as? ControlAPIError) == .unauthorized
+    }
+
     private let credentialStore: CredentialStore
     private let mint: (DeviceCredential) async throws -> MintTokenResponse
     private let clock: MonotonicClock
@@ -115,7 +122,7 @@ final class AccessTokenHolder {
             let response: MintTokenResponse
             do {
                 response = try await self.mint(credential)
-            } catch FleetAPIError.unauthorized {
+            } catch let error where Self.isRefusal(error) {
                 // The one condition. Spending the device credential is the only thing that can
                 // distinguish "expired token" from "revoked device", and this is that answer.
                 try? self.credentialStore.delete()

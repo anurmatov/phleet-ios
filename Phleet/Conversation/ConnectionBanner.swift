@@ -3,9 +3,10 @@ import SwiftUI
 /// The connection, in one line.
 ///
 /// Every state here is reachable and distinct, because every close code has a distinct outcome.
-/// The two that must not read as ordinary are `superseded` — which offers a **manual** resume,
-/// because automatic reconnect is switched off rather than delayed — and `notPermitted`, which
-/// is terminal and offers nothing.
+/// The ones that must not read as ordinary are `superseded` — which offers a **manual** resume,
+/// because automatic reconnect is switched off rather than delayed — `agentUnavailable`, which
+/// says where chat is turned back on and offers to try again once it is, and `notPermitted`,
+/// which is terminal and offers nothing.
 struct ConnectionBanner: View {
 
     let state: ConversationModel.ConnectionState
@@ -29,6 +30,14 @@ struct ConnectionBanner: View {
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier(AccessibilityIdentifier.conversationResume.identifier)
                 .accessibilityLabel(AccessibilityIdentifier.conversationResume.localizedLabel)
+            } else if case .agentUnavailable = state {
+                Button(action: resume) {
+                    Text("conversation.retry")
+                        .font(.footnote.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier(AccessibilityIdentifier.conversationRetry.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.conversationRetry.localizedLabel)
             }
         }
         .padding(.horizontal)
@@ -50,6 +59,7 @@ struct ConnectionBanner: View {
         case .superseded: return "rectangle.on.rectangle.slash"
         case .notPermitted: return "hand.raised"
         case .unavailable: return "questionmark.circle"
+        case .agentUnavailable: return "exclamationmark.bubble"
         case .revoked: return "lock.slash"
         case .offline: return "wifi.slash"
         }
@@ -65,6 +75,7 @@ struct ConnectionBanner: View {
         case .superseded: return "conversation.banner.superseded"
         case .notPermitted: return "conversation.banner.notPermitted"
         case .unavailable: return "conversation.banner.unavailable"
+        case .agentUnavailable: return "conversation.banner.agentUnavailable"
         case .revoked: return "conversation.banner.revoked"
         case .offline: return "conversation.banner.offline"
         }

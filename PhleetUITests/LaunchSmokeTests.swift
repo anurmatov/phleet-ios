@@ -1,7 +1,7 @@
 import XCTest
 
-/// One smoke test: the app launches, a fresh install has nothing configured on either tab, and
-/// each tab says what it needs. `AccessibilityIdentifier` is compiled into this target too, so a
+/// One smoke test: the app launches, a fresh install has nothing configured, and the one setup
+/// step says what it needs. `AccessibilityIdentifier` is compiled into this target too, so a
 /// renamed case breaks the build here rather than silently querying a stale string.
 final class LaunchSmokeTests: XCTestCase {
 
@@ -9,23 +9,9 @@ final class LaunchSmokeTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testLaunchShowsRootAndTheEnrollmentForm() throws {
+    func testAFreshInstallOpensOnTheOneSetupStep() throws {
         let app = XCUIApplication()
         app.launch()
-
-        // The app opens on the fleet. With no connection stored it asks for one: an address,
-        // and one action.
-        let fleetAddress = element(in: app, AccessibilityIdentifier.controlSetupAddressField)
-        XCTAssertTrue(
-            fleetAddress.waitForExistence(timeout: 30),
-            "a fresh install did not open on the control-plane setup"
-        )
-        XCTAssertTrue(
-            element(in: app, AccessibilityIdentifier.controlSetupConnect).exists,
-            "the control-plane connect control is missing"
-        )
-
-        AppTabs.selectChat(in: app)
 
         let title = element(in: app, AccessibilityIdentifier.rootTitle)
         XCTAssertTrue(title.waitForExistence(timeout: 30), "the root title never appeared")
@@ -38,17 +24,17 @@ final class LaunchSmokeTests: XCTestCase {
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
-        // A fresh install has no credential, so it resolves to the enrollment screen: two fields
-        // and one action.
-        let address = element(in: app, AccessibilityIdentifier.enrollmentAddressField)
-        XCTAssertTrue(address.exists, "the server address field is missing")
+        // A fresh install has no sign-in, so it is the setup screen: one action, scanning.
+        let scan = element(in: app, AccessibilityIdentifier.setupScan)
+        XCTAssertTrue(scan.exists, "the scan control is missing")
+        XCTAssertTrue(scan.isHittable, "the scan control is not reachable by touch")
 
-        let code = element(in: app, AccessibilityIdentifier.enrollmentCodeField)
-        XCTAssertTrue(code.exists, "the enrollment code field is missing")
-
-        let connect = element(in: app, AccessibilityIdentifier.enrollmentConnect)
-        XCTAssertTrue(connect.exists, "the connect control is missing")
-        XCTAssertTrue(connect.isHittable, "the connect control is not reachable by touch")
+        // Connecting needs a code, and the tabs need a sign-in: neither is offered yet.
+        XCTAssertFalse(element(in: app, AccessibilityIdentifier.setupConnect).exists)
+        XCTAssertFalse(
+            app.tabBars.buttons[AppTabs.fleetLabel].exists,
+            "a tab was offered before the phone was signed in"
+        )
     }
 
     /// Queried across every element type on purpose: the assertion is about the accessibility

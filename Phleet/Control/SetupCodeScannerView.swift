@@ -14,7 +14,7 @@ enum SetupCodeScanAvailability: Equatable, Sendable {
 /// The camera, looking for one QR code.
 ///
 /// A sheet with a single purpose: it hands back the first QR code's text and nothing else. What
-/// that text means is not decided here — `ControlSetupModel.apply(scanned:)` reads it, and reads
+/// that text means is not decided here — `SetupModel.apply(scanned:)` reads it, and reads
 /// it as untrusted input.
 struct SetupCodeScannerSheet: View {
 

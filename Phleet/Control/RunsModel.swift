@@ -61,8 +61,6 @@ final class RunsModel {
         self.connection = connection
     }
 
-    var canAct: Bool { connection.operatorToken != nil }
-
     /// Closed runs that did not finish: failed, timed out, terminated or cancelled.
     var stopped: [WorkflowRun] {
         closed.filter { $0.outcome != .completed }
@@ -202,7 +200,7 @@ final class RunsModel {
             return .accessDenied
         case .transport?:
             return .unreachable
-        case .decoding?, .unauthorized?, .gateChanged?, .refused?, .readOnly?, nil:
+        case .decoding?, .unauthorized?, .gateChanged?, .refused?, nil:
             return .unexpectedAnswer
         }
     }

@@ -76,17 +76,6 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertFalse(model.state.offersTurnOn, "a refusal is changed in Settings, not by asking again")
     }
 
-    func testAReadOnlyConnectionIsToldSoBeforeThePersonIsAsked() async {
-        let system = FakePushSystem()
-        let model = makeModel(system: system, connection: .readOnlyFixture)
-
-        await model.turnOn()
-
-        // Asking for permission that could never be used would be a prompt for nothing.
-        XCTAssertEqual(model.state, .readOnly)
-        XCTAssertEqual(system.permissionRequests, 0)
-    }
-
     // MARK: - The orchestrator's answer
 
     func testAnOrchestratorWithNotificationsOffIsNotReportedAsOn() async {
@@ -132,7 +121,7 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertTrue(model.offersTurnOff)
     }
 
-    func testARejectedOperatorTokenIsNamedAsThat() async {
+    func testARefusedSignInIsNamedAsThat() async {
         let api = FakeControlAPI()
         api.registerPushResult = .failure(ControlAPIError.unauthorized)
         let model = makeModel(api: api)
@@ -424,7 +413,7 @@ final class PushNotificationsTests: XCTestCase {
 
     // MARK: - Requests
 
-    func testRegisteringAndRemovingAreWritesToThatDevicesRoute() throws {
+    func testRegisteringIsASignedInWriteToThatDevicesRoute() throws {
         let register = try ControlRequest.make(
             connection: .fixture,
             method: "PUT",
@@ -435,17 +424,7 @@ final class PushNotificationsTests: XCTestCase {
             register.url?.absoluteString,
             "https://fleet.example.invalid/api/push/devices/device-0001"
         )
-        XCTAssertEqual(register.value(forHTTPHeaderField: "Authorization"), "Bearer operator-token-1")
-
-        XCTAssertThrowsError(
-            try ControlRequest.make(
-                connection: .readOnlyFixture,
-                method: "DELETE",
-                percentEncodedPath: ControlRequest.pushDevicePath(deviceId: "device-0001")
-            )
-        ) { error in
-            XCTAssertEqual(error as? ControlAPIError, .readOnly)
-        }
+        XCTAssertEqual(register.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
     }
 
     func testAGeneratedDeviceIdentifierFitsWhatTheOrchestratorAccepts() {
@@ -461,6 +440,8 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertEqual(PushDestination.destination(forKind: "gate"), .fleet)
         XCTAssertEqual(PushDestination.destination(forKind: "agent"), .fleet)
         XCTAssertEqual(PushDestination.destination(forKind: "run"), .runs)
+        // An agent's reply that arrived while no client was attached.
+        XCTAssertEqual(PushDestination.destination(forKind: "chat"), .chat)
         // A kind this build does not know, or none: still somewhere, never nowhere.
         XCTAssertEqual(PushDestination.destination(forKind: "something-new"), .fleet)
         XCTAssertEqual(PushDestination.destination(forKind: nil), .fleet)
@@ -481,13 +462,13 @@ final class PushNotificationsTests: XCTestCase {
     private func makeEnvironment(
         api: FakeControlAPI,
         system: FakePushSystem,
-        store: InMemoryControlCredentialStore
+        store: InMemoryCredentialStore
     ) -> AppEnvironment {
         AppEnvironment(
-            credentialStore: InMemoryCredentialStore(),
+            credentialStore: store,
+            legacyCredentialStore: InMemoryLegacyCredentialStore(),
             api: FakeFleetAPI(),
             stream: FakeConversationStream(),
-            controlCredentialStore: store,
             controlAPI: api,
             controlStream: FakeControlLiveStream(),
             controlLogStream: FakeAgentLogStream(),
@@ -497,24 +478,23 @@ final class PushNotificationsTests: XCTestCase {
         )
     }
 
-    private let credential = ControlCredential(
-        origin: "https://fleet.example.invalid",
-        accessClientId: "client-id-1",
-        accessClientSecret: "client-secret-1",
-        operatorToken: "operator-token-1"
-    )
+    /// The push calls the environment made, without the token mints that signed them.
+    private func pushCalls(_ api: FakeControlAPI) -> [FakeControlAPI.Call] {
+        api.calls.filter { if case .mintToken = $0 { return false } else { return true } }
+    }
 
-    func testTurningOnIsStoredWithTheConnectionAndATokenReachesTheOrchestrator() async throws {
+    func testTurningOnIsStoredWithTheSignInAndATokenReachesTheOrchestrator() async throws {
         let api = FakeControlAPI()
         let system = FakePushSystem()
-        let store = InMemoryControlCredentialStore(credential: credential)
+        let store = InMemoryCredentialStore(credential: .fixture)
         let environment = makeEnvironment(api: api, system: system, store: store)
         let push = try XCTUnwrap(environment.pushNotifications)
         XCTAssertEqual(system.registerCalls, 0, "nothing is asked of Apple while notifications are off")
 
         await push.turnOn()
         let deviceId = try XCTUnwrap(try store.load()?.pushDeviceId)
-        XCTAssertEqual(environment.controlCredential?.pushDeviceId, deviceId)
+        XCTAssertEqual(environment.credential?.pushDeviceId, deviceId)
+        XCTAssertEqual(try store.load()?.deviceSecret, "secret-1", "the rest of the sign-in is kept")
 
         // The token arrives the way the system delivers it: through the handler.
         system.onDeviceToken?(Self.token)
@@ -523,13 +503,15 @@ final class PushNotificationsTests: XCTestCase {
         }
 
         XCTAssertEqual(push.state, .on)
-        XCTAssertEqual(api.calls, [.registerPush(deviceId: deviceId, token: Self.token)])
+        XCTAssertEqual(pushCalls(api), [.registerPush(deviceId: deviceId, token: Self.token)])
+        // Signed in, like every other request through the dashboard's address.
+        XCTAssertEqual(api.connections.last?.accessToken, "access-token-1")
     }
 
     func testAStoredWishIsResumedAtLaunch() throws {
         let system = FakePushSystem()
-        let store = InMemoryControlCredentialStore(
-            credential: credential.withPushDeviceId("device-0001")
+        let store = InMemoryCredentialStore(
+            credential: DeviceCredential.fixture.withPushDeviceId("device-0001")
         )
 
         let environment = makeEnvironment(api: FakeControlAPI(), system: system, store: store)
@@ -538,29 +520,21 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertEqual(environment.pushNotifications?.state, .registering)
     }
 
-    func testACredentialStoredBeforeNotificationsExistedStillLoads() throws {
-        // Written by a build that had no such field.
-        let older = #"{"origin":"https://fleet.example.invalid","operatorToken":"operator-token-1"}"#
-        let decoded = try JSONDecoder().decode(ControlCredential.self, from: Data(older.utf8))
-
-        XCTAssertNil(decoded.pushDeviceId)
-        XCTAssertEqual(decoded.operatorToken, "operator-token-1")
-    }
-
-    func testRemovingTheConnectionTellsTheOrchestratorToForgetThisPhone() async throws {
+    func testSigningOutTellsTheOrchestratorToForgetThisPhoneBeforeTheSignInGoes() async throws {
         let api = FakeControlAPI()
         let system = FakePushSystem()
-        let store = InMemoryControlCredentialStore(
-            credential: credential.withPushDeviceId("device-0001")
+        let store = InMemoryCredentialStore(
+            credential: DeviceCredential.fixture.withPushDeviceId("device-0001")
         )
         let environment = makeEnvironment(api: api, system: system, store: store)
 
-        environment.removeControlConnection()
-        for _ in 0..<FakeFleetAPI.maxGateYields where api.count(of: .unregisterPush(deviceId: "device-0001")) == 0 {
-            await Task.yield()
-        }
+        await environment.signOut()
 
-        XCTAssertEqual(api.count(of: .unregisterPush(deviceId: "device-0001")), 1)
+        XCTAssertEqual(
+            pushCalls(api),
+            [.unregisterPush(deviceId: "device-0001"), .revokeDevice(deviceId: "device-1")],
+            "forgotten for notifications first, while there is still a sign-in to say it with"
+        )
         XCTAssertEqual(system.unregisterCalls, 1)
         XCTAssertNil(environment.pushNotifications)
         XCTAssertNil(try store.load())
@@ -571,7 +545,7 @@ final class PushNotificationsTests: XCTestCase {
         let environment = makeEnvironment(
             api: FakeControlAPI(),
             system: system,
-            store: InMemoryControlCredentialStore()
+            store: InMemoryCredentialStore()
         )
         XCTAssertNil(environment.requestedDestination)
 

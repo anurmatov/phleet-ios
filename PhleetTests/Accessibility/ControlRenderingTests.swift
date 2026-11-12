@@ -96,7 +96,7 @@ final class ControlRenderingTests: XCTestCase {
 
     func testEveryDecisionFailureRenders() {
         let failures: [ControlPlaneModel.DecisionFailure] = [
-            .readOnly, .tokenRejected, .accessDenied, .gateChanged, .commentRequired,
+            .tokenRejected, .accessDenied, .gateChanged, .commentRequired,
             .outcomeUnknown, .refused(nil), .refused("run_required")
         ]
         for failure in failures {

@@ -173,6 +173,44 @@ final class AccessTokenHolderTests: XCTestCase {
         XCTAssertTrue(revoked)
     }
 
+    func testTheOrchestratorRefusingTheMintIsTheSameOneSignOut() async {
+        // The orchestrator mints now, and its client names a `401` its own way. It is the same
+        // answer — the device credential is dead — and must end the sign-in the same way.
+        let store = InMemoryCredentialStore(credential: credential)
+        var revoked = false
+        let holder = makeHolder(store: store, clock: TestClock()) { _ in
+            throw ControlAPIError.unauthorized
+        }
+        holder.onDeviceRevoked = { revoked = true }
+
+        do {
+            _ = try await holder.accessToken()
+            XCTFail("expected the mint to report the device revoked")
+        } catch {
+            XCTAssertEqual(error as? AccessTokenHolder.Failure, .deviceRevoked)
+        }
+
+        XCTAssertEqual(store.deleteCount, 1)
+        XCTAssertTrue(revoked)
+    }
+
+    func testAProxyTurningTheMintAwayIsNotASignOut() async {
+        // A redirect or a `403` is the access proxy, not the orchestrator: nothing is known
+        // about the device credential, so it is kept.
+        let store = InMemoryCredentialStore(credential: credential)
+        let holder = makeHolder(store: store, clock: TestClock()) { _ in
+            throw ControlAPIError.accessDenied
+        }
+
+        do {
+            _ = try await holder.accessToken()
+            XCTFail("expected the mint failure to propagate")
+        } catch {
+            XCTAssertEqual(error as? ControlAPIError, .accessDenied)
+        }
+        XCTAssertEqual(store.deleteCount, 0)
+    }
+
     func testANonAuthMintFailureRetainsTheCredential() async {
         let store = InMemoryCredentialStore(credential: credential)
         let clock = TestClock()

@@ -1,54 +1,6 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "a11y.agent.label" : {
-      "comment" : "Spoken label for the agent's name.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Agent"
-          }
-        }
-      }
-    },
-    "a11y.agent.openThread" : {
-      "comment" : "Spoken label for the button that opens the thread.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open the thread"
-          }
-        }
-      }
-    },
-    "a11y.agent.principal" : {
-      "comment" : "Spoken label for the bound principal.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Bound principal"
-          }
-        }
-      }
-    },
-    "a11y.agent.server" : {
-      "comment" : "Spoken label for the server this device is enrolled with.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server"
-          }
-        }
-      }
-    },
     "a11y.agentAction.action" : {
       "comment" : "Spoken label for an agent action button.",
       "extractionState" : "manual",
@@ -205,6 +157,42 @@
         }
       }
     },
+    "a11y.chat.agent" : {
+      "comment" : "Spoken label for an agent to chat with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "a11y.chat.noAgents" : {
+      "comment" : "Spoken label shown when no agent has chat turned on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No agents to chat with"
+          }
+        }
+      }
+    },
+    "a11y.chat.notAvailable" : {
+      "comment" : "Spoken label shown when the server has no chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat is not set up on this server"
+          }
+        }
+      }
+    },
     "a11y.connection.address" : {
       "comment" : "Spoken label for the address this device is connected to.",
       "extractionState" : "manual",
@@ -229,218 +217,50 @@
         }
       }
     },
-    "a11y.connection.mode" : {
-      "comment" : "Spoken label for what the connection is allowed to do.",
+    "a11y.connection.signOut" : {
+      "comment" : "Spoken label for the button that starts signing out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Access"
+            "value" : "Sign out"
           }
         }
       }
     },
-    "a11y.connection.remove" : {
-      "comment" : "Spoken label for the button that starts removing the connection.",
+    "a11y.connection.signOutCancel" : {
+      "comment" : "Spoken label for the button that cancels signing out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove connection"
+            "value" : "Stay signed in"
           }
         }
       }
     },
-    "a11y.connection.removeCancel" : {
-      "comment" : "Spoken label for the button that cancels removing the connection.",
+    "a11y.connection.signOutConfirm" : {
+      "comment" : "Spoken label for the button that confirms signing out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep connection"
+            "value" : "Sign out of this phone"
           }
         }
       }
     },
-    "a11y.connection.removeConfirm" : {
-      "comment" : "Spoken label for the button that confirms removing the connection.",
+    "a11y.connection.signOutProgress" : {
+      "comment" : "Spoken label shown while signing out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from this device"
-          }
-        }
-      }
-    },
-    "a11y.connection.tokenNote" : {
-      "comment" : "Spoken label for what is known about the operator token.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operator token"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.addressField" : {
-      "comment" : "Spoken label for the dashboard address field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dashboard address"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.addressMessage" : {
-      "comment" : "Spoken label for a problem with the dashboard address.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Address problem"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.clientIdField" : {
-      "comment" : "Spoken label for the access client ID field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access client ID, optional"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.clientSecretField" : {
-      "comment" : "Spoken label for the access client secret field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access client secret, optional"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.connect" : {
-      "comment" : "Spoken label for the connect button on the control-plane setup screen.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect to the fleet"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.credentialUnavailable" : {
-      "comment" : "Spoken notice that the saved control-plane connection could not be read.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The saved connection could not be read right now. Nothing was deleted."
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.formMessage" : {
-      "comment" : "Spoken label for a problem connecting to the orchestrator.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connection problem"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.scan" : {
-      "comment" : "Spoken label for the button that opens the setup-code scanner.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scan setup code"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.scanNotice" : {
-      "comment" : "Spoken label for the result of scanning a setup code.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scan result"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.serviceTokenMessage" : {
-      "comment" : "Spoken label for a problem with the service token.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Service token problem"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.title" : {
-      "comment" : "Spoken label for the control-plane setup title.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect to your fleet"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.tokenField" : {
-      "comment" : "Spoken label for the operator token field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operator token, optional"
-          }
-        }
-      }
-    },
-    "a11y.controlSetup.tokenMessage" : {
-      "comment" : "Spoken label for a problem with the operator token.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operator token problem"
+            "value" : "Signing out"
           }
         }
       }
@@ -589,6 +409,18 @@
         }
       }
     },
+    "a11y.conversation.retry" : {
+      "comment" : "Spoken label for the button that opens the thread again.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        }
+      }
+    },
     "a11y.conversation.send" : {
       "comment" : "Spoken label for the send button.",
       "extractionState" : "manual",
@@ -633,102 +465,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Conversation"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.addressField" : {
-      "comment" : "Spoken label for the server address field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server address"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.addressMessage" : {
-      "comment" : "Spoken label for the message about the server address.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server address problem"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.codeField" : {
-      "comment" : "Spoken label for the enrollment code field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enrollment code"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.codeMessage" : {
-      "comment" : "Spoken label for the message about the enrollment code.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enrollment code problem"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.connect" : {
-      "comment" : "Spoken label for the button that runs enrollment.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.credentialUnavailable" : {
-      "comment" : "Spoken label for the notice shown when the stored credential cannot be read.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The saved credential could not be read on this device right now."
-          }
-        }
-      }
-    },
-    "a11y.enrollment.formMessage" : {
-      "comment" : "Spoken label for the message about the enrollment attempt.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enrollment result"
-          }
-        }
-      }
-    },
-    "a11y.enrollment.revokedNotice" : {
-      "comment" : "Spoken label for the notice shown after this device was revoked.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device's access was revoked. A new enrollment code is needed."
           }
         }
       }
@@ -1069,18 +805,6 @@
         }
       }
     },
-    "a11y.runs.unconnected" : {
-      "comment" : "Spoken label shown on the runs tab when there is no connection.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not connected"
-          }
-        }
-      }
-    },
     "a11y.scanner.camera" : {
       "comment" : "Spoken label for the camera view of the scanner.",
       "extractionState" : "manual",
@@ -1113,6 +837,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scanning is not available"
+          }
+        }
+      }
+    },
+    "a11y.setup.connect" : {
+      "comment" : "Spoken label for the button that signs this phone in.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "a11y.setup.message" : {
+      "comment" : "Spoken label for what went wrong while setting up.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setup problem"
+          }
+        }
+      }
+    },
+    "a11y.setup.notice" : {
+      "comment" : "Spoken label for why the phone is signed out.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign-in notice"
+          }
+        }
+      }
+    },
+    "a11y.setup.scan" : {
+      "comment" : "Spoken label for the button that scans the setup code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan setup code"
+          }
+        }
+      }
+    },
+    "a11y.setup.scanned" : {
+      "comment" : "Spoken label for the address a scanned setup code names.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Setup code read"
           }
         }
       }
@@ -1213,18 +997,6 @@
         }
       }
     },
-    "action.failure.readOnly" : {
-      "comment" : "An action was refused because the connection is read-only.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This connection is read-only, so nothing was sent."
-          }
-        }
-      }
-    },
     "action.failure.refused" : {
       "comment" : "The orchestrator refused an action for another reason.",
       "extractionState" : "manual",
@@ -1244,7 +1016,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The orchestrator refused the operator token, so nothing was done. Remove the connection and set it up again with the right token."
+            "value" : "The orchestrator did not accept this phone's sign-in, so nothing was done. If this keeps happening, sign out and connect again from the dashboard."
           }
         }
       }
@@ -1333,30 +1105,6 @@
         }
       }
     },
-    "agent.openThread" : {
-      "comment" : "Button that opens the thread.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open the thread"
-          }
-        }
-      }
-    },
-    "agent.principal.caption" : {
-      "comment" : "Caption for the bound principal.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Principal"
-          }
-        }
-      }
-    },
     "agent.queued" : {
       "comment" : "Prefix before the number of messages queued for an agent.",
       "extractionState" : "manual",
@@ -1365,42 +1113,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Queued"
-          }
-        }
-      }
-    },
-    "agent.section" : {
-      "comment" : "Section caption above the single agent entry.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Agent"
-          }
-        }
-      }
-    },
-    "agent.server.caption" : {
-      "comment" : "Caption for the server this device is enrolled with.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server"
-          }
-        }
-      }
-    },
-    "agent.unnamed" : {
-      "comment" : "Neutral fallback when the server reports no agent label.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unnamed agent"
           }
         }
       }
@@ -1449,18 +1161,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This agent has not been provisioned. That is done from the dashboard."
-          }
-        }
-      }
-    },
-    "agentAction.notice.readOnly" : {
-      "comment" : "Agent actions are unavailable on a read-only connection.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This connection is read-only, so it cannot change an agent."
           }
         }
       }
@@ -1801,6 +1501,78 @@
         }
       }
     },
+    "chat.agents.footer" : {
+      "comment" : "Footer under the list of agents to chat with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Each agent has one thread, the same one the dashboard shows."
+          }
+        }
+      }
+    },
+    "chat.noAgents.description" : {
+      "comment" : "How to make an agent available to chat with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn Chat on for an agent in its settings on the dashboard."
+          }
+        }
+      }
+    },
+    "chat.noAgents.title" : {
+      "comment" : "No agent has chat turned on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No agents to chat with"
+          }
+        }
+      }
+    },
+    "chat.notAvailable.description" : {
+      "comment" : "Explains that chat needs a service the server does not run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat needs the Fleet chat service. Fleet and Runs work without it."
+          }
+        }
+      }
+    },
+    "chat.notAvailable.title" : {
+      "comment" : "The server has no chat service.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat is not set up on this server"
+          }
+        }
+      }
+    },
+    "chat.title" : {
+      "comment" : "Title of the list of agents to chat with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat"
+          }
+        }
+      }
+    },
     "connection.address" : {
       "comment" : "Label for the address this device is connected to.",
       "extractionState" : "manual",
@@ -1832,43 +1604,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To change the address or a token, remove this connection and set it up again."
-          }
-        }
-      }
-    },
-    "connection.mode" : {
-      "comment" : "Label for what the connection is allowed to do.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access"
-          }
-        }
-      }
-    },
-    "connection.mode.decide" : {
-      "comment" : "The connection can answer gates.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Can answer what is waiting"
-          }
-        }
-      }
-    },
-    "connection.mode.readOnly" : {
-      "comment" : "The connection can only read.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read-only"
+            "value" : "To use another server, sign out and scan a new code."
           }
         }
       }
@@ -1909,50 +1645,62 @@
         }
       }
     },
-    "connection.remove" : {
-      "comment" : "Button that starts removing the connection.",
+    "connection.signOut" : {
+      "comment" : "Button that starts signing this phone out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove connection"
+            "value" : "Sign out"
           }
         }
       }
     },
-    "connection.remove.cancel" : {
-      "comment" : "Button that cancels removing the connection.",
+    "connection.signOut.cancel" : {
+      "comment" : "Button that cancels signing out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep connection"
+            "value" : "Stay signed in"
           }
         }
       }
     },
-    "connection.remove.confirm" : {
-      "comment" : "Button that confirms removing the connection.",
+    "connection.signOut.confirm" : {
+      "comment" : "Button that confirms signing this phone out.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Remove from this device"
+            "value" : "Sign out of this phone"
           }
         }
       }
     },
-    "connection.remove.help" : {
-      "comment" : "Explains what removing a connection does and does not do.",
+    "connection.signOut.help" : {
+      "comment" : "What signing out does.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Removing deletes the saved tokens from this device. Nothing is revoked on the server; if this device is lost, delete its service token at the access proxy."
+            "value" : "Signing out removes this phone from the fleet's devices and deletes its sign-in from the phone. To use the app again, connect it from the dashboard."
+          }
+        }
+      }
+    },
+    "connection.signOut.progress" : {
+      "comment" : "Shown while the server is told this phone is signing out.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signing out…"
           }
         }
       }
@@ -1965,330 +1713,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Connection"
-          }
-        }
-      }
-    },
-    "connection.token.notRequired" : {
-      "comment" : "The orchestrator does not gate writes with a token.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This orchestrator does not require an operator token, so the one you entered was not checked."
-          }
-        }
-      }
-    },
-    "connection.token.unverified" : {
-      "comment" : "The operator token could not be checked at setup.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The operator token could not be checked: this orchestrator has no way to ask. A wrong token shows up the first time you change something."
-          }
-        }
-      }
-    },
-    "connection.token.verified" : {
-      "comment" : "The orchestrator accepted the operator token at setup.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The orchestrator accepted the operator token when this connection was set up."
-          }
-        }
-      }
-    },
-    "controlSetup.address.label" : {
-      "comment" : "Field label for the dashboard address.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Dashboard address"
-          }
-        }
-      }
-    },
-    "controlSetup.address.prompt" : {
-      "comment" : "Placeholder for the dashboard address field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "your-dashboard.example"
-          }
-        }
-      }
-    },
-    "controlSetup.clientId.label" : {
-      "comment" : "Field label for the access-proxy service token's client ID.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access client ID"
-          }
-        }
-      }
-    },
-    "controlSetup.clientSecret.label" : {
-      "comment" : "Field label for the access-proxy service token's client secret.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Access client secret"
-          }
-        }
-      }
-    },
-    "controlSetup.connect" : {
-      "comment" : "Button that connects to the orchestrator.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect"
-          }
-        }
-      }
-    },
-    "controlSetup.credentialUnavailable" : {
-      "comment" : "Shown when the stored control-plane connection could not be read.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The saved connection could not be read right now. Nothing was deleted; try again once the device has been unlocked."
-          }
-        }
-      }
-    },
-    "controlSetup.message.accessDenied" : {
-      "comment" : "The access proxy refused the connection attempt.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The access proxy in front of the dashboard refused this device. Check the service token, and that the proxy's policy accepts service tokens for this address."
-          }
-        }
-      }
-    },
-    "controlSetup.message.credentialWriteFailed" : {
-      "comment" : "The connection could not be saved to the Keychain.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The connection could not be saved on this device, so nothing was stored."
-          }
-        }
-      }
-    },
-    "controlSetup.message.notAnOrchestrator" : {
-      "comment" : "Something answered at the address and it was not an orchestrator.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Something answered at that address, but not a Fleet orchestrator. Check that it is the address you open the dashboard at."
-          }
-        }
-      }
-    },
-    "controlSetup.message.operatorTokenRejected" : {
-      "comment" : "The orchestrator said the operator token is not its token.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The orchestrator did not accept this operator token. Check it and try again, or leave it empty to connect read-only."
-          }
-        }
-      }
-    },
-    "controlSetup.message.serviceTokenIncomplete" : {
-      "comment" : "Only one half of the service token was entered.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter both the client ID and the client secret, or leave both empty."
-          }
-        }
-      }
-    },
-    "controlSetup.message.setupCodeIncomplete" : {
-      "comment" : "What was scanned is a setup code with a part missing.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That setup code is incomplete. Show it again on the dashboard, or type the values instead."
-          }
-        }
-      }
-    },
-    "controlSetup.message.setupCodeNewerFormat" : {
-      "comment" : "What was scanned is a setup code in a newer format.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That setup code is in a format this version of the app cannot read. Update the app, or type the values instead."
-          }
-        }
-      }
-    },
-    "controlSetup.message.setupCodeNotRecognised" : {
-      "comment" : "What was scanned is not a setup code.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "That is not a setup code. Scan the code your dashboard shows under Credentials, then Phone."
-          }
-        }
-      }
-    },
-    "controlSetup.message.unreachable" : {
-      "comment" : "Nothing answered at the address.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nothing answered at that address. Check the address and your connection."
-          }
-        }
-      }
-    },
-    "controlSetup.optional.prompt" : {
-      "comment" : "Placeholder for a field that may be left empty.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Optional"
-          }
-        }
-      }
-    },
-    "controlSetup.purpose" : {
-      "comment" : "One line explaining what the control-plane connection is for.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "See what your agents are doing and answer what is waiting for you. Enter the address you open the dashboard at."
-          }
-        }
-      }
-    },
-    "controlSetup.scan" : {
-      "comment" : "Button that opens the setup-code scanner.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scan setup code"
-          }
-        }
-      }
-    },
-    "controlSetup.scan.filled" : {
-      "comment" : "Shown after a setup code filled the form.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Setup code read. Check the address below, then connect."
-          }
-        }
-      }
-    },
-    "controlSetup.scan.help" : {
-      "comment" : "Explains where a setup code comes from.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your dashboard shows one under Credentials, then Phone."
-          }
-        }
-      }
-    },
-    "controlSetup.serviceToken.help" : {
-      "comment" : "Explains when the service token is needed.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only needed when the dashboard sits behind an access proxy. Use a service token created for this device alone, so it can be revoked without affecting anything else."
-          }
-        }
-      }
-    },
-    "controlSetup.title" : {
-      "comment" : "Title of the control-plane setup screen.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect to your fleet"
-          }
-        }
-      }
-    },
-    "controlSetup.token.help" : {
-      "comment" : "Explains what the operator token is for and that it is optional.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Needed to change anything. Leave it empty to connect read-only. It is checked when you connect, if the orchestrator can check it."
-          }
-        }
-      }
-    },
-    "controlSetup.token.label" : {
-      "comment" : "Field label for the orchestrator's operator token.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Operator token"
           }
         }
       }
@@ -2337,6 +1761,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The outcome of that message could not be confirmed."
+          }
+        }
+      }
+    },
+    "conversation.banner.agentUnavailable" : {
+      "comment" : "Connection state: chat is turned off for this agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat is off for this agent. Turn it on in the agent's settings."
           }
         }
       }
@@ -2420,7 +1856,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This device's access was revoked."
+            "value" : "This phone's sign-in was revoked."
           }
         }
       }
@@ -2677,6 +2113,18 @@
         }
       }
     },
+    "conversation.retry" : {
+      "comment" : "Button that opens the thread again after chat was turned back on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        }
+      }
+    },
     "conversation.send" : {
       "comment" : "Send button.",
       "extractionState" : "manual",
@@ -2685,6 +2133,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Send"
+          }
+        }
+      }
+    },
+    "conversation.send.failure.agentUnavailable" : {
+      "comment" : "A message was refused because chat is off for this agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sent: chat is off for this agent. Turn it on in the agent's settings."
           }
         }
       }
@@ -2889,294 +2349,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Working"
-          }
-        }
-      }
-    },
-    "conversation.title" : {
-      "comment" : "Navigation title for the thread.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Thread"
-          }
-        }
-      }
-    },
-    "enrollment.address.label" : {
-      "comment" : "Field label for the server address.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Server address"
-          }
-        }
-      }
-    },
-    "enrollment.address.prompt" : {
-      "comment" : "Placeholder for the server address field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "your-server.example"
-          }
-        }
-      }
-    },
-    "enrollment.code.help" : {
-      "comment" : "Explains where the enrollment code comes from and that it expires.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your operator issues this code and it is single use. It expires a short while after it is issued, so paste it rather than retyping it."
-          }
-        }
-      }
-    },
-    "enrollment.code.label" : {
-      "comment" : "Field label for the enrollment code.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enrollment code"
-          }
-        }
-      }
-    },
-    "enrollment.code.prompt" : {
-      "comment" : "Placeholder for the enrollment code field.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paste the code"
-          }
-        }
-      }
-    },
-    "enrollment.connect" : {
-      "comment" : "Button that runs enrollment.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect"
-          }
-        }
-      }
-    },
-    "enrollment.connect.hint" : {
-      "comment" : "Accessibility hint for the connect button.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Registers this device with the server you entered."
-          }
-        }
-      }
-    },
-    "enrollment.credentialUnavailable" : {
-      "comment" : "Shown when the stored credential could not be read.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The saved credential could not be read right now. Nothing was deleted; try again once the device has been unlocked."
-          }
-        }
-      }
-    },
-    "enrollment.message.addressEmpty" : {
-      "comment" : "The address field was left empty.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter the address your operator gave you."
-          }
-        }
-      }
-    },
-    "enrollment.message.addressInsecure" : {
-      "comment" : "The address used an insecure scheme.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This address is not secure. Enter an address that uses HTTPS. It is not upgraded automatically, because an insecure address is usually the wrong address."
-          }
-        }
-      }
-    },
-    "enrollment.message.addressMalformed" : {
-      "comment" : "The address could not be parsed.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This address could not be read. Check it for typos."
-          }
-        }
-      }
-    },
-    "enrollment.message.addressMissingHost" : {
-      "comment" : "The address named no host.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This address names no server."
-          }
-        }
-      }
-    },
-    "enrollment.message.addressUserInfo" : {
-      "comment" : "The address embedded a user name or password.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Remove the user name and password from the address."
-          }
-        }
-      }
-    },
-    "enrollment.message.codeEmpty" : {
-      "comment" : "The enrollment code field was left empty.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Paste the enrollment code your operator issued."
-          }
-        }
-      }
-    },
-    "enrollment.message.codeNotAccepted" : {
-      "comment" : "The single message covering every authentication failure during enrollment.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This code was not accepted. It may have expired or already been used. Ask your operator for a new one."
-          }
-        }
-      }
-    },
-    "enrollment.message.credentialUnavailable" : {
-      "comment" : "The credential store could not be read.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The saved credential could not be read. Nothing was deleted."
-          }
-        }
-      }
-    },
-    "enrollment.message.credentialWriteFailed" : {
-      "comment" : "The credential could not be saved, so enrollment stopped.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device's credential could not be saved, so enrollment stopped before going any further."
-          }
-        }
-      }
-    },
-    "enrollment.message.deviceLimit" : {
-      "comment" : "Another device already holds the single active slot.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Another device is already enrolled."
-          }
-        }
-      }
-    },
-    "enrollment.message.deviceLimit.resolution" : {
-      "comment" : "How to resolve the device limit. There is deliberately no replace control.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ask your operator to revoke the other device and issue a fresh code."
-          }
-        }
-      }
-    },
-    "enrollment.message.deviceRevoked" : {
-      "comment" : "The device credential was proven dead during enrollment.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device's access is not valid. Ask your operator for a new enrollment code."
-          }
-        }
-      }
-    },
-    "enrollment.message.rateLimited" : {
-      "comment" : "The server asked the client to slow down.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The server asked us to wait before trying again."
-          }
-        }
-      }
-    },
-    "enrollment.message.serverUnavailable" : {
-      "comment" : "The server could not be reached or answered with a fault.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The server could not be reached. Your credential is untouched; try again."
-          }
-        }
-      }
-    },
-    "enrollment.revoked" : {
-      "comment" : "Shown when this device's access was revoked.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This device's access was revoked. Ask your operator for a new enrollment code."
           }
         }
       }
@@ -3445,18 +2617,6 @@
         }
       }
     },
-    "gate.failure.readOnly" : {
-      "comment" : "A decision was refused because the connection is read-only.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This connection is read-only, so nothing was sent."
-          }
-        }
-      }
-    },
     "gate.failure.refused" : {
       "comment" : "The orchestrator refused the decision for another reason.",
       "extractionState" : "manual",
@@ -3476,7 +2636,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The orchestrator refused the operator token, so nothing was sent. Remove the connection and set it up again with the right token."
+            "value" : "The orchestrator did not accept this phone's sign-in, so nothing was sent. If this keeps happening, sign out and connect again from the dashboard."
           }
         }
       }
@@ -3489,18 +2649,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "This is no longer waiting for an answer."
-          }
-        }
-      }
-    },
-    "gate.notice.readOnly" : {
-      "comment" : "The connection has no operator token, so no decision is offered.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This connection is read-only. Set it up again with an operator token to answer."
           }
         }
       }
@@ -3553,18 +2701,6 @@
         }
       }
     },
-    "push.detail.readOnly" : {
-      "comment" : "Explains why a read-only connection cannot register for notifications.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Registering this phone is a change, so it needs the operator token. Set the connection up again with one."
-          }
-        }
-      }
-    },
     "push.detail.tokenUnavailable" : {
       "comment" : "Explains what to check when Apple issued no device token.",
       "extractionState" : "manual",
@@ -3596,7 +2732,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When on, the orchestrator tells this phone when something is waiting for you, a workflow failed, or an agent went down."
+            "value" : "When on, the orchestrator tells this phone when something is waiting for you, a workflow failed, an agent went down, or an agent replied in chat while you were not watching."
           }
         }
       }
@@ -3669,18 +2805,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "On"
-          }
-        }
-      }
-    },
-    "push.state.readOnly" : {
-      "comment" : "Notification state: unavailable on a read-only connection.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not available on a read-only connection"
           }
         }
       }
@@ -3825,18 +2949,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Keep it running"
-          }
-        }
-      }
-    },
-    "run.cancel.readOnly" : {
-      "comment" : "Cancelling is unavailable on a read-only connection.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This connection is read-only, so it cannot cancel a run."
           }
         }
       }
@@ -4129,30 +3241,6 @@
         }
       }
     },
-    "runs.unconnected.description" : {
-      "comment" : "Explains where to connect to an orchestrator.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Connect to your fleet on the Fleet tab to see its runs."
-          }
-        }
-      }
-    },
-    "runs.unconnected.title" : {
-      "comment" : "Title shown on the runs tab when there is no orchestrator connection.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not connected"
-          }
-        }
-      }
-    },
     "scanner.cancel" : {
       "comment" : "Button that closes the scanner without scanning.",
       "extractionState" : "manual",
@@ -4166,13 +3254,13 @@
       }
     },
     "scanner.denied.description" : {
-      "comment" : "Explains how to allow camera access and what to do instead.",
+      "comment" : "Explains how to allow camera access.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Allow camera access for this app in Settings to scan a setup code, or type the values instead."
+            "value" : "Allow camera access for this app in Settings to scan the setup code."
           }
         }
       }
@@ -4202,13 +3290,13 @@
       }
     },
     "scanner.unsupported.description" : {
-      "comment" : "Explains that the device cannot scan and what to do instead.",
+      "comment" : "Explains that the device cannot scan.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This device cannot scan a code. Type the values instead."
+            "value" : "This device cannot scan a code, and setting up needs one."
           }
         }
       }
@@ -4221,6 +3309,318 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scanning is not available"
+          }
+        }
+      }
+    },
+    "setup.connect" : {
+      "comment" : "Button that signs this phone in with the scanned code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connect"
+          }
+        }
+      }
+    },
+    "setup.message.accessDenied" : {
+      "comment" : "The access proxy refused the sign-in request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The access proxy in front of this address turned the phone away. Check the service token you entered on the dashboard, then make a new code."
+          }
+        }
+      }
+    },
+    "setup.message.codeNotAccepted" : {
+      "comment" : "The server refused the enrollment code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code was not accepted. It may have been used already, or expired. Make a new one on the dashboard."
+          }
+        }
+      }
+    },
+    "setup.message.credentialWriteFailed" : {
+      "comment" : "The credential could not be stored.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This phone could not save its sign-in, so it is not signed in. Try again."
+          }
+        }
+      }
+    },
+    "setup.message.deviceLimit" : {
+      "comment" : "The server is at its device limit.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This fleet already has as many signed-in devices as it allows. Revoke one under Credentials → Devices, then make a new code."
+          }
+        }
+      }
+    },
+    "setup.message.incomplete" : {
+      "comment" : "A setup code with a part missing was scanned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This setup code is missing something. Make a new one on the dashboard."
+          }
+        }
+      }
+    },
+    "setup.message.insecureAddress" : {
+      "comment" : "A setup code with an insecure address was scanned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address in this code does not use HTTPS. The app only connects over HTTPS."
+          }
+        }
+      }
+    },
+    "setup.message.invalidAddress" : {
+      "comment" : "A setup code with an unusable address was scanned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address in this code cannot be used. Make a new code on the dashboard."
+          }
+        }
+      }
+    },
+    "setup.message.newerFormat" : {
+      "comment" : "A setup code in a newer format was scanned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This setup code is newer than this version of the app can read. Update the app."
+          }
+        }
+      }
+    },
+    "setup.message.notAFleet" : {
+      "comment" : "Something other than a Fleet server answered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something answered at this address, but not a Fleet server. Check the address you entered on the dashboard."
+          }
+        }
+      }
+    },
+    "setup.message.notASetupCode" : {
+      "comment" : "Something other than a setup code was scanned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That is not a Phleet setup code. Scan the code under Credentials → Devices → Connect a phone."
+          }
+        }
+      }
+    },
+    "setup.message.olderDashboard" : {
+      "comment" : "A setup code from a dashboard that predates one sign-in was scanned.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This code is from an older dashboard. Make a new one from Credentials → Devices → Connect a phone."
+          }
+        }
+      }
+    },
+    "setup.message.rateLimited" : {
+      "comment" : "The server asked the phone to slow down.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many tries at once. Wait a minute and try again."
+          }
+        }
+      }
+    },
+    "setup.message.serverTooOld" : {
+      "comment" : "The server has no sign-in route for the app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This server cannot sign phones in yet. Update Fleet, then make a new code."
+          }
+        }
+      }
+    },
+    "setup.message.serverUnavailable" : {
+      "comment" : "The server failed to answer the sign-in request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server could not sign this phone in just now. Try again shortly."
+          }
+        }
+      }
+    },
+    "setup.message.signInRefused" : {
+      "comment" : "The first access token was refused right after registering.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server registered this phone and then refused it. Make a new code and try again."
+          }
+        }
+      }
+    },
+    "setup.message.unreachable" : {
+      "comment" : "The sign-in request did not complete.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing answered at this address. Check the phone's connection and try again."
+          }
+        }
+      }
+    },
+    "setup.notice.credentialUnavailable" : {
+      "comment" : "The stored sign-in could not be read or removed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The sign-in saved on this phone could not be read or removed right now. Nothing was deleted; unlock the phone and open the app again."
+          }
+        }
+      }
+    },
+    "setup.notice.revoked" : {
+      "comment" : "The server revoked this phone.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This phone was signed out from the dashboard. Scan a new code to sign in again."
+          }
+        }
+      }
+    },
+    "setup.notice.serverNotTold" : {
+      "comment" : "Signed out locally, but the server was not reached.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Signed out on this phone. The server could not be told, so the phone is still listed under Credentials → Devices: revoke it there."
+          }
+        }
+      }
+    },
+    "setup.scan" : {
+      "comment" : "Button that opens the camera to scan the dashboard's setup code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan setup code"
+          }
+        }
+      }
+    },
+    "setup.scanAgain" : {
+      "comment" : "Button that scans a different setup code after one was read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan another code"
+          }
+        }
+      }
+    },
+    "setup.scanned.caption" : {
+      "comment" : "Caption above the address a scanned setup code names.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ready to connect to"
+          }
+        }
+      }
+    },
+    "setup.scanned.direct" : {
+      "comment" : "The scanned code carries no access-proxy service token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Directly, with no access proxy"
+          }
+        }
+      }
+    },
+    "setup.scanned.proxy" : {
+      "comment" : "The scanned code carries an access-proxy service token.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Through an access proxy, with the service token in the code"
+          }
+        }
+      }
+    },
+    "setup.steps" : {
+      "comment" : "How to get a setup code, on the setup screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On the dashboard, open Credentials → Devices → Connect a phone, and scan the code it shows. One code signs this phone in for Fleet, Runs and Chat."
           }
         }
       }

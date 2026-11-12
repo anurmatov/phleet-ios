@@ -104,6 +104,24 @@ struct TranscriptEntryView: View {
             .accessibilityAction(named: Text(copyActionKey)) { putOnPasteboard(text) }
     }
 
+    /// An agent's reply, rendered as Markdown (`ReplyMarkdown`): emphasis, code and links, never
+    /// HTML. The person's own messages stay plain text, exactly as typed.
+    ///
+    /// What is spoken and what the copy action takes is the rendered text, without the Markdown
+    /// punctuation — the same characters a long press and Select All would copy.
+    private func replyBody(_ text: String) -> some View {
+        let rendered = ReplyMarkdown.render(text)
+        let plain = String(rendered.characters)
+        return Text(rendered)
+            .font(.body)
+            .textSelection(.enabled)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationReplyBody.identifier)
+            .accessibilityLabel(String(localized: "conversation.speaker.agent") + ". " + plain)
+            .accessibilityAction(named: Text("conversation.copy.reply")) {
+                putOnPasteboard(plain)
+            }
+    }
+
     private func replyView(_ reply: AgentReply) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             if reply.isRecovered {
@@ -118,12 +136,7 @@ struct TranscriptEntryView: View {
                     .font(.body.italic())
                     .foregroundStyle(.secondary)
             } else {
-                selectableBody(
-                    reply.text,
-                    speaker: "conversation.speaker.agent",
-                    identifier: .conversationReplyBody,
-                    copyActionKey: "conversation.copy.reply"
-                )
+                replyBody(reply.text)
             }
             if reply.completion != .completed || reply.isPartial || reply.truncated {
                 Text(qualifierKey(for: reply))

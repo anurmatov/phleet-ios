@@ -28,7 +28,7 @@ final class ControlRequestTests: XCTestCase {
 
     // MARK: - Where the secrets go
 
-    func testAReadCarriesTheServiceTokenAndNotTheOperatorToken() throws {
+    func testAReadCarriesTheServiceTokenAndTheAccessToken() throws {
         let request = try get("/api/agents")
 
         XCTAssertEqual(
@@ -39,14 +39,14 @@ final class ControlRequestTests: XCTestCase {
             request.value(forHTTPHeaderField: ControlRequest.accessClientSecretHeader),
             "client-secret-1"
         )
-        // The orchestrator does not ask for it on a read, so it is not sent on one.
-        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+        // Through the dashboard's address the orchestrator answers no read without a sign-in.
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
     }
 
     func testAWriteCarriesBoth() throws {
         let request = try post("/api/workflows/fleet/signal/w1")
 
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer operator-token-1")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
         XCTAssertEqual(
             request.value(forHTTPHeaderField: ControlRequest.accessClientSecretHeader),
             "client-secret-1"
@@ -55,11 +55,24 @@ final class ControlRequestTests: XCTestCase {
         XCTAssertEqual(request.httpMethod, "POST")
     }
 
+    func testTheRoutesThatObtainATokenAreSentWithNone() throws {
+        // How a model holds the server: no token in it until one is put on a request.
+        for path in [ControlRequest.registerDevicePath, ControlRequest.mintTokenPath] {
+            let request = try post(path, .unsignedFixture)
+            XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"), path)
+            XCTAssertEqual(
+                request.value(forHTTPHeaderField: ControlRequest.accessClientIdHeader),
+                "client-id-1",
+                "the proxy is in front of the sign-in routes too"
+            )
+        }
+    }
+
     func testAConnectionWithNoProxySendsNoServiceTokenHeaders() throws {
         let direct = ControlConnection(
             origin: URL(string: "https://fleet.example.invalid")!,
             serviceToken: nil,
-            operatorToken: "operator-token-1"
+            accessToken: "access-token-1"
         )
         let request = try get("/api/agents", direct)
 
@@ -67,29 +80,34 @@ final class ControlRequestTests: XCTestCase {
         XCTAssertNil(request.value(forHTTPHeaderField: ControlRequest.accessClientSecretHeader))
     }
 
-    func testAReadOnlyConnectionCannotBuildAWrite() {
-        XCTAssertThrowsError(try post("/api/workflows/fleet/signal/w1", .readOnlyFixture)) { error in
-            XCTAssertEqual(error as? ControlAPIError, .readOnly)
-        }
-        // And reading still works.
-        XCTAssertNoThrow(try get("/api/agents", .readOnlyFixture))
-    }
-
     func testNoSecretEverAppearsInAURL() throws {
         let requests = [
             try get("/api/agents"),
             try get("/api/workflows"),
             try get("/api/signals"),
+            try get(ControlRequest.chatAgentsPath),
             try post(ControlRequest.signalPath(namespace: "fleet", workflowId: "w1")),
-            try XCTUnwrap(URLSessionControlLiveStream.upgradeRequest(.fixture))
+            try post(ControlRequest.revokeDevicePath(deviceId: "device-1")),
+            try XCTUnwrap(URLSessionControlLiveStream.upgradeRequest(.fixture)),
+            try XCTUnwrap(URLSessionAgentLogStream.upgradeRequest(.fixture, agentName: "builder"))
         ]
         for request in requests {
             let url = try XCTUnwrap(request.url?.absoluteString)
-            for secret in ["client-id-1", "client-secret-1", "operator-token-1"] {
+            for secret in ["client-id-1", "client-secret-1", "access-token-1"] {
                 XCTAssertFalse(url.contains(secret), "\(url) carries a secret")
             }
             XCTAssertNil(request.url?.query)
         }
+    }
+
+    func testTheSignInRoutesAreTheOrchestratorsOwn() {
+        XCTAssertEqual(ControlRequest.registerDevicePath, "/api/auth/devices")
+        XCTAssertEqual(ControlRequest.mintTokenPath, "/api/auth/token")
+        XCTAssertEqual(ControlRequest.chatAgentsPath, "/api/chat/agents")
+        XCTAssertEqual(
+            ControlRequest.revokeDevicePath(deviceId: "device/1"),
+            "/api/auth/devices/device%2F1/revoke"
+        )
     }
 
     // MARK: - URLs
@@ -104,8 +122,7 @@ final class ControlRequestTests: XCTestCase {
     func testAnOriginWithAPathKeepsIt() throws {
         let nested = ControlConnection(
             origin: URL(string: "https://fleet.example.invalid/console/")!,
-            serviceToken: nil,
-            operatorToken: nil
+            serviceToken: nil
         )
         XCTAssertEqual(
             try get("/api/agents", nested).url?.absoluteString,
@@ -139,7 +156,7 @@ final class ControlRequestTests: XCTestCase {
 
     // MARK: - The live socket
 
-    func testTheSocketUpgradesOverTheSecureSchemeWithTheServiceTokenOnly() throws {
+    func testTheSocketUpgradesOverTheSecureSchemeWithBothTokensInHeaders() throws {
         let request = try XCTUnwrap(URLSessionControlLiveStream.upgradeRequest(.fixture))
 
         XCTAssertEqual(request.url?.absoluteString, "wss://fleet.example.invalid/ws")
@@ -147,8 +164,12 @@ final class ControlRequestTests: XCTestCase {
             request.value(forHTTPHeaderField: ControlRequest.accessClientIdHeader),
             "client-id-1"
         )
-        // The socket only delivers state, and the orchestrator asks for no token on it.
-        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+        // Through the dashboard's address a socket needs a sign-in too.
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
+
+        let log = try XCTUnwrap(URLSessionAgentLogStream.upgradeRequest(.fixture, agentName: "builder"))
+        XCTAssertEqual(log.url?.absoluteString, "wss://fleet.example.invalid/ws/logs/builder")
+        XCTAssertEqual(log.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
     }
 
     // MARK: - Reading an answer
@@ -165,7 +186,7 @@ final class ControlRequestTests: XCTestCase {
         XCTAssertEqual(URLSessionControlAPIClient.failure(status: 403, body: Data()), .accessDenied)
     }
 
-    func testAnUnauthorizedMeansTheOrchestratorRefusedTheOperatorToken() {
+    func testAnUnauthorizedMeansTheOrchestratorRefusedTheSignIn() {
         XCTAssertEqual(URLSessionControlAPIClient.failure(status: 401, body: Data()), .unauthorized)
     }
 
@@ -231,5 +252,22 @@ final class ControlRequestTests: XCTestCase {
         XCTAssertNil(configuration.httpCookieStorage)
         XCTAssertFalse(configuration.httpShouldSetCookies)
         XCTAssertNil(configuration.urlCache)
+    }
+
+    func testTheChatSessionHasTheSameRulesAndOutwaitsTheChatServicesPing() {
+        // The chat service pings an open socket every twenty seconds. A twenty-second idle limit
+        // would race that ping and drop a healthy socket.
+        let session = ControlTransport.makeSession(
+            requestTimeout: ControlTransport.chatRequestTimeoutSeconds
+        )
+        let configuration = session.configuration
+        XCTAssertNil(configuration.httpCookieStorage)
+        XCTAssertNil(configuration.urlCache)
+        XCTAssertTrue(session.delegate is RedirectRefusingDelegate)
+        XCTAssertGreaterThan(configuration.timeoutIntervalForRequest, 20)
+        XCTAssertEqual(
+            ControlTransport.makeSession().configuration.timeoutIntervalForRequest,
+            ControlTransport.requestTimeoutSeconds
+        )
     }
 }

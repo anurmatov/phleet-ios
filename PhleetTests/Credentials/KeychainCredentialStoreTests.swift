@@ -94,7 +94,7 @@ final class KeychainCredentialStoreTests: XCTestCase {
         XCTAssertNoThrow(try store.delete())
     }
 
-    func testThePersistedPayloadHoldsExactlyTheFourFields() throws {
+    func testThePersistedPayloadHoldsExactlyTheFourFieldsForADirectServer() throws {
         // The access token is never written anywhere: it is derivable at any time from the
         // device id and secret, and persisting it would add a second secret at rest.
         let encoded = try JSONEncoder().encode(credential)
@@ -102,5 +102,82 @@ final class KeychainCredentialStoreTests: XCTestCase {
         let keys = Set(try XCTUnwrap(object).keys)
 
         XCTAssertEqual(keys, ["origin", "deviceId", "deviceSecret", "clientInstanceId"])
+    }
+
+    func testOneItemHoldsTheWholeSignInAndStillNoAccessToken() throws {
+        // The address, the proxy's service token and the device secret move together: a secret
+        // issued by one server, or a service token issued for one address, means nothing to
+        // another.
+        let full = DeviceCredential(
+            origin: "https://server.invalid",
+            accessClientId: "client-id-1",
+            accessClientSecret: "client-secret-1",
+            deviceId: "device-1",
+            deviceSecret: "secret-1",
+            clientInstanceId: "instance-1",
+            pushDeviceId: "push-0001"
+        )
+        try store.save(full)
+        XCTAssertEqual(try store.load(), full)
+        XCTAssertEqual(
+            try store.load()?.serviceToken,
+            AccessServiceToken(clientId: "client-id-1", clientSecret: "client-secret-1")
+        )
+
+        let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(full))
+        let keys = Set(try XCTUnwrap(object as? [String: Any]).keys)
+        XCTAssertEqual(
+            keys,
+            [
+                "origin", "accessClientId", "accessClientSecret", "deviceId", "deviceSecret",
+                "clientInstanceId", "pushDeviceId"
+            ]
+        )
+    }
+
+    func testARotatedSecretKeepsTheProxyAndTheNotificationWish() {
+        let full = DeviceCredential(
+            origin: "https://server.invalid",
+            accessClientId: "client-id-1",
+            accessClientSecret: "client-secret-1",
+            deviceId: "device-1",
+            deviceSecret: "secret-1",
+            clientInstanceId: "instance-1",
+            pushDeviceId: "push-0001"
+        )
+        let rotated = full.rotatingSecret(to: "secret-2")
+
+        XCTAssertEqual(rotated.deviceSecret, "secret-2")
+        XCTAssertEqual(rotated.serviceToken, full.serviceToken)
+        XCTAssertEqual(rotated.pushDeviceId, "push-0001")
+    }
+
+    func testHalfAServiceTokenIsNoServiceToken() {
+        let half = DeviceCredential(
+            origin: "https://server.invalid",
+            accessClientId: "client-id-1",
+            accessClientSecret: "  ",
+            deviceId: "device-1",
+            deviceSecret: "secret-1",
+            clientInstanceId: "instance-1"
+        )
+        XCTAssertNil(half.accessClientSecret)
+        XCTAssertNil(half.serviceToken)
+        XCTAssertNil(half.connection?.serviceToken)
+        XCTAssertNil(half.connection?.accessToken, "a stored credential never carries a token")
+    }
+
+    /// Neither of the items earlier builds kept: the old chat credential was enrolled with a
+    /// sign-in that no longer exists, and read under this name it would look like a sign-in the
+    /// orchestrator then refuses — which reads as "revoked" when it never was.
+    func testTheSignInIsNotStoredUnderAnyNameAnEarlierBuildUsed() {
+        XCTAssertNotEqual(
+            KeychainCredentialStore.defaultService,
+            KeychainLegacyCredentialStore.chatService
+        )
+        XCTAssertNotEqual(
+            KeychainCredentialStore.defaultService,
+            KeychainLegacyCredentialStore.fleetService
+        )
     }
 }

@@ -132,30 +132,9 @@ final class ControlActionsSmokeTests: XCTestCase {
         )
     }
 
-    /// Setup through to the fleet. Shared so each test asserts its own behaviour.
+    /// Signed in through to the fleet. Shared so each test asserts its own behaviour.
     private func launchConnected() -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend]
-        app.launch()
-
-        // The scripted stand-in for the camera fills the form, so nothing here types. Typing
-        // into the form is covered once, by `FleetSmokeTests`; every other journey that merely
-        // needs a connection should not depend on the keyboard.
-        let scan = element(in: app, .controlSetupScan)
-        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the setup form never appeared")
-        scan.tap()
-        XCTAssertTrue(
-            element(in: app, .controlSetupScanNotice).waitForExistence(timeout: 10),
-            "the setup code was not read"
-        )
-
-        element(in: app, .controlSetupConnect).tap()
-
-        XCTAssertTrue(
-            element(in: app, .fleetAgent).waitForExistence(timeout: 30),
-            "the fleet never appeared"
-        )
-        return app
+        SignIn.launch()
     }
 
     private func labelled(_ text: String, in app: XCUIApplication) -> XCUIElement {

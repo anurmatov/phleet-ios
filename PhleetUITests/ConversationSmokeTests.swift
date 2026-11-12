@@ -1,6 +1,6 @@
 import XCTest
 
-/// Enroll, see the agent, open the thread, send, and see a terminal — end to end, against the
+/// Sign in, choose an agent, open its thread, send, and see a terminal — end to end, against the
 /// in-app scripted backend.
 ///
 /// The double is selected by a launch argument rather than a build gate, so this drives the app
@@ -11,7 +11,28 @@ final class ConversationSmokeTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testEnrollOpenThreadSendAndSeeATerminal() throws {
+    /// An agent whose chat was turned off after the list was read says so in words, and offers
+    /// to try again once it is turned back on, rather than spinning.
+    func testAnAgentWhoseChatIsOffSaysWhereToTurnItOn() throws {
+        let app = SignIn.launch()
+        openThread(with: "Scripted quiet", in: app)
+
+        let said = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Chat is off for this agent"))
+            .firstMatch
+        XCTAssertTrue(said.waitForExistence(timeout: 30), "chat being off was not said")
+        XCTAssertTrue(
+            element(in: app, .conversationRetry).exists,
+            "nothing offers to try again once chat is turned back on"
+        )
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Chat off"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+    }
+
+    func testSignInOpenThreadSendAndSeeATerminal() throws {
         let app = launchAndOpenTheThread()
 
         let composer = element(in: app, .conversationComposer)
@@ -293,39 +314,29 @@ final class ConversationSmokeTests: XCTestCase {
         return gone
     }
 
-    /// Enrollment through to an open thread. Shared so each test asserts its own behaviour
-    /// rather than re-typing the journey.
+    /// Signed in through to an open thread with the scripted builder. Shared so each test
+    /// asserts its own behaviour rather than repeating the journey.
     private func launchAndOpenTheThread(
         extraArguments: [String] = []
     ) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend] + extraArguments
-        app.launch()
-
-        // The thread lives on the second tab; the app opens on the fleet.
-        AppTabs.selectChat(in: app)
-
-        // Enrollment: type the origin, paste the code.
-        let address = element(in: app, .enrollmentAddressField)
-        XCTAssertTrue(address.waitForExistence(timeout: 30), "the enrollment form never appeared")
-        address.tap()
-        address.typeText("server.invalid")
-
-        let code = element(in: app, .enrollmentCodeField)
-        code.tap()
-        code.typeText("synthetic-enrollment-code")
-
-        element(in: app, .enrollmentConnect).tap()
-
-        // The agent: one entry, derived from the session, with no selection model.
-        let agentLabel = element(in: app, .agentLabel)
-        XCTAssertTrue(agentLabel.waitForExistence(timeout: 30), "the agent entry never appeared")
-
-        element(in: app, .agentOpenThread).tap()
+        let app = SignIn.launch(extraArguments: extraArguments)
+        openThread(with: "Scripted builder", in: app)
 
         let composer = element(in: app, .conversationComposer)
         XCTAssertTrue(composer.waitForExistence(timeout: 30), "the composer never appeared")
         return app
+    }
+
+    /// The Chat tab lists the agents chat is on for; choosing one opens its thread.
+    private func openThread(with agent: String, in app: XCUIApplication) {
+        AppTabs.selectChat(in: app)
+
+        let row = app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.chatAgent.identifier)
+            .matching(NSPredicate(format: "label CONTAINS %@", agent))
+            .firstMatch
+        XCTAssertTrue(row.waitForExistence(timeout: 30), "\(agent) is not on the chat list")
+        row.tap()
     }
 
     private func element(

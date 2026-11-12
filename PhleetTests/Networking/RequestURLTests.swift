@@ -14,8 +14,6 @@ final class RequestURLTests: XCTestCase {
     private var routeURLs: [URL] {
         get throws {
             [
-                try URLSessionFleetAPIClient.routeURL(origin: origin, path: "/v1/auth/devices"),
-                try URLSessionFleetAPIClient.routeURL(origin: origin, path: "/v1/auth/token"),
                 try URLSessionFleetAPIClient.routeURL(origin: origin, path: "/v1/session"),
                 try URLSessionFleetAPIClient.routeURL(origin: origin, path: "/v1/conversations"),
                 try URLSessionFleetAPIClient.routeURL(
@@ -86,6 +84,43 @@ final class RequestURLTests: XCTestCase {
         let names = (components.queryItems ?? []).map(\.name)
 
         XCTAssertEqual(names, ["afterSeq", "limit"])
+    }
+
+    func testAChatRequestCarriesTheTokenAndTheProxysServiceTokenInHeadersOnly() throws {
+        let url = try URLSessionFleetAPIClient.routeURL(origin: origin, path: "/v1/conversations")
+        let request = URLSessionFleetAPIClient.request(
+            url: url,
+            method: "POST",
+            accessToken: token,
+            serviceToken: AccessServiceToken(clientId: "client-id-1", clientSecret: "client-secret-1")
+        )
+
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer " + token)
+        // The chat service is behind the same address and the same proxy as the orchestrator.
+        XCTAssertEqual(
+            request.value(forHTTPHeaderField: ControlRequest.accessClientIdHeader),
+            "client-id-1"
+        )
+        XCTAssertEqual(
+            request.value(forHTTPHeaderField: ControlRequest.accessClientSecretHeader),
+            "client-secret-1"
+        )
+        let target = try XCTUnwrap(request.url?.absoluteString)
+        for secret in [token, "client-id-1", "client-secret-1"] {
+            XCTAssertFalse(target.contains(secret))
+        }
+    }
+
+    func testAChatRequestWithNoProxySendsNoServiceTokenHeaders() throws {
+        let request = URLSessionFleetAPIClient.request(
+            url: try URLSessionFleetAPIClient.routeURL(origin: origin, path: "/v1/session"),
+            method: "GET",
+            accessToken: token,
+            serviceToken: nil
+        )
+        XCTAssertNil(request.value(forHTTPHeaderField: ControlRequest.accessClientIdHeader))
+        XCTAssertNil(request.value(forHTTPHeaderField: ControlRequest.accessClientSecretHeader))
+        XCTAssertEqual(request.httpMethod, "GET")
     }
 
     func testAnOriginWithAPathKeepsIt() throws {

@@ -173,11 +173,6 @@ final class RunsModelTests: XCTestCase {
         XCTAssertEqual(model.cancelState(for: running), .failed(.tokenRejected))
     }
 
-    func testAReadOnlyConnectionCannotAct() throws {
-        XCTAssertFalse(RunsModel(api: try makeAPI(), connection: .readOnlyFixture).canAct)
-        XCTAssertTrue(RunsModel(api: try makeAPI(), connection: .fixture).canAct)
-    }
-
     // MARK: - Starting
 
     func testTypesAreListedByName() async throws {

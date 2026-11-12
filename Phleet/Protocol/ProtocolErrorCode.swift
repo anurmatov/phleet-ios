@@ -20,6 +20,9 @@ enum ProtocolErrorCode: Hashable, Sendable {
     /// Spelled `internalError` because `internal` is a Swift keyword; the wire value is
     /// `"internal"`.
     case internalError
+    /// The agent a conversation is with does not accept chat: chat is off for it, or it is gone.
+    /// A state someone changes in the agent's settings, not something asking again can fix.
+    case agentUnavailable
     case unknown(String)
 
     init(rawValue: String) {
@@ -36,6 +39,7 @@ enum ProtocolErrorCode: Hashable, Sendable {
         case "rate_limited": self = .rateLimited
         case "runtime_busy": self = .runtimeBusy
         case "internal": self = .internalError
+        case "agent_unavailable": self = .agentUnavailable
         default: self = .unknown(rawValue)
         }
     }
@@ -54,6 +58,7 @@ enum ProtocolErrorCode: Hashable, Sendable {
         case .rateLimited: return "rate_limited"
         case .runtimeBusy: return "runtime_busy"
         case .internalError: return "internal"
+        case .agentUnavailable: return "agent_unavailable"
         case .unknown(let raw): return raw
         }
     }
@@ -72,7 +77,7 @@ enum ProtocolErrorCode: Hashable, Sendable {
             return [401]
         case .conversationNotFound:
             return [404]
-        case .deviceLimit, .idempotencyConflict:
+        case .deviceLimit, .idempotencyConflict, .agentUnavailable:
             return [409]
         case .payloadTooLarge:
             return [413]
@@ -97,7 +102,7 @@ enum ProtocolErrorCode: Hashable, Sendable {
             return .clientDefect
         case .unauthorized:
             return .reauthenticate
-        case .deviceLimit, .conversationNotFound:
+        case .deviceLimit, .conversationNotFound, .agentUnavailable:
             return .terminal
         case .rateLimited:
             return .afterRetryAfter

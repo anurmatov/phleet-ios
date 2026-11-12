@@ -258,7 +258,7 @@ final class ControlPlaneModelTests: XCTestCase {
         XCTAssertNil(model.decisionState(for: gate))
     }
 
-    func testARefusedOperatorTokenIsNamedAsThat() async throws {
+    func testARefusedSignInIsNamedAsThat() async throws {
         let api = try makeAPI()
         let model = makeModel(api)
         await model.refresh()
@@ -310,20 +310,6 @@ final class ControlPlaneModelTests: XCTestCase {
         XCTAssertFalse(sent)
         XCTAssertEqual(model.decisionState(for: gate), .failed(.commentRequired))
         XCTAssertTrue(api.sentSignals.isEmpty)
-    }
-
-    func testAReadOnlyConnectionSaysSoAndSendsNothingThatChangesState() async throws {
-        let api = try makeAPI()
-        api.signalResult = .failure(ControlAPIError.readOnly)
-        let model = makeModel(api, connection: .readOnlyFixture)
-        await model.refresh()
-        XCTAssertFalse(model.canDecide)
-        let gate = try mergeGate(model)
-
-        await model.decide(gate: gate, button: try approve(gate), comment: "")
-
-        XCTAssertEqual(model.decisionState(for: gate), .failed(.readOnly))
-        XCTAssertTrue(model.isWaiting(gate))
     }
 
     func testAFailureCanBeClearedBeforeTryingAgain() async throws {

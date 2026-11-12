@@ -20,7 +20,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>The camera reads the setup code your dashboard shows, so you do not have to type the address and tokens.</string>
+	<string>The camera reads the setup code your dashboard shows, which signs this phone in to your fleet.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

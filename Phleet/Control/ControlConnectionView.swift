@@ -1,48 +1,31 @@
 import SwiftUI
 
-/// What this device is connected to, and the one thing to do about it: remove it.
+/// What this phone is signed in to, notifications, and the one thing to do about the sign-in:
+/// sign out.
 ///
-/// Shows the address and what the connection may do. It never shows a secret, and it offers no
-/// editing — a changed address or token is a different connection, made by removing this one and
-/// setting up again.
+/// Shows the address and whether an access proxy is in front of it. It never shows a secret, and
+/// it offers no editing — another server is another sign-in, made by signing out and scanning a
+/// new code.
 struct ControlConnectionView: View {
 
-    let credential: ControlCredential
-    /// What setup learned about the operator token in this launch, if setup ran in it.
-    let tokenVerification: ControlSetupModel.TokenVerification?
-    /// Notifications for this connection, or `nil` when there is nothing to offer.
+    let credential: DeviceCredential
+    /// Notifications for this sign-in, or `nil` when there is nothing to offer.
     let push: PushNotificationsModel?
-    let remove: () -> Void
 
+    @Environment(AppEnvironment.self) private var appEnvironment
     @Environment(\.dismiss) private var dismiss
-    @State private var isConfirmingRemoval = false
+    @State private var isConfirmingSignOut = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     LabeledContent {
-                        Text(verbatim: displayAddress)
+                        Text(verbatim: ServerDisplayName.derive(fromOrigin: credential.origin))
                     } label: {
                         Text("connection.address")
                     }
                     .accessibilityIdentifier(AccessibilityIdentifier.connectionAddress.identifier)
-
-                    LabeledContent {
-                        Text(modeKey)
-                    } label: {
-                        Text("connection.mode")
-                    }
-                    .accessibilityIdentifier(AccessibilityIdentifier.connectionMode.identifier)
-
-                    if let tokenNoteKey {
-                        Text(tokenNoteKey)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                            .accessibilityIdentifier(
-                                AccessibilityIdentifier.connectionTokenNote.identifier
-                            )
-                    }
 
                     LabeledContent {
                         Text(proxyKey)
@@ -57,43 +40,7 @@ struct ControlConnectionView: View {
                     PushNotificationsSection(model: push)
                 }
 
-                Section {
-                    if isConfirmingRemoval {
-                        Button(role: .destructive) {
-                            remove()
-                        } label: {
-                            Text("connection.remove.confirm")
-                        }
-                        .accessibilityIdentifier(
-                            AccessibilityIdentifier.connectionRemoveConfirm.identifier
-                        )
-                        .accessibilityLabel(
-                            AccessibilityIdentifier.connectionRemoveConfirm.localizedLabel
-                        )
-
-                        Button(role: .cancel) {
-                            isConfirmingRemoval = false
-                        } label: {
-                            Text("connection.remove.cancel")
-                        }
-                        .accessibilityIdentifier(
-                            AccessibilityIdentifier.connectionRemoveCancel.identifier
-                        )
-                        .accessibilityLabel(
-                            AccessibilityIdentifier.connectionRemoveCancel.localizedLabel
-                        )
-                    } else {
-                        Button(role: .destructive) {
-                            isConfirmingRemoval = true
-                        } label: {
-                            Text("connection.remove")
-                        }
-                        .accessibilityIdentifier(AccessibilityIdentifier.connectionRemove.identifier)
-                        .accessibilityLabel(AccessibilityIdentifier.connectionRemove.localizedLabel)
-                    }
-                } footer: {
-                    Text("connection.remove.help")
-                }
+                signOutSection
             }
             .navigationTitle(Text("connection.title"))
             .navigationBarTitleDisplayMode(.inline)
@@ -111,32 +58,58 @@ struct ControlConnectionView: View {
         }
     }
 
-    // Typed explicitly so each is looked up in the catalog rather than shown as its own key.
-    private var modeKey: LocalizedStringKey {
-        credential.canDecide ? "connection.mode.decide" : "connection.mode.readOnly"
-    }
+    /// Two taps: a sign-out cannot be undone from here, and the way back is a new code from the
+    /// dashboard.
+    private var signOutSection: some View {
+        Section {
+            if appEnvironment.isSigningOut {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("connection.signOut.progress")
+                        .font(.body)
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(
+                    AccessibilityIdentifier.connectionSignOutProgress.identifier
+                )
+            } else if isConfirmingSignOut {
+                Button(role: .destructive) {
+                    Task { await appEnvironment.signOut() }
+                } label: {
+                    Text("connection.signOut.confirm")
+                }
+                .accessibilityIdentifier(
+                    AccessibilityIdentifier.connectionSignOutConfirm.identifier
+                )
+                .accessibilityLabel(
+                    AccessibilityIdentifier.connectionSignOutConfirm.localizedLabel
+                )
 
-    /// Says what is actually known about the operator token, and nothing when nothing is.
-    private var tokenNoteKey: LocalizedStringKey? {
-        switch tokenVerification {
-        case .verified?: return "connection.token.verified"
-        case .unverified?: return "connection.token.unverified"
-        case .notRequired?: return "connection.token.notRequired"
-        case .noToken?, nil: return nil
+                Button(role: .cancel) {
+                    isConfirmingSignOut = false
+                } label: {
+                    Text("connection.signOut.cancel")
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.connectionSignOutCancel.identifier)
+                .accessibilityLabel(
+                    AccessibilityIdentifier.connectionSignOutCancel.localizedLabel
+                )
+            } else {
+                Button(role: .destructive) {
+                    isConfirmingSignOut = true
+                } label: {
+                    Text("connection.signOut")
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.connectionSignOut.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.connectionSignOut.localizedLabel)
+            }
+        } footer: {
+            Text("connection.signOut.help")
         }
     }
 
+    // Typed explicitly so it is looked up in the catalog rather than shown as its own key.
     private var proxyKey: LocalizedStringKey {
         credential.serviceToken == nil ? "connection.proxy.none" : "connection.proxy.serviceToken"
-    }
-
-    /// The host, without the scheme: the scheme is always the same and the host is what a person
-    /// recognises.
-    private var displayAddress: String {
-        guard let components = URLComponents(string: credential.origin) else {
-            return credential.origin
-        }
-        let name = ServerDisplayName.derive(from: components)
-        return name.isEmpty ? credential.origin : name
     }
 }

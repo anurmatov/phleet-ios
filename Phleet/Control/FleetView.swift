@@ -14,11 +14,10 @@ struct AgentRoute: Hashable {
 struct FleetView: View {
 
     let model: ControlPlaneModel
-    let credential: ControlCredential
-    let tokenVerification: ControlSetupModel.TokenVerification?
+    let credential: DeviceCredential
     let push: PushNotificationsModel?
-    let removeConnection: () -> Void
 
+    @Environment(AppEnvironment.self) private var appEnvironment
     @Environment(\.scenePhase) private var scenePhase
     @State private var isShowingConnection = false
 
@@ -53,14 +52,10 @@ struct FleetView: View {
             }
         }
         .sheet(isPresented: $isShowingConnection) {
-            ControlConnectionView(
-                credential: credential,
-                tokenVerification: tokenVerification,
-                push: push
-            ) {
-                isShowingConnection = false
-                removeConnection()
-            }
+            // Handed on explicitly: the sheet signs out through it, and a presented sheet is
+            // not a place to rely on the environment arriving by inheritance.
+            ControlConnectionView(credential: credential, push: push)
+                .environment(appEnvironment)
         }
         .onAppear {
             model.start()

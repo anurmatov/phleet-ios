@@ -9,10 +9,9 @@ import Foundation
 final class FakeFleetAPI: FleetAPIClient {
 
     enum Call: Equatable {
-        case registerDevice(code: String)
         case mintToken(deviceId: String, deviceSecret: String)
         case session
-        case openConversation(externalRef: String, clientInstanceId: String)
+        case openConversation(externalRef: String, agent: String, clientInstanceId: String)
         case catchUp(conversationId: String, afterSeq: Int, limit: Int)
         case submit(
             conversationId: String,
@@ -52,13 +51,6 @@ final class FakeFleetAPI: FleetAPIClient {
     /// A hard bound, so a gate that never opens fails the test instead of hanging the suite.
     static let maxGateYields = 50_000
 
-    var registerResults: [Result<RegisterDeviceResponse, Error>] = [
-        .success(RegisterDeviceResponse(
-            deviceId: "device-1",
-            deviceSecret: "secret-1",
-            protocolVersion: ProtocolVersion.current
-        ))
-    ]
     var mintResults: [Result<MintTokenResponse, Error>] = [
         .success(MintTokenResponse(
             accessToken: "token-1",
@@ -69,7 +61,6 @@ final class FakeFleetAPI: FleetAPIClient {
     var sessionResults: [Result<SessionResponse, Error>] = [
         .success(SessionResponse(
             principalId: "principal-1",
-            agentLabel: "Agent",
             limits: .documentedDefaults,
             protocolVersion: ProtocolVersion.current
         ))
@@ -130,18 +121,11 @@ final class FakeFleetAPI: FleetAPIClient {
         calls.filter { if case .mintToken = $0 { return true } else { return false } }.count
     }
 
-    // MARK: - FleetAPIClient
+    // MARK: - The token mint
 
-    func registerDevice(
-        origin: URL,
-        enrollmentCode: String
-    ) async throws -> RegisterDeviceResponse {
-        try lock.withLock {
-            calls.append(.registerDevice(code: enrollmentCode))
-            return try Self.next(&registerResults)
-        }
-    }
-
+    /// What a token holder built over this double mints with. Not a chat route — the orchestrator
+    /// mints — but recorded here in order with the chat calls, so a test can see where a mint
+    /// fell in the sequence.
     func mintToken(
         origin: URL,
         deviceId: String,
@@ -152,6 +136,8 @@ final class FakeFleetAPI: FleetAPIClient {
             return try Self.next(&mintResults)
         }
     }
+
+    // MARK: - FleetAPIClient
 
     func session(origin: URL, accessToken: String) async throws -> SessionResponse {
         try lock.withLock {
@@ -165,11 +151,16 @@ final class FakeFleetAPI: FleetAPIClient {
         origin: URL,
         accessToken: String,
         externalRef: String,
+        agent: String,
         clientInstanceId: String
     ) async throws -> OpenConversationResponse {
         try lock.withLock {
             calls.append(
-                .openConversation(externalRef: externalRef, clientInstanceId: clientInstanceId)
+                .openConversation(
+                    externalRef: externalRef,
+                    agent: agent,
+                    clientInstanceId: clientInstanceId
+                )
             )
             accessTokensPresented.append(accessToken)
             return try Self.next(&openResults)
