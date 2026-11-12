@@ -113,8 +113,7 @@ final class ControlActionsSmokeTests: XCTestCase {
             .matching(NSPredicate(format: "placeholderValue == %@", "Required"))
             .firstMatch
         XCTAssertTrue(required.waitForExistence(timeout: 10), "the required input is missing")
-        required.tap()
-        required.typeText("a scripted topic")
+        required.focusAndType("a scripted topic")
 
         element(in: app, .startSubmit).tap()
 
@@ -139,14 +138,16 @@ final class ControlActionsSmokeTests: XCTestCase {
         app.launchArguments = [LaunchArguments.scriptedBackend]
         app.launch()
 
-        let token = element(in: app, .controlSetupTokenField)
-        XCTAssertTrue(token.waitForExistence(timeout: 30), "the setup form never appeared")
-        token.tap()
-        token.typeText("synthetic-operator-token")
-
-        let address = element(in: app, .controlSetupAddressField)
-        address.tap()
-        address.typeText("fleet.example.invalid\n")
+        // The scripted stand-in for the camera fills the form, so nothing here types. Typing
+        // into the form is covered once, by `FleetSmokeTests`; every other journey that merely
+        // needs a connection should not depend on the keyboard.
+        let scan = element(in: app, .controlSetupScan)
+        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the setup form never appeared")
+        scan.tap()
+        XCTAssertTrue(
+            element(in: app, .controlSetupScanNotice).waitForExistence(timeout: 10),
+            "the setup code was not read"
+        )
 
         element(in: app, .controlSetupConnect).tap()
 

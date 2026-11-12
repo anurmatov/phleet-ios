@@ -20,12 +20,10 @@ final class FleetSmokeTests: XCTestCase {
         // before the connect control is needed.
         let token = element(in: app, .controlSetupTokenField)
         XCTAssertTrue(token.waitForExistence(timeout: 30), "the setup form never appeared")
-        token.tap()
-        token.typeText("synthetic-operator-token")
+        token.focusAndType("synthetic-operator-token")
 
         let address = element(in: app, .controlSetupAddressField)
-        address.tap()
-        address.typeText("fleet.example.invalid\n")
+        address.focusAndType("fleet.example.invalid\n")
 
         element(in: app, .controlSetupConnect).tap()
 
@@ -88,13 +86,11 @@ final class FleetSmokeTests: XCTestCase {
 
         let token = element(in: app, .controlSetupTokenField)
         XCTAssertTrue(token.waitForExistence(timeout: 30), "the setup form never appeared")
-        token.tap()
         // The one value the scripted orchestrator rejects; see `ScriptedControlBackend`.
-        token.typeText("a-token-the-scripted-orchestrator-rejects")
+        token.focusAndType("a-token-the-scripted-orchestrator-rejects")
 
         let address = element(in: app, .controlSetupAddressField)
-        address.tap()
-        address.typeText("fleet.example.invalid\n")
+        address.focusAndType("fleet.example.invalid\n")
 
         element(in: app, .controlSetupConnect).tap()
 
