@@ -25,9 +25,11 @@ enum SignIn {
         )
         scan.tap()
 
+        // As long as the other two waits here: on a cold simulator the first launch is slow enough
+        // that reading the code overran ten seconds (PR #30's first UI test, 2026-11-13).
         let connect = element(in: app, .setupConnect)
         XCTAssertTrue(
-            connect.waitForExistence(timeout: 10),
+            connect.waitForExistence(timeout: 30),
             "the setup code was not read",
             file: file,
             line: line
