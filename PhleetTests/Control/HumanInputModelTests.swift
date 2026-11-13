@@ -3,15 +3,13 @@ import XCTest
 
 @MainActor
 final class HumanInputModelTests: XCTestCase {
-    private func setup(
-        mode: String = "choice", connection: ControlConnection = .fixture
-    ) throws -> (FakeControlAPI, ControlPlaneModel, PendingGate) {
+    private func setup(mode: String = "choice") throws -> (FakeControlAPI, ControlPlaneModel, PendingGate) {
         let api = FakeControlAPI()
         let gate = HumanInputTests.gate()
         api.workflowsResult = .success([gate.run])
         api.registryResult = .success([gate.run.workflowType: [gate.signal]])
         api.historyResult = .success(try HumanInputTests.history(mode: mode))
-        return (api, ControlPlaneModel(api: api, stream: FakeControlLiveStream(), connection: connection), gate)
+        return (api, ControlPlaneModel(api: api, stream: FakeControlLiveStream(), connection: .fixture), gate)
     }
 
     func testLoadingOrAbsentHistorySendsNothingIncludingRegistryBypass() async throws {
