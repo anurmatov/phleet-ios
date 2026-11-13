@@ -314,8 +314,15 @@ signing, or the orchestrator's configuration.
 
 The system side sits behind `PushSystem`. The real one, `SystemPushSystem`, is a single object
 because the application delegate and the notification-centre delegate are created by the system
-and have nothing else to report to. A tapped notification carries a `kind`; `PushDestination`
-maps it to the Fleet, Runs or Chat tab, and an unknown kind opens the fleet rather than nothing.
+and have nothing else to report to. Most tapped notifications select the Fleet, Runs or Chat tab;
+an unknown kind opens Fleet rather than nothing.
+
+A `gate` notification for `request-input` may also carry namespace, workflow, run and signal
+identity. The app refreshes Fleet and opens only the matching pending human-input request.
+Missing fields, stale runs and missing matches leave the person on the list. The push supplies
+no question, context or answer, and never permission to send. A later navigation visit or a
+different sign-in invalidates an older lookup; changing the control-plane session clears the
+Fleet navigation path.
 
 The app holds no key. The orchestrator signs and sends; see `docs/push-notifications.md` in the
 platform repository.
@@ -361,6 +368,25 @@ workflow. The model reads again, and the gate is either still there or gone.
 
 Every decision takes two taps — choose, then send — because an approval sent by a thumb reaching
 for something else cannot be undone from here.
+
+### Human input loads the original exact request
+
+`UweHumanInputWorkflow` uses the same gate screen, but not the registry's decision buttons.
+`SignedInControlAPI.exactRunHistory` reads the original input with that gate's nonempty `runId`.
+It never falls back to the latest run or the display history's lossy decoder. Missing, malformed,
+duplicate-key or unknown-format input leaves the request unavailable, with no answer controls.
+The [platform contract](https://github.com/anurmatov/phleet/blob/main/docs/human-input-requests.md)
+defines the request and the server's human-only answer checks.
+
+The screen shows Question, Context and requester identity literally. It preserves choice order
+and sends a declared choice ID, raw multiline text, or the `approved`/`rejected` preset ID.
+Selection and confirmation are separate taps. Value and optional Comment are kept unchanged,
+with at most 2000 UTF-16 units each; a text answer must not be blank. An answer records data,
+not authority to execute work or a replacement for a reserved approval gate.
+
+Loading, a failed refresh, a replacement run or a superseded history read cannot send an answer.
+The request carries the displayed `runId` and `expectedGateRef`. A stale or uncertain send
+refreshes and reloads that same exact request without replaying the answer automatically.
 
 ### An action is "requested", and the state is the evidence
 
