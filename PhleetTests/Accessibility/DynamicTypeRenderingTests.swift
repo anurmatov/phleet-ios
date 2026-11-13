@@ -117,6 +117,51 @@ final class DynamicTypeRenderingTests: XCTestCase {
         )
     }
 
+    func testRestoredEntriesWithoutTheirWordsRenderAtEverySize() {
+        let reply = AgentReply(
+            id: "e1",
+            text: "A reply whose question is no longer available.",
+            completion: .completed,
+            isPartial: false,
+            truncated: false,
+            isRecovered: false
+        )
+        let final = SubmissionState.completed(
+            TurnFinalPayload(
+                text: reply.text,
+                completion: .completed,
+                isPartial: false,
+                truncated: false,
+                mergedSubmissionIds: ["s1"]
+            )
+        )
+
+        // Unavailable text and a message sent with no text each say so in the body's place.
+        let bodies: [(text: String?, label: String)] = [
+            (nil, "unavailable text"),
+            ("", "an empty message")
+        ]
+        for (text, label) in bodies {
+            assertRenders(
+                TranscriptEntryView(
+                    record: record(final, text: text, reply: reply),
+                    activity: nil,
+                    sendAgain: {}
+                ),
+                "an entry with \(label)"
+            )
+        }
+        XCTAssertEqual(
+            AccessibilityIdentifier.conversationMessageUnavailable.localizedLabel,
+            "Message text unavailable"
+        )
+        XCTAssertEqual(
+            String(localized: "conversation.message.unavailable"),
+            "Message text unavailable"
+        )
+        XCTAssertEqual(String(localized: "conversation.message.empty"), "Empty message")
+    }
+
     func testTheWorkingIndicatorRendersWithAndWithoutMotion() {
         assertRenders(
             TranscriptEntryView(

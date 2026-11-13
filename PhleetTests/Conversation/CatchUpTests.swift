@@ -217,6 +217,257 @@ final class CatchUpTests: XCTestCase {
         XCTAssertEqual(gaps.count, 1, "silent history loss is the failure the person cannot detect")
     }
 
+    // MARK: - Restored history
+
+    func testAMultipageHistoryLargerThanTheStreamBufferRestoresEveryMessageOnce() async {
+        // 80 submissions, four durable events each: 320 retained, well over the 256 slots the
+        // stream's tail replays into — so the floor rule is exercised by the size that breaks it.
+        let count = 80
+        var history: [ConversationEvent] = []
+        for index in 0..<count {
+            let id = "durable-\(index)"
+            let seq = index * 4 + 1
+            history += [
+                TestEvent.text(id, seq: seq, text: "Message \(index)"),
+                TestEvent.accepted(id, .ran, seq: seq + 1),
+                TestEvent.started(id, seq: seq + 2),
+                TestEvent.final(id, seq: seq + 3, text: "Reply \(index)", merged: [id])
+            ]
+        }
+        let nextSeq = history.count + 1
+        let pages = stride(from: 0, to: history.count, by: 100).map { start in
+            let events = Array(history[start..<min(start + 100, history.count)])
+            return Result<CatchUpResponse, Error>.success(page(
+                events: events,
+                nextAfterSeq: events.last!.seq!,
+                hasMore: start + 100 < history.count
+            ))
+        }
+
+        let api = FakeFleetAPI()
+        api.openResults = [.success(open(nextSeq: nextSeq, retainedFloorSeq: 1))]
+        api.catchUpResults = pages
+        // The live tail repeats the newest events catch-up also returns, then one new message.
+        let live = Array(history.suffix(6)) + [
+            TestEvent.text("durable-live", seq: nextSeq, text: "Said while reading")
+        ]
+        let stream = FakeConversationStream(scripts: [
+            closingScript(live, code: 4409, nextSeq: nextSeq)
+        ])
+        let model = makeModel(api: api, stream: stream)
+
+        await model.run()
+
+        XCTAssertEqual(stream.attachFloors, [nextSeq - 1], "the live-tail floor, not a history cursor")
+        XCTAssertEqual(stream.attaches.count, 1, "no reconnect loop")
+        XCTAssertEqual(api.catchUpCursors, [0, 100, 200, 300])
+        let records = model.machine.orderedRecords
+        XCTAssertEqual(records.map(\.id), (0..<count).map { "durable-\($0)" } + ["durable-live"])
+        XCTAssertEqual(
+            records.map { $0.text ?? "<unavailable>" },
+            (0..<count).map { "Message \($0)" } + ["Said while reading"]
+        )
+        XCTAssertEqual(records.compactMap(\.reply).count, count, "no reply twice")
+        XCTAssertTrue(api.submissions.isEmpty, "reading history sends nothing")
+    }
+
+    func testRestoredHistoryReadsTheSameOnReopenAndOnAFreshModelAndSendsNothing() async throws {
+        let history = try ProtocolFixture.events("restored-human-text")
+        let api = FakeFleetAPI()
+        // The last scripted result repeats, so every read returns all of it again: a reopen and a
+        // fresh model both see the whole history, overlapping what was already applied.
+        api.catchUpResults = [.success(page(events: history, nextAfterSeq: 30))]
+
+        let first = makeModel(api: api, stream: FakeConversationStream(scripts: [closingScript()]))
+        _ = await first.runOnce()
+        let restored = first.machine.orderedRecords
+        XCTAssertEqual(restored.count, 6)
+        XCTAssertEqual(restored.map(\.text).compactMap { $0 }.count, 5, "one is unavailable")
+
+        _ = await first.runOnce()
+        XCTAssertEqual(first.machine.orderedRecords, restored, "reopening adds nothing")
+
+        // A model built from nothing — another phone, or this one after a relaunch.
+        let fresh = makeModel(api: api, stream: FakeConversationStream(scripts: [closingScript()]))
+        _ = await fresh.runOnce()
+        XCTAssertEqual(fresh.machine.orderedRecords, restored)
+        XCTAssertEqual(fresh.machine.entries, first.machine.entries)
+
+        // The restored `outcome_unknown` keeps its explicit-only resend: with no send of this
+        // device's behind it, there is nothing to send again.
+        XCTAssertEqual(fresh.machine.record("durable-6")?.state, .outcomeUnknown(.attemptAbandoned))
+        let again = await fresh.sendAgain(after: "durable-6")
+        XCTAssertNil(again)
+        XCTAssertTrue(api.submissions.isEmpty, "history was read three times and nothing was sent")
+    }
+
+    func testHistoryBeneathTheRetainedFloorKeepsItsRepliesWithTheirTextUnavailable() async {
+        let api = FakeFleetAPI()
+        api.catchUpResults = [
+            .success(page(
+                events: [
+                    TestEvent.final("durable-legacy", seq: 20, text: "Kept.", merged: ["durable-legacy"])
+                ],
+                nextAfterSeq: 20,
+                gap: CatchUpGap(fromSeq: 1, toSeq: 19, retainedFloorSeq: 20)
+            ))
+        ]
+        let model = makeModel(api: api, stream: FakeConversationStream(scripts: [closingScript()]))
+
+        _ = await model.runOnce()
+
+        XCTAssertEqual(model.machine.entries.map(\.id), ["system:gap:20", "submission:durable-legacy"])
+        XCTAssertNil(model.machine.record("durable-legacy")?.text)
+        XCTAssertEqual(model.machine.record("durable-legacy")?.reply?.text, "Kept.")
+    }
+
+    // MARK: - A send and its durable row
+
+    /// What a compatible server appends for one accepted submission, under its own id.
+    private func durableTurn(
+        at acceptedSeq: Int,
+        text: String = "hello",
+        endingWith terminal: ConversationEvent? = nil
+    ) -> [ConversationEvent] {
+        [
+            TestEvent.text("durable-1", seq: acceptedSeq, text: text),
+            TestEvent.accepted("durable-1", .ran, seq: acceptedSeq + 1),
+            TestEvent.started("durable-1", seq: acceptedSeq + 2),
+            terminal ?? TestEvent.final(
+                "durable-1",
+                seq: acceptedSeq + 3,
+                text: "Hi.",
+                merged: ["durable-1"]
+            )
+        ]
+    }
+
+    private func receipt(_ submissionId: String, acceptedSeq: Int?) -> SubmissionAcceptedResponse {
+        SubmissionAcceptedResponse(
+            submissionId: submissionId,
+            acceptedSeq: acceptedSeq,
+            protocolVersion: ProtocolVersion.current
+        )
+    }
+
+    func testASendJoinsItsDurableRowWhenItsReceiptArrivesFirst() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [.success(receipt("local-1", acceptedSeq: 41))]
+        api.catchUpResults = [
+            .success(page(nextAfterSeq: 40)),
+            .success(page(events: durableTurn(at: 41), nextAfterSeq: 44))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript()])
+        let model = makeModel(api: api, stream: stream, identifiers: ["local-1", "key-1"])
+
+        _ = await model.runOnce()
+        _ = await model.send("hello")
+        XCTAssertEqual(model.machine.orderedRecords.map(\.id), ["local-1"])
+
+        _ = await model.runOnce()
+
+        XCTAssertEqual(model.machine.entries, [.submission("durable-1")], "one message, not two")
+        XCTAssertEqual(model.machine.record("durable-1")?.text, "hello")
+        XCTAssertEqual(model.machine.record("durable-1")?.reply?.text, "Hi.")
+        XCTAssertEqual(api.submissions.count, 1)
+    }
+
+    func testARetryAfterALostResponseJoinsTheRowThatAlreadyArrivedWithTheSameIds() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [
+            .failure(FleetAPIError.transport("response lost")),
+            .success(receipt("local-1", acceptedSeq: 41))
+        ]
+        api.catchUpResults = [
+            .success(page(nextAfterSeq: 40)),
+            .success(page(events: durableTurn(at: 41), nextAfterSeq: 44))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript()])
+        let model = makeModel(api: api, stream: stream, identifiers: ["local-1", "key-1"])
+
+        _ = await model.runOnce()
+        _ = await model.send("hello")
+        _ = await model.runOnce()
+
+        // The request did land; nothing has said so yet. The send stays unconfirmed — not
+        // matched to the row by its text, and not dropped.
+        XCTAssertEqual(model.sendFailure, .notKnownToHaveHappened)
+        XCTAssertEqual(model.machine.orderedRecords.map(\.id), ["local-1", "durable-1"])
+
+        await model.retrySend(submissionId: "local-1")
+
+        XCTAssertNil(model.sendFailure)
+        XCTAssertEqual(model.machine.entries, [.submission("durable-1")])
+        XCTAssertEqual(api.submissions.count, 2)
+        XCTAssertEqual(api.submissions[1].submissionId, "local-1", "no new execution identifiers")
+        XCTAssertEqual(api.submissions[1].idempotencyKey, "key-1")
+    }
+
+    func testAnAlreadyDurableRetryRetiresTheEchoWithoutInventingASeq() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [
+            .failure(FleetAPIError.transport("response lost")),
+            .success(receipt("local-1", acceptedSeq: nil))
+        ]
+        api.catchUpResults = [
+            .success(page(nextAfterSeq: 40)),
+            .success(page(events: durableTurn(at: 41), nextAfterSeq: 44))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript()])
+        let model = makeModel(api: api, stream: stream, identifiers: ["local-1", "key-1"])
+
+        _ = await model.runOnce()
+        _ = await model.send("hello")
+        _ = await model.runOnce()
+        await model.retrySend(submissionId: "local-1")
+
+        XCTAssertNil(model.sendFailure, "a 202 is a success")
+        XCTAssertEqual(model.machine.entries, [.submission("durable-1")])
+        XCTAssertEqual(model.machine.localSubmissionId(for: "durable-1"), "durable-1")
+    }
+
+    func testSendAgainOnAJoinedRowSendsThisDevicesMessageAsANewSubmission() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [
+            .success(receipt("local-1", acceptedSeq: 41)),
+            .success(receipt("local-2", acceptedSeq: 50))
+        ]
+        api.catchUpResults = [
+            .success(page(nextAfterSeq: 40)),
+            .success(page(
+                events: durableTurn(
+                    at: 41,
+                    endingWith: TestEvent.outcomeUnknown("durable-1", seq: 44)
+                ),
+                nextAfterSeq: 44
+            ))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript()])
+        let model = makeModel(
+            api: api,
+            stream: stream,
+            identifiers: ["local-1", "key-1", "local-2", "key-2"]
+        )
+
+        _ = await model.runOnce()
+        _ = await model.send("hello")
+        _ = await model.runOnce()
+        XCTAssertEqual(model.machine.record("durable-1")?.state, .outcomeUnknown(.attemptAbandoned))
+
+        // The row on screen is the durable one; the tap still reaches what this device sent.
+        let again = await model.sendAgain(after: "durable-1")
+
+        XCTAssertEqual(again?.submissionId, "local-2")
+        XCTAssertEqual(api.submissions.map { $0.submissionId }, ["local-1", "local-2"])
+        XCTAssertEqual(api.submissions.map { $0.idempotencyKey }, ["key-1", "key-2"])
+        XCTAssertEqual(api.submissions.map { $0.text }, ["hello", "hello"])
+        XCTAssertEqual(
+            model.machine.record("durable-1")?.state,
+            .outcomeUnknown(.attemptAbandoned),
+            "still uncertain: a second send does not resolve the first"
+        )
+    }
+
     // MARK: - Limits
 
     func testTheClientNeverRequestsALimitAboveTheServerMaximum() async {

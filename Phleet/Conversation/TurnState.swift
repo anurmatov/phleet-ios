@@ -73,9 +73,13 @@ struct AgentReply: Equatable, Sendable, Identifiable {
 struct SubmissionRecord: Equatable, Sendable, Identifiable {
     let id: String
 
-    /// The text this device sent, when this device sent it. A submission replayed from history
-    /// has none: catch-up carries the agent's side of a turn, not the words that started it, and
-    /// this slice keeps no local transcript.
+    /// The person's words: what this device just sent, or the `submission.text` the server
+    /// stored when it accepted the submission, which is how history read on another device or
+    /// after a relaunch shows them.
+    ///
+    /// `nil` when no such event exists — a conversation from before the server kept one, or a
+    /// message older than it retains. That is shown as unavailable, never as an empty message:
+    /// `""` is a message sent with no text, and the two stay distinct.
     var text: String?
 
     var state: SubmissionState = .sending
@@ -176,6 +180,24 @@ struct TurnStateMachine: Equatable, Sendable {
     /// is the best reading there is.
     private var attachedWithUnknownHost: [String] = []
 
+    /// Messages this device sent that no event has named yet: optimistic echoes under the
+    /// identifier this device chose.
+    ///
+    /// The server records a submission under an identifier of its own, so the durable row for
+    /// one of these arrives under a *different* id. Only an id still in this set is ever retired
+    /// in favour of that row; one an event has named is itself durable and stays.
+    private var localEchoIds: Set<String> = []
+
+    /// A receipt's `acceptedSeq`, held until the `submission.text` at that seq arrives.
+    private var localIdByAcceptedSeq: [Int: String] = [:]
+
+    /// Every `submission.text` seen, by seq, for a receipt that arrives after its event.
+    private var durableIdBySeq: [Int: String] = [:]
+
+    /// The identifier this device chose, for a durable row its receipt linked it to. Kept so an
+    /// explicit "Send again" on that row still finds the message it sent.
+    private var localIdByDurableId: [String: String] = [:]
+
     init() {}
 
     var ignoredEventCount: Int { ignoredEventKinds.count }
@@ -191,8 +213,39 @@ struct TurnStateMachine: Equatable, Sendable {
 
     /// Records a message this device just sent, before any event about it arrives.
     mutating func registerLocalSubmission(id: String, text: String) {
+        if records[id] == nil {
+            localEchoIds.insert(id)
+        }
         ensureRecord(id)
         records[id]?.text = text
+    }
+
+    /// Applies a successful send's receipt to its echo.
+    ///
+    /// `acceptedSeq` is the seq of that submission's `submission.text`, and the two can arrive in
+    /// either order, so whichever comes second links them: the echo is retired and the durable
+    /// row, which every later event about the submission names, is the one shown. Correlation is
+    /// by that seq alone — never by text, which two separate submissions may share, and never by
+    /// time.
+    ///
+    /// A `202` carries no `acceptedSeq`: the submission was already durable, so the echo is
+    /// retired and the transcript's own row stands. No seq is invented for it.
+    mutating func reconcileReceipt(localSubmissionId localId: String, acceptedSeq: Int?) {
+        guard let acceptedSeq else {
+            retireLocalEcho(localId)
+            return
+        }
+        if let durableId = durableIdBySeq[acceptedSeq] {
+            link(localId: localId, durableId: durableId)
+        } else {
+            localIdByAcceptedSeq[acceptedSeq] = localId
+        }
+    }
+
+    /// The identifier this device sent a submission under, given the one a row is shown under.
+    /// The same id when the row is not one of this device's linked messages.
+    func localSubmissionId(for submissionId: String) -> String {
+        localIdByDurableId[submissionId] ?? submissionId
     }
 
     /// Renders the `gap` field a catch-up response carried.
@@ -226,7 +279,17 @@ struct TurnStateMachine: Equatable, Sendable {
             return true
         }
 
+        // An id an event names is the server's, so it is no longer only a local echo.
+        if let named = event.identity.submissionId {
+            localEchoIds.remove(named)
+        }
+        for named in event.payload.mergedSubmissionIds {
+            localEchoIds.remove(named)
+        }
+
         switch event.payload {
+        case .submissionText(let payload):
+            applySubmissionText(payload, event: event)
         case .submissionAccepted(let payload):
             applyAccepted(payload, event: event)
         case .turnStarted:
@@ -277,6 +340,47 @@ struct TurnStateMachine: Equatable, Sendable {
     }
 
     // MARK: - Per-kind application
+
+    /// Puts the person's words on the row the server keeps them under.
+    ///
+    /// Text and nothing else: no state, no activity, no announcement. A submission's state is a
+    /// function of its turn's events, so text that arrives after a terminal changes nothing
+    /// that terminal decided, and text alone renders as sent with nothing back yet. A payload
+    /// without a string, or an event naming no submission, is counted and ignored — never an
+    /// empty message, and never a reason to erase text already known.
+    private mutating func applySubmissionText(
+        _ payload: SubmissionTextPayload,
+        event: ConversationEvent
+    ) {
+        guard let id = event.identity.submissionId, !id.isEmpty, let text = payload.text else {
+            ignoredEventKinds.append(event.kind.rawValue)
+            return
+        }
+        ensureRecord(id)
+        records[id]?.text = text
+
+        guard let seq = event.seq else { return }
+        durableIdBySeq[seq] = id
+        if let localId = localIdByAcceptedSeq.removeValue(forKey: seq) {
+            link(localId: localId, durableId: id)
+        }
+    }
+
+    /// One submission, two identifiers: this device's echo gives way to the durable row.
+    private mutating func link(localId: String, durableId: String) {
+        guard localId != durableId else { return }
+        localIdByDurableId[durableId] = localId
+        retireLocalEcho(localId)
+    }
+
+    /// Removes an echo nothing on the server has named. Its identifiers stay with the model, so
+    /// an explicit retry or "Send again" still reuses or follows them.
+    private mutating func retireLocalEcho(_ id: String) {
+        guard localEchoIds.remove(id) != nil else { return }
+        records[id] = nil
+        submissionOrder.removeAll { $0 == id }
+        entries.removeAll { $0 == .submission(id) }
+    }
 
     private mutating func applyAccepted(
         _ payload: SubmissionAcceptedPayload,

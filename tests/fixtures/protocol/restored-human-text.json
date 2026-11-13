@@ -1,0 +1,401 @@
+{
+  "protocol": "fleet.conversation.v1",
+  "events": [
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-gap",
+      "seq": null,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "conversation.replay_gap",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic"
+      },
+      "payload": {
+        "fromSeq": 1,
+        "toSeq": 9,
+        "retainedFloorSeq": 10
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-final-10",
+      "seq": 10,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.final",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-legacy",
+        "turnId": "t0"
+      },
+      "payload": {
+        "text": "A reply to a message from before the retained floor.",
+        "completion": "completed",
+        "isPartial": false,
+        "truncated": false,
+        "mergedSubmissionIds": [
+          "durable-legacy"
+        ]
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-text-11",
+      "seq": 11,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-1"
+      },
+      "payload": {
+        "text": "  leading and trailing spaces  "
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-accepted-12",
+      "seq": 12,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "disposition": "ran"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-started-13",
+      "seq": 13,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.started",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-1",
+        "turnId": "t1"
+      },
+      "payload": {}
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-final-14",
+      "seq": 14,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.final",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-1",
+        "turnId": "t1"
+      },
+      "payload": {
+        "text": "First reply.",
+        "completion": "completed",
+        "isPartial": false,
+        "truncated": false,
+        "mergedSubmissionIds": [
+          "durable-1"
+        ]
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-text-15",
+      "seq": 15,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-2"
+      },
+      "payload": {
+        "text": "Line one\nLine two — ünïcødé 🧭"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-accepted-16",
+      "seq": 16,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-2",
+        "turnId": "t2"
+      },
+      "payload": {
+        "disposition": "ran"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-started-17",
+      "seq": 17,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.started",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-2",
+        "turnId": "t2"
+      },
+      "payload": {}
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-text-18",
+      "seq": 18,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-3"
+      },
+      "payload": {
+        "text": "**not bold** `not code` [not a link](https://example.invalid)",
+        "attachments": null
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-accepted-19",
+      "seq": 19,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-3",
+        "turnId": "t2"
+      },
+      "payload": {
+        "disposition": "injected"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-final-20",
+      "seq": 20,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.final",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-2",
+        "turnId": "t2"
+      },
+      "payload": {
+        "text": "One answer for both.",
+        "completion": "completed",
+        "isPartial": false,
+        "truncated": false,
+        "mergedSubmissionIds": [
+          "durable-2",
+          "durable-3"
+        ]
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-text-21",
+      "seq": 21,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-4"
+      },
+      "payload": {
+        "text": ""
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-accepted-22",
+      "seq": 22,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-4"
+      },
+      "payload": {
+        "disposition": "queue_full"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "malformed-no-identity-23",
+      "seq": 23,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1
+      },
+      "payload": {
+        "text": "Names no submission."
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "malformed-non-string-24",
+      "seq": 24,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-1"
+      },
+      "payload": {
+        "text": 42
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "malformed-empty-identity-25",
+      "seq": 25,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": ""
+      },
+      "payload": {
+        "text": "Names an empty submission."
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "malformed-missing-text-26",
+      "seq": 26,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-1"
+      },
+      "payload": {}
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-text-27",
+      "seq": 27,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-6"
+      },
+      "payload": {
+        "text": "Was this run?"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-accepted-28",
+      "seq": 28,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.accepted",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-6",
+        "turnId": "t6"
+      },
+      "payload": {
+        "disposition": "ran"
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-started-29",
+      "seq": 29,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.started",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-6",
+        "turnId": "t6"
+      },
+      "payload": {}
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "restored-unknown-30",
+      "seq": 30,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "turn.outcome_unknown",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "durable-6",
+        "turnId": "t6"
+      },
+      "payload": {
+        "reason": "attempt_abandoned"
+      }
+    }
+  ]
+}

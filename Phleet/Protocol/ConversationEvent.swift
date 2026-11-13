@@ -130,6 +130,13 @@ extension EventPayload {
 
     fileprivate init(kind: EventKind, container: PayloadContainer?) {
         switch kind {
+        case .submissionText:
+            // Only `text` is read. Anything else on the payload — attachment descriptors among
+            // them — is ignored, and a `text` that is absent or not a string stays `nil`.
+            self = .submissionText(
+                SubmissionTextPayload(text: EventPayload.string(container, "text"))
+            )
+
         case .submissionAccepted:
             self = .submissionAccepted(
                 SubmissionAcceptedPayload(

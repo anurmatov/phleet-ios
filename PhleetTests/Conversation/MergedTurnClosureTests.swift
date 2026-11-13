@@ -149,6 +149,53 @@ final class MergedTurnClosureTests: XCTestCase {
         XCTAssertTrue(state.orderedRecords.allSatisfy(\.state.isTerminal))
     }
 
+    // MARK: - Restored text on settled turns
+
+    func testRestoredTextForAMergedGroupKeepsOneReplyAndReopensNothing() {
+        // History read back after the turn ended: the words arrive last, and must not move a
+        // closed submission, add a reply, or bring a spinner back.
+        var state = machine([
+            TestEvent.accepted("durable-1", .ran, seq: 3),
+            TestEvent.started("durable-1", seq: 4),
+            TestEvent.accepted("durable-2", .injected, seq: 5),
+            TestEvent.final("durable-1", seq: 6, text: "One answer.", merged: ["durable-1", "durable-2"])
+        ])
+        let before = state.orderedRecords.map(\.state)
+
+        state.apply(TestEvent.text("durable-1", seq: 1, text: "first"))
+        state.apply(TestEvent.text("durable-2", seq: 2, text: "second"))
+
+        XCTAssertEqual(state.orderedRecords.map(\.state), before)
+        XCTAssertEqual(state.orderedRecords.map(\.text), ["first", "second"])
+        XCTAssertEqual(state.orderedRecords.compactMap(\.reply).count, 1)
+        XCTAssertTrue(state.orderedRecords.allSatisfy(\.isAnsweredTogether))
+        XCTAssertFalse(state.orderedRecords.contains { $0.state.ownsProgressIndicator })
+        XCTAssertNil(state.activity)
+        XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
+    }
+
+    func testRestoredTextLeavesNotRunAndOutcomeUnknownAsTheyWere() {
+        var state = machine([
+            TestEvent.accepted("durable-1", .queueFull, seq: 2),
+            TestEvent.accepted("durable-2", .queued, seq: 3),
+            TestEvent.started("durable-3", seq: 4),
+            TestEvent.accepted("durable-4", .injected, seq: 5),
+            TestEvent.outcomeUnknown("durable-3", seq: 6, reason: .turnReaped)
+        ])
+
+        for (index, id) in ["durable-1", "durable-2", "durable-3", "durable-4"].enumerated() {
+            state.apply(TestEvent.text(id, seq: 10 + index, text: "message \(index)"))
+        }
+
+        XCTAssertEqual(state.record("durable-1")?.state, .notRun(.queueFull))
+        XCTAssertEqual(state.record("durable-2")?.state, .waiting, "text is not a disposition")
+        // `outcome_unknown` stays uncertain, for the host and the message folded into it.
+        XCTAssertEqual(state.record("durable-3")?.state, .outcomeUnknown(.turnReaped))
+        XCTAssertEqual(state.record("durable-4")?.state, .outcomeUnknown(.turnReaped))
+        XCTAssertEqual(state.record("durable-4")?.text, "message 3")
+        XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
+    }
+
     // MARK: - The invariant
 
     func testNoSubmissionIsLeftWorkingOnceASequenceEndsWithATerminal() throws {

@@ -26,6 +26,7 @@ enum ProtocolFixture {
         "canceled-elsewhere",
         "ack-without-running-task",
         "merged-id-never-seen",
+        "restored-human-text",
         "all-kinds"
     ]
 
