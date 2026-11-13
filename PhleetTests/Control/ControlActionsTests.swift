@@ -31,7 +31,7 @@ final class ControlActionsTests: XCTestCase {
             request.url?.absoluteString,
             "https://fleet.example.invalid/api/agents/builder/restart"
         )
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer operator-token-1")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
     }
 
     func testEachActionHasItsOwnRoute() {
@@ -62,12 +62,12 @@ final class ControlActionsTests: XCTestCase {
             "https://fleet.example.invalid/api/workflows/fleet/cancel/design%2Fsynthetic%207"
                 + "?runId=run-design-1"
         )
-        for secret in ["client-id-1", "client-secret-1", "operator-token-1"] {
+        for secret in ["client-id-1", "client-secret-1", "access-token-1"] {
             XCTAssertFalse(url.contains(secret))
         }
     }
 
-    func testTheLogSocketCarriesTheServiceTokenAndNotTheOperatorToken() throws {
+    func testTheLogSocketCarriesBothTokensInHeadersOnly() throws {
         let request = try XCTUnwrap(
             URLSessionAgentLogStream.upgradeRequest(.fixture, agentName: "builder")
         )
@@ -76,7 +76,8 @@ final class ControlActionsTests: XCTestCase {
             request.value(forHTTPHeaderField: ControlRequest.accessClientIdHeader),
             "client-id-1"
         )
-        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+        // Through the dashboard's address a socket needs a sign-in, like any read.
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
     }
 
     func testAProblemDocumentsDetailIsReadAsTheMessage() {
@@ -126,7 +127,6 @@ final class ControlActionsTests: XCTestCase {
 
     func testAFailedActionNamesWhy() async {
         let cases: [(ControlAPIError, ControlPlaneModel.ActionFailure)] = [
-            (.readOnly, .readOnly),
             (.unauthorized, .tokenRejected),
             (.accessDenied, .accessDenied),
             (.transport("lost"), .outcomeUnknown),
@@ -240,33 +240,58 @@ final class ControlActionsTests: XCTestCase {
         XCTAssertEqual(model.state, .ended)
     }
 
-    func testEnvironmentBuildsALogModelOnlyWhenConnected() {
-        let unconnected = AppEnvironment(
-            credentialStore: InMemoryCredentialStore(),
+    func testEnvironmentBuildsALogModelOnlyWhenSignedIn() async {
+        let store = InMemoryCredentialStore()
+        let environment = AppEnvironment(
+            credentialStore: store,
+            legacyCredentialStore: InMemoryLegacyCredentialStore(),
             api: FakeFleetAPI(),
             stream: FakeConversationStream(),
-            controlCredentialStore: InMemoryControlCredentialStore(),
             controlAPI: FakeControlAPI(),
             controlStream: FakeControlLiveStream(),
             controlLogStream: FakeAgentLogStream(),
             launchArguments: [],
             launchEnvironment: [:]
         )
-        XCTAssertNil(unconnected.makeAgentLogModel(agentName: "builder"))
-        XCTAssertNil(unconnected.runs)
+        XCTAssertNil(environment.makeAgentLogModel(agentName: "builder"))
+        XCTAssertNil(environment.runs)
 
-        unconnected.finishControlSetup(
-            ControlCredential(
-                origin: "https://fleet.example.invalid",
-                accessClientId: nil,
-                accessClientSecret: nil,
-                operatorToken: nil
+        try? store.save(.fixture)
+        environment.finishSetup(
+            SetupOutcome(
+                credential: .fixture,
+                tokens: AccessTokenHolder(credentialStore: store, clock: TestClock()) { _ in
+                    MintTokenResponse(accessToken: "access-token-1", expiresInSeconds: 900)
+                }
             )
         )
-        XCTAssertEqual(unconnected.makeAgentLogModel(agentName: "builder")?.agentName, "builder")
-        XCTAssertNotNil(unconnected.runs)
+        XCTAssertEqual(environment.makeAgentLogModel(agentName: "builder")?.agentName, "builder")
+        XCTAssertNotNil(environment.runs)
 
-        unconnected.removeControlConnection()
-        XCTAssertNil(unconnected.runs, "the runs model is torn down with the connection")
+        await environment.signOut()
+        XCTAssertNil(environment.runs, "the runs model is torn down with the sign-in")
+        XCTAssertNil(environment.makeAgentLogModel(agentName: "builder"))
+    }
+
+    func testTheLogSocketIsOpenedSignedIn() async {
+        let base = FakeAgentLogStream(script: [.text("hello"), .ended])
+        let store = InMemoryCredentialStore(credential: .fixture)
+        let tokens = AccessTokenHolder(credentialStore: store, clock: TestClock()) { _ in
+            MintTokenResponse(accessToken: "access-token-1", expiresInSeconds: 900)
+        }
+        let model = AgentLogModel(
+            stream: SignedInAgentLogStream(base: base, tokens: tokens),
+            connection: .unsignedFixture,
+            agentName: "builder"
+        )
+
+        model.start()
+        for _ in 0..<FakeFleetAPI.maxGateYields where model.state != .ended {
+            await Task.yield()
+        }
+
+        XCTAssertEqual(base.agentNames, ["builder"])
+        XCTAssertEqual(base.accessTokens, ["access-token-1"])
+        XCTAssertEqual(model.tail.lines.map(\.text), ["hello"])
     }
 }

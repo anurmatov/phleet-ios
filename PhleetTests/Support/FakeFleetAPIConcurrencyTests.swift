@@ -26,6 +26,7 @@ final class FakeFleetAPIConcurrencyTests: XCTestCase {
                         origin: origin,
                         accessToken: "token-\(index)",
                         externalRef: "ref-\(index)",
+                        agent: "agent-1",
                         clientInstanceId: "instance"
                     )
                 }

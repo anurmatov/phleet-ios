@@ -19,14 +19,9 @@ final class WireBodyTests: XCTestCase {
 
     func testEveryBodyBearingRequestCarriesTheProtocolField() throws {
         let bodies: [(String, any Encodable)] = [
-            ("POST /v1/auth/devices", RegisterDeviceBody(enrollmentCode: "code")),
-            (
-                "POST /v1/auth/token",
-                MintTokenBody(deviceId: "device", deviceSecret: "secret")
-            ),
             (
                 "POST /v1/conversations",
-                OpenConversationBody(externalRef: "main", clientInstanceId: "instance")
+                OpenConversationBody(externalRef: "main", agent: "agent-1", clientInstanceId: "instance")
             ),
             (
                 "POST /v1/conversations/{id}/submissions",
@@ -43,7 +38,7 @@ final class WireBodyTests: XCTestCase {
             )
         ]
 
-        XCTAssertEqual(bodies.count, 5, "all five body-bearing requests are covered")
+        XCTAssertEqual(bodies.count, 3, "all three body-bearing chat requests are covered")
 
         for (route, body) in bodies {
             let keys = try encodedKeys(body)
@@ -126,7 +121,54 @@ final class WireBodyTests: XCTestCase {
         XCTAssertEqual(session.limits.inboundTextBytes, 1024)
         XCTAssertEqual(session.limits.catchUpLimitMax, 1000)
         XCTAssertEqual(session.limits.outboundBufferEvents, 256)
-        XCTAssertNil(session.agentLabel)
+    }
+
+    // MARK: - Opening a thread with an agent
+
+    func testOpeningAThreadNamesItsAgent() throws {
+        let keys = try encodedKeys(
+            OpenConversationBody(externalRef: "main", agent: "agent-1", clientInstanceId: "instance")
+        )
+        XCTAssertEqual(keys["externalRef"] as? String, "main")
+        // Required by the chat service: a conversation is with one agent for life.
+        XCTAssertEqual(keys["agent"] as? String, "agent-1")
+        XCTAssertEqual(keys["clientInstanceId"] as? String, "instance")
+    }
+
+    func testTheOpenResponseReadsTheAgentAndToleratesItsAbsence() throws {
+        let decoder = JSONDecoder()
+        let withAgent = Data(
+            #"{"protocol":"fleet.conversation.v1","conversationId":"c1","agent":"agent-1","nextSeq":41,"retainedFloorSeq":12}"#
+                .utf8
+        )
+        XCTAssertEqual(try decoder.decode(OpenConversationResponse.self, from: withAgent).agent, "agent-1")
+
+        let without = Data(
+            #"{"protocol":"fleet.conversation.v1","conversationId":"c1","nextSeq":41,"retainedFloorSeq":12}"#
+                .utf8
+        )
+        XCTAssertNil(try decoder.decode(OpenConversationResponse.self, from: without).agent)
+    }
+
+    // MARK: - Chat turned off
+
+    func testAgentUnavailableIsReadAsItselfAndIsNotRetried() throws {
+        let body = Data(
+            #"{"protocol":"fleet.conversation.v1","code":"agent_unavailable","message":"x"}"#.utf8
+        )
+        let decoded = try JSONDecoder().decode(ProtocolErrorBody.self, from: body)
+
+        XCTAssertEqual(decoded.code, .agentUnavailable)
+        XCTAssertEqual(ProtocolErrorCode.agentUnavailable.rawValue, "agent_unavailable")
+        XCTAssertEqual(ProtocolErrorCode.agentUnavailable.expectedStatuses, [409])
+        XCTAssertEqual(
+            ProtocolErrorCode.treatment(code: .agentUnavailable, status: 409),
+            .terminal,
+            "a switch in the agent's settings, not something asking again can change"
+        )
+        XCTAssertTrue(
+            FleetAPIError.refused(.agentUnavailable, status: 409, message: nil).isAgentUnavailable
+        )
     }
 
     func testDocumentedDefaultsMatchTheContract() {

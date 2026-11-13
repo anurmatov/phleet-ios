@@ -19,20 +19,30 @@ final class RedirectRefusingDelegate: NSObject, URLSessionTaskDelegate {
     }
 }
 
-/// The session every control-plane request and socket uses.
+/// The session every request and socket to the Fleet server uses.
 enum ControlTransport {
+
+    /// How long an orchestrator request may wait for data.
+    static let requestTimeoutSeconds: TimeInterval = 20
+
+    /// The chat service holds a socket open between frames for longer than the orchestrator's
+    /// requests should take, and pings it every twenty seconds: a twenty-second idle limit would
+    /// race the ping and drop a healthy socket. Its session waits as long as the system default.
+    static let chatRequestTimeoutSeconds: TimeInterval = 60
 
     /// No cookies, no cache, no redirects.
     ///
     /// Every request authenticates with its own headers, so nothing here depends on a cookie a
     /// proxy may hand back — and an ephemeral session writes neither secrets nor responses to
     /// disk.
-    static func makeSession() -> URLSession {
+    static func makeSession(
+        requestTimeout: TimeInterval = ControlTransport.requestTimeoutSeconds
+    ) -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         configuration.httpShouldSetCookies = false
         configuration.urlCache = nil
-        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForRequest = requestTimeout
         return URLSession(
             configuration: configuration,
             delegate: RedirectRefusingDelegate(),
@@ -213,39 +223,6 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         return started.workflowId
     }
 
-    private struct TokenStatus: Decodable {
-        let status: String?
-    }
-
-    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck {
-        let request = try ControlRequest.make(
-            connection: connection,
-            method: "GET",
-            percentEncodedPath: ControlRequest.operatorTokenPath,
-            presentsOperatorToken: true
-        )
-        do {
-            let data = try await perform(request)
-            let answer: TokenStatus = try Self.decode(data, decoder)
-            return Self.tokenCheck(status: answer.status)
-        } catch ControlAPIError.unauthorized {
-            return .rejected
-        } catch ControlAPIError.refused(let status, _) where status == 404 || status == 405 {
-            // An orchestrator from before this route existed. That is not a refusal of the token.
-            return .unsupported
-        }
-    }
-
-    /// Reads the route's `status`. Anything this build does not recognise is "nothing was
-    /// learned", never "accepted": a check that assumed success would be worse than no check.
-    static func tokenCheck(status: String?) -> OperatorTokenCheck {
-        switch status {
-        case "accepted"?: return .accepted
-        case "not_required"?: return .notRequired
-        default: return .unsupported
-        }
-    }
-
     private struct PushRegistration: Encodable {
         let token: String
     }
@@ -279,7 +256,82 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         _ = try await perform(request)
     }
 
+    // MARK: - Signing in
+
+    private struct RegisterDeviceBody: Encodable {
+        let enrollmentCode: String
+        let deviceName: String?
+    }
+
+    func registerDevice(
+        _ connection: ControlConnection,
+        enrollmentCode: String,
+        deviceName: String?
+    ) async throws -> RegisteredDevice {
+        let payload = try encode(
+            RegisterDeviceBody(enrollmentCode: enrollmentCode, deviceName: deviceName)
+        )
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.registerDevicePath,
+            body: payload
+        )
+        let data = try await perform(request)
+        return try Self.decode(data, decoder)
+    }
+
+    private struct MintTokenBody: Encodable {
+        let deviceId: String
+        let deviceSecret: String
+    }
+
+    func mintToken(
+        _ connection: ControlConnection,
+        deviceId: String,
+        deviceSecret: String
+    ) async throws -> MintTokenResponse {
+        let payload = try encode(MintTokenBody(deviceId: deviceId, deviceSecret: deviceSecret))
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.mintTokenPath,
+            body: payload
+        )
+        let data = try await perform(request)
+        return try Self.decode(data, decoder)
+    }
+
+    func revokeDevice(_ connection: ControlConnection, deviceId: String) async throws {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.revokeDevicePath(deviceId: deviceId)
+        )
+        _ = try await perform(request)
+    }
+
+    // MARK: - Chat
+
+    func chatAgents(_ connection: ControlConnection) async throws -> ChatAgentList {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.chatAgentsPath
+        )
+        let data = try await perform(request)
+        return try Self.decode(data, decoder)
+    }
+
     // MARK: - Plumbing
+
+    private func encode<Body: Encodable>(_ body: Body) throws -> Data {
+        do {
+            return try encoder.encode(body)
+        } catch {
+            throw ControlAPIError.decoding("request body could not be encoded")
+        }
+    }
 
     private func perform(_ request: URLRequest) async throws -> Data {
         let data: Data
@@ -303,7 +355,7 @@ final class URLSessionControlAPIClient: ControlAPIClient {
     ///
     /// Static so the mapping is assertable without a network. The two that must not be confused:
     /// a redirect or a `403` means the proxy in front refused the caller, while a `401` means
-    /// the orchestrator refused the operator token. They are fixed in different places.
+    /// the orchestrator refused this phone's sign-in. They are fixed in different places.
     static func failure(status: Int, body: Data) -> ControlAPIError? {
         switch status {
         case 200..<300:

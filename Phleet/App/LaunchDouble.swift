@@ -1,7 +1,7 @@
 import Foundation
 
-/// A scripted backend selected by a launch argument, so the UI smoke test can drive
-/// enroll → agent → thread → send → terminal without a network.
+/// A scripted backend selected by a launch argument, so the UI smoke tests can drive
+/// scan → sign in → fleet, runs, and agent → thread → send → terminal without a network.
 ///
 /// Compiled into the app unconditionally and selected at runtime. It is deliberately **not**
 /// behind a second `#if DEBUG`: the codebase has exactly one build-gate branch, `make lint`
@@ -11,10 +11,10 @@ import Foundation
 struct LaunchDouble {
 
     let credentialStore: CredentialStore
+    let legacyCredentialStore: LegacyCredentialStore
     let api: FleetAPIClient
     let stream: ConversationStream
 
-    let controlCredentialStore: ControlCredentialStore
     let controlAPI: ControlAPIClient
     let controlStream: ControlLiveStream
     let controlLogStream: AgentLogStream
@@ -23,8 +23,13 @@ struct LaunchDouble {
     /// scripted backend the scan button applies this text instead of opening one.
     let scannedSetupCode: String
 
-    /// A valid setup code for the scripted orchestrator. Obviously synthetic.
+    /// A valid setup code for the scripted server. Obviously synthetic.
     static let scriptedSetupCode =
+        #"{"phleet":"setup","v":2,"origin":"https://scripted.example.invalid","#
+        + #""enrollmentCode":"scripted-enrollment.code"}"#
+
+    /// A setup code from a dashboard that predates one sign-in. Obviously synthetic.
+    static let olderSetupCode =
         #"{"phleet":"control-setup","v":1,"origin":"https://scripted.example.invalid","#
         + #""operatorToken":"scripted-operator-token"}"#
 
@@ -39,17 +44,23 @@ struct LaunchDouble {
             tallTranscript: arguments.contains(LaunchArguments.tallTranscript)
         )
         let controlBackend = ScriptedControlBackend()
+        let scanned: String
+        if arguments.contains(LaunchArguments.unreadableSetupCode) {
+            scanned = "not a setup code"
+        } else if arguments.contains(LaunchArguments.olderSetupCode) {
+            scanned = LaunchDouble.olderSetupCode
+        } else {
+            scanned = LaunchDouble.scriptedSetupCode
+        }
         return LaunchDouble(
             credentialStore: InMemoryCredentialStore(),
+            legacyCredentialStore: InMemoryLegacyCredentialStore(),
             api: backend,
             stream: backend,
-            controlCredentialStore: InMemoryControlCredentialStore(),
             controlAPI: controlBackend,
             controlStream: controlBackend,
             controlLogStream: controlBackend,
-            scannedSetupCode: arguments.contains(LaunchArguments.unreadableSetupCode)
-                ? "not a setup code"
-                : LaunchDouble.scriptedSetupCode,
+            scannedSetupCode: scanned,
             pushSystem: ScriptedPushSystem()
         )
     }
@@ -92,33 +103,9 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
 
     // MARK: - FleetAPIClient
 
-    func registerDevice(
-        origin: URL,
-        enrollmentCode: String
-    ) async throws -> RegisterDeviceResponse {
-        RegisterDeviceResponse(
-            deviceId: "scripted-device",
-            deviceSecret: "scripted-secret",
-            protocolVersion: ProtocolVersion.current
-        )
-    }
-
-    func mintToken(
-        origin: URL,
-        deviceId: String,
-        deviceSecret: String
-    ) async throws -> MintTokenResponse {
-        MintTokenResponse(
-            accessToken: "scripted-token",
-            expiresInSeconds: 900,
-            protocolVersion: ProtocolVersion.current
-        )
-    }
-
     func session(origin: URL, accessToken: String) async throws -> SessionResponse {
         SessionResponse(
             principalId: "scripted-principal",
-            agentLabel: "Scripted agent",
             limits: .documentedDefaults,
             protocolVersion: ProtocolVersion.current
         )
@@ -128,10 +115,15 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         origin: URL,
         accessToken: String,
         externalRef: String,
+        agent: String,
         clientInstanceId: String
     ) async throws -> OpenConversationResponse {
-        OpenConversationResponse(
+        if agent == ScriptedControlBackend.chatOffAgent {
+            throw FleetAPIError.refused(.agentUnavailable, status: 409, message: nil)
+        }
+        return OpenConversationResponse(
             conversationId: conversationId,
+            agent: agent,
             nextSeq: 41,
             retainedFloorSeq: 12,
             protocolVersion: ProtocolVersion.current
@@ -290,7 +282,8 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
     }
 }
 
-/// The scripted orchestrator: three agents, one run waiting at a merge gate, and a little history.
+/// The scripted orchestrator: three agents, one run waiting at a merge gate, a little history,
+/// and two agents to chat with — one of which has had its chat turned off since the list was read.
 ///
 /// Every action changes what the next read returns, the way the real thing does. Answering the
 /// gate moves the run out of its phase; restarting the agent that is down brings it up; cancelling
@@ -494,14 +487,6 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         return workflowId
     }
 
-    /// The one token the scripted orchestrator rejects, so the smoke test can watch setup
-    /// refuse it.
-    static let rejectedToken = "a-token-the-scripted-orchestrator-rejects"
-
-    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck {
-        connection.operatorToken == ScriptedControlBackend.rejectedToken ? .rejected : .accepted
-    }
-
     func registerPushDevice(
         _ connection: ControlConnection,
         deviceId: String,
@@ -509,6 +494,40 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
     ) async throws {}
 
     func unregisterPushDevice(_ connection: ControlConnection, deviceId: String) async throws {}
+
+    func registerDevice(
+        _ connection: ControlConnection,
+        enrollmentCode: String,
+        deviceName: String?
+    ) async throws -> RegisteredDevice {
+        RegisteredDevice(deviceId: "scripted-device", deviceSecret: "scripted-secret")
+    }
+
+    func mintToken(
+        _ connection: ControlConnection,
+        deviceId: String,
+        deviceSecret: String
+    ) async throws -> MintTokenResponse {
+        MintTokenResponse(accessToken: "scripted-token", expiresInSeconds: 900)
+    }
+
+    func revokeDevice(_ connection: ControlConnection, deviceId: String) async throws {}
+
+    /// Listed, and refused when its thread is opened: chat was turned off after the list was read.
+    static let chatOffAgent = "scripted-quiet"
+
+    func chatAgents(_ connection: ControlConnection) async throws -> ChatAgentList {
+        ChatAgentList(
+            available: true,
+            agents: [
+                ChatAgent(agentName: "scripted-builder", displayName: "Scripted builder"),
+                ChatAgent(
+                    agentName: ScriptedControlBackend.chatOffAgent,
+                    displayName: "Scripted quiet"
+                )
+            ]
+        )
+    }
 
     // MARK: - ControlLiveStream
 

@@ -21,9 +21,9 @@ enum FleetAPIError: Error, Equatable, Sendable {
     /// The response completed and could not be read.
     case decoding(String)
 
-    /// `409 device_limit` — another device is already active.
-    var isDeviceLimit: Bool {
-        if case .refused(.deviceLimit, _, _) = self { return true }
+    /// `409 agent_unavailable` — the agent this conversation is with does not accept chat now.
+    var isAgentUnavailable: Bool {
+        if case .refused(.agentUnavailable, _, _) = self { return true }
         return false
     }
 
@@ -46,27 +46,16 @@ enum FleetAPIError: Error, Equatable, Sendable {
     }
 }
 
-/// The seven HTTPS routes this slice uses.
+/// The chat service's HTTPS routes this app uses.
 ///
-/// `origin` is a parameter rather than state because enrollment happens **before** there is a
-/// stored profile: the person has typed an address that nothing has accepted yet.
+/// Signing in is not here: the orchestrator owns it (`ControlAPIClient.registerDevice`,
+/// `mintToken`), and the token it issues is the one these routes take.
 ///
-/// The access token is a parameter too, and it is never placed in a URL on any of these — header
-/// only. URLs are retained by intermediaries, access logs and crash reports.
+/// The access token is a parameter, and it is never placed in a URL on any of these — header
+/// only. URLs are retained by intermediaries, access logs and crash reports. The access-proxy
+/// service token, when there is one, is the implementation's: it belongs to the address, not to
+/// the request.
 protocol FleetAPIClient {
-
-    /// `POST /v1/auth/devices`
-    func registerDevice(
-        origin: URL,
-        enrollmentCode: String
-    ) async throws -> RegisterDeviceResponse
-
-    /// `POST /v1/auth/token`
-    func mintToken(
-        origin: URL,
-        deviceId: String,
-        deviceSecret: String
-    ) async throws -> MintTokenResponse
 
     /// `GET /v1/session`
     func session(
@@ -74,11 +63,13 @@ protocol FleetAPIClient {
         accessToken: String
     ) async throws -> SessionResponse
 
-    /// `POST /v1/conversations`
+    /// `POST /v1/conversations` — opens, or finds again, the conversation with `agent` that this
+    /// person calls `externalRef`.
     func openConversation(
         origin: URL,
         accessToken: String,
         externalRef: String,
+        agent: String,
         clientInstanceId: String
     ) async throws -> OpenConversationResponse
 

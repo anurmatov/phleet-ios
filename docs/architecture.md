@@ -8,11 +8,13 @@ simplification of each one fails quietly.
 A native iOS client for the public [phleet](https://github.com/anurmatov/phleet) platform,
 targeting iOS 17.0 and built with SwiftUI.
 
-It has three tabs over two surfaces. **Chat** enrolls a device against a server you supply, shows the one agent that
-deployment binds, opens a thread, sends messages, and renders what comes back. **Fleet** and
-**Runs** connect to an orchestrator: what is waiting for a person, how every agent is doing, and
-the workflow runs in progress and recently closed. They are described under
-[The control plane](#the-control-plane). For the thread, the wire contract is
+It has three tabs over one sign-in. **Fleet** and **Runs** use the orchestrator's operator API:
+what is waiting for a person, how every agent is doing, and the workflow runs in progress and
+recently closed. They are described under [The control plane](#the-control-plane). **Chat** lists
+the agents that have chat turned on and keeps one thread with each: it opens the thread, sends
+messages, and renders what comes back. All three reach the server through one address — the
+dashboard's, which carries the orchestrator's `/api/` and the chat service's `/v1/` — with one
+credential; see [One sign-in](#one-sign-in). For the thread, the wire contract is
 [`docs/first-party-api.md`](https://github.com/anurmatov/phleet/blob/main/docs/first-party-api.md)
 (the north boundary) and
 [`docs/conversation-protocol.md`](https://github.com/anurmatov/phleet/blob/main/docs/conversation-protocol.md)
@@ -22,11 +24,11 @@ the workflow runs in progress and recently closed. They are described under
 
 Not in this slice, and not partially present either:
 
-- no notifications for the thread: an agent's reply does not notify. Only the control plane does
+- no opening a thread from a notification: a reply's notification opens the Chat tab
 - no voice, attachments, or multi-agent rooms
 - no steer or cancel interface — the routes exist, this app does not surface them
 - no local persistence of conversation history: no database, no file store, no user defaults
-- no QR enrollment
+- no setup without a camera: the dashboard shows the setup code only as a QR code
 - no provisioning, no terminate or restart of a run, and no editing of instructions, contexts,
   workflow definitions or secrets — those stay on the web dashboard
 
@@ -43,11 +45,11 @@ Phleet/
     LaunchDouble.swift         launch-argument-selected scripted backend, for the UI smoke test
   Protocol/                    the wire: envelope, kinds, payloads, request/response bodies
   Networking/                  URLSession and URLSessionWebSocketTask behind two protocols
-  Credentials/                 device credential at rest; the access token in memory
-  Enrollment/                  register → mint → session, and the screen
-  Agents/                      the single session-derived agent entry
-  Conversation/                attach, catch up, buffer, send, render
-  Control/                     the Fleet tab: orchestrator connection, agents, gates, decisions
+  Credentials/                 the sign-in at rest; the access token in memory; earlier builds' items
+  Setup/                       scan → register → store → mint, and the screen
+  Chat/                        the chat-enabled agents, and a thread model per agent
+  Conversation/                attach, catch up, buffer, send, render (replies as Markdown)
+  Control/                     the Fleet tab: orchestrator routes signed in, agents, gates, decisions
   Configuration/               server profile: model, store seam, resolution
   Support/                     accessibility identifiers, launch arguments
   Resources/                   string catalog, asset catalog
@@ -60,12 +62,13 @@ AppEnvironment                       composition root, constructed once in Phlee
   ├── ServerProfileResolution.resolve(store:launchEnvironment:overrideAllowed:)
   │     └── CredentialBackedServerProfileStore   the profile is whatever the credential says
   ├── CredentialStore                KeychainCredentialStore in the app
-  ├── FleetAPIClient                 the seven HTTPS routes
+  ├── ControlAPIClient               the orchestrator's routes, sign-in included
+  ├── FleetAPIClient                 the chat service's HTTPS routes
   └── ConversationStream             one connection, expressed as a sequence
 ```
 
-`ServerProfileResolution` is **unchanged** by this slice. Enrollment replaced the store, which is
-exactly what the seam existed for.
+`ServerProfileResolution` is **unchanged**. The sign-in credential is the store, which is exactly
+what the seam existed for.
 
 ### Why `resolve` takes a `Bool` instead of reading a compile-time flag
 
@@ -83,8 +86,8 @@ the same reason — and so the test drives the app exactly as built.
 
 Two protocols, and the tests drive both:
 
-- `FleetAPIClient` — the seven HTTPS routes. `origin` is a parameter rather than state, because
-  enrollment happens before there is a stored profile.
+- `FleetAPIClient` — the chat service's HTTPS routes. The access token is a parameter; the access
+  proxy's service token belongs to the address, so the real client is built with it at sign-in.
 - `ConversationStream` — one connection as an `AsyncStream` of `hello`, events and a close code.
   `ping` never crosses it: the implementation answers with `{"kind":"pong"}` and nothing above
   needs to know liveness exists.
@@ -97,7 +100,7 @@ asserted without a network.
 
 ### `protocol` is on every request body, from one constant
 
-The server compares the field ordinally and rejects `null`, on every route including enrollment.
+The chat service compares the field ordinally and rejects `null`, on every route.
 Every request type in `WireBodies.swift` declares it as a `let` with a fixed value, which keeps it
 out of the memberwise initializer: no call site can omit it, so this is a property of the types
 rather than a review checklist.
@@ -160,109 +163,84 @@ device credential and see what happens.
 
 | Event | Behaviour |
 |---|---|
-| `401` on any authenticated route except the token mint | mint once, replay the request once, do not sign out |
+| `401` on any authenticated route except the token mint | mint once, replay the request once, do not sign out; a second `401` is that request's failure |
 | WebSocket close `4401` | mint, reconnect, catch up; the first occurrence does not count against backoff |
-| **`401` from `POST /v1/auth/token`** | **the only sign-out.** Delete the credential, clear the token and transcript, return to enrollment |
+| **`401` from `POST /api/auth/token`** | **the only automatic sign-out.** Delete the credential, tear down Fleet, Runs and Chat, return to setup saying the phone was revoked |
+| The person signs out | tell the orchestrator to forget this phone for notifications, revoke this device (`POST /api/auth/devices/{id}/revoke`), then delete the credential whatever the answers were — and say so when the server could not be told |
 
-`AccessTokenHolder` owns that rule and is the only place in the app that deletes the credential.
-The composer draft lives on `AppEnvironment`, above everything sign-out tears down, so signing out
-cannot silently discard a message someone typed.
+`AccessTokenHolder` owns the automatic rule and is the only place in the app that deletes the
+credential on that path. It reads a `401` from either client the same way: the orchestrator's
+(`ControlAPIError`) and the chat service's (`FleetAPIError`). Composer drafts live on
+`AppEnvironment`, one per agent, above everything sign-out tears down, so signing out cannot
+silently discard a message someone typed.
 
 ### Credential storage
 
-One Keychain item holding `{ origin, deviceId, deviceSecret, clientInstanceId }` as JSON, with
-`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
+One Keychain item holding `{ origin, accessClientId?, accessClientSecret?, deviceId, deviceSecret,
+clientInstanceId, pushDeviceId? }` as JSON, with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
 
 `AfterFirstUnlock` so a reconnect can read it with the screen locked. `ThisDeviceOnly` is the
 load-bearing half: it excludes the item from iCloud Keychain and encrypted backups, so a restore
 to a new device arrives with **no** credential — which is what the contract requires, since a
-secure-store loss is recovered by revoke-and-re-enroll, never a silent re-issue.
+secure-store loss is recovered by revoke-and-sign-in-again, never a silent re-issue.
 
 The access token is never persisted. It is derivable from the credential at any time, and storing
 it would add a second secret at rest to save one round trip per fifteen minutes. Deadlines are
 measured on a monotonic clock, so a backward wall-clock jump cannot extend a token's apparent
-life.
+life. The enrollment code is sent once and never stored.
 
-### One agent, because the API says so
+The item is stored under a name no earlier build used. Earlier builds kept two items — a chat
+credential for a sign-in the chat service no longer has, and a Fleet connection holding the
+fleet-wide operator token — and `KeychainLegacyCredentialStore` deletes both at launch, keeping
+only the identifier notifications were registered under, so the first sign-in to the same address
+replaces that row on the orchestrator instead of adding a second one.
 
-There is no agent-list route on the north boundary. `GET /v1/session` returns a single
-`agentLabel`, and the deployment binds exactly one agent name. So this renders one entry, not a
-one-row list with a selection model that would have to be rebuilt when the real shape lands.
-`agentLabel` is cosmetic and non-authoritative; nothing routes on it.
+### A thread per agent
 
-## The control plane
+The agents come from the orchestrator (`GET /api/chat/agents`), which owns the per-agent chat
+switch; `available: false` means the server has no chat service, and is said as that rather than
+as an empty list. Each agent has one thread, opened with `externalRef: "main"` and the agent's
+name: the chat service finds a conversation again by person, agent and reference, so the phone and
+the dashboard open the same one. An agent has a single model context, so more than one thread
+with it would look separate without being so.
 
-The Fleet tab talks to a **different server surface** from the thread, with a different
-credential, and the two are independent in both directions.
+`409 agent_unavailable` — chat turned off since the list was read — stops the thread's reconnect
+loop and is said as itself, with a way to try again: asking again cannot change it, and the fix is
+a switch in the agent's settings.
 
-| | Chat | Fleet |
-|---|---|---|
-| Surface | the device boundary (`/v1/…`) | the orchestrator's operator API (`/api/…`, `/ws`) |
-| How a device gets in | enrollment code → its own revocable device secret | whatever guards the address, plus one shared operator token |
-| Keychain item | `DeviceCredential` | `ControlCredential` |
-| Removing it | only a `401` from the token mint | a person, from the connection sheet |
+### An agent's reply is Markdown, and never HTML
 
-The orchestrator's operator API has no enrollment and no per-device identity: reads need no token
-at all and every write takes the same operator token. That is why this is meant to sit behind an
-access proxy, and why the connection stores a **service token** for one. The service token is
-what makes a lost phone recoverable — it is deleted at the proxy, and the operator token on the
-device is then unreachable.
+`ReplyMarkdown` renders what one `Text` can show faithfully: inline syntax through
+`AttributedString(markdown:)` with inline-only interpretation that preserves whitespace, and
+fenced code blocks, which are split out first and shown verbatim. Full block parsing produces
+presentation intents a `Text` does not lay out — paragraphs run together and list markers vanish —
+so block syntax stays as typed. A tag is shown as its characters with the parser's HTML mark
+removed, and a link is kept only for `http` and `https`. The person's own messages are plain text.
+
+## One sign-in
+
+The dashboard's address carries both servers: its proxy sends `/api/` and `/ws` to the
+orchestrator and `/v1/` to the chat service. The orchestrator owns sign-in, and the chat service
+asks it who a caller is, so one access token is good for both.
 
 ```
-AppEnvironment
-  ├── ControlCredentialStore        KeychainControlCredentialStore in the app
-  ├── ControlAPIClient              the operator routes this app uses
-  ├── ControlLiveStream             the orchestrator's state socket, as a sequence
-  ├── AgentLogStream                one agent's log socket, as a sequence
-  ├── ControlPlaneModel             agents, runs in progress, gates, agent actions
-  └── RunsModel                     closed runs, run history, cancel, start
+setup code (QR) ── POST /api/auth/devices ──▶ { deviceId, deviceSecret }  stored
+                   POST /api/auth/token   ──▶ { accessToken, 15 min }     memory only
+every request ───── Authorization: Bearer <accessToken>   (+ the proxy's service token)
 ```
 
-The two models exist exactly when a connection does and are torn down together. Runs in progress
-live only in `ControlPlaneModel`, which already keeps them fresh; `RunsModel` holds what changes
-slowly and is read on demand. One run never has two states that could disagree.
+### A setup code shows the address and never connects
 
-### The operator token rides only on writes
-
-`ControlRequest.make` attaches the service token to every request and the operator token only to
-one that changes something. The orchestrator does not ask for it on a read, and a secret that is
-not sent cannot be logged in transit. A connection stored without an operator token is
-**read-only**: it cannot build a write at all, and the interface says so instead of offering a
-control that fails.
-
-Setup checks the operator token with `GET /api/operator-token`, the one read that presents it
-(`presentsOperatorToken`) because its whole purpose is to ask whether the token is right. A token
-the orchestrator rejects is refused at setup and nothing is stored. Three other answers do not
-block setup, and each is reported as what it is rather than as "verified":
-
-| Answer | Meaning | Stored as |
-|---|---|---|
-| `accepted` | it is the operator token | verified |
-| `not_required` | the orchestrator does not gate writes; the token was checked against nothing | not required |
-| `404`, or the check did not complete | an orchestrator without the route, or a lost request | unverified |
-
-An unrecognised answer is "nothing was learned", never "accepted". Against an orchestrator
-without the route the app does not fall back to making a write to find out: that is not a check.
-The result is kept for the launch that made it and shown on the connection sheet; it is not
-stored, because after a relaunch the honest answer is "not checked since".
-
-### A setup code fills the form and never connects
-
-The dashboard can show the three setup values as one QR code
-([`docs/phone-setup-code.md`](https://github.com/anurmatov/phleet/blob/main/docs/phone-setup-code.md)
-in the platform repository). `ControlSetupCode.parse` reads it and
-`ControlSetupModel.apply(scanned:)` puts it in the form. That is all a scan does.
-
-A QR code is whatever someone printed, so it is read as untrusted input:
+The dashboard draws a JSON object as a QR code:
+`{"phleet":"setup","v":2,"origin":…,"accessClientId"?,"accessClientSecret"?,"enrollmentCode":…}`.
+`SetupCode.parse` reads it as untrusted input:
 
 - The kind and the version are checked before anything else is read. Some other QR code is "not
-  a setup code"; a newer version is refused by name rather than read with today's field names.
-- A readable code replaces **all four** fields, clearing the ones it does not carry. A read-only
-  code scanned over a form that already held an operator token must not leave that token in place
-  to be sent to the scanned address.
-- An unreadable code changes nothing that was typed.
-- The scanned address gets no special treatment: it is shown for a person to check, and the same
-  rule that refuses a typed `http://` address refuses a scanned one.
+  a setup code"; another version is refused by name rather than read with today's field names.
+- The kind an older dashboard drew (`control-setup`, carrying the operator token) is refused by
+  name, with where to make a new code. Nothing in it is read.
+- The address passes the same rule as any other — `https`, a host, no user name or password — and
+  is shown for a person to check. Connecting is a separate tap.
 
 The camera is `DataScannerViewController`, restricted to QR codes, in a sheet that hands back the
 first code's text and nothing else. Camera access is asked for when the sheet opens, never at
@@ -270,14 +248,52 @@ launch. A simulator has no camera, so under the scripted backend the scan button
 code instead of opening one; that is what the UI tests drive, and it means **the camera path
 itself is not covered by CI**.
 
+### Registering stores before it mints
+
+The orchestrator commits the device before it can know its answer arrived, so the credential is
+stored before the first token is asked for. Presenting the same code again before that first
+token answers with the same device and a rotated secret, which overwrites the stored one and keeps
+its cursor bookkeeping. A first token that cannot be had that minute does not undo the sign-in —
+the code is spent, and the token is asked for again when it is needed — but a first token the
+orchestrator refuses does.
+
+## The control plane
+
+```
+AppEnvironment
+  ├── ControlAPIClient              the orchestrator routes this app uses
+  ├── SignedInControlAPI            the same routes, each request carrying a current token
+  ├── ControlLiveStream             the orchestrator's state socket, as a sequence
+  ├── AgentLogStream                one agent's log socket, as a sequence
+  ├── ControlPlaneModel             agents, runs in progress, gates, agent actions
+  └── RunsModel                     closed runs, run history, cancel, start
+```
+
+The models exist exactly when a sign-in does and are torn down with it. Runs in progress live only
+in `ControlPlaneModel`, which already keeps them fresh; `RunsModel` holds what changes slowly and
+is read on demand. One run never has two states that could disagree.
+
+### Every request is signed in
+
+Through the dashboard's address the orchestrator answers nothing without a credential, reads
+included, so `ControlRequest.make` puts the access token on every request that has one, and the
+access proxy's service token on every request. The models hold a connection with no token in it;
+`SignedInControlAPI`, `SignedInControlLiveStream` and `SignedInAgentLogStream` put a current one on
+each request or socket as it goes out. The only requests built without one are the two that
+obtain one. Neither secret ever appears in a URL.
+
+There is no read-only connection any more: a signed-in phone may do what the operator API offers,
+except manage other devices and read configuration values, which the orchestrator refuses a
+phone's token.
+
 ### Notifications are three steps, and each can say no
 
 Turning notifications on needs the person's permission, a device token from Apple, and the
 orchestrator accepting that token. `PushNotificationsModel` gives every way one of them stops its
 own state, because each is fixed somewhere different: Settings, the network or the build's
-signing, the orchestrator's configuration, or the connection's operator token.
+signing, or the orchestrator's configuration.
 
-- **The wish is stored with the connection**, as `pushDeviceId` on `ControlCredential`, and it is
+- **The wish is stored with the sign-in**, as `pushDeviceId` on `DeviceCredential`, and it is
   stored before the token arrives. It then survives a launch in which Apple or the orchestrator
   could not be reached, and the next launch asks Apple again, because a token can change.
 - **An orchestrator that will not send is never shown as "on".** `503 push_disabled` and a
@@ -291,14 +307,15 @@ signing, the orchestrator's configuration, or the connection's operator token.
   forget that device again. A new wish always gets a new device identifier, so this never removes
   it. Registrations go one at a time, so the orchestrator stores tokens in the order Apple issued
   them; one overtaken while it waits is not sent.
-- **A read-only connection is told before the person is asked.** Registering is a write; a
-  permission prompt for something that could never be used is a prompt for nothing.
+- **Signing out forgets the phone first.** The orchestrator is told to forget it while there is
+  still a sign-in to say so with; a phone revoked from the dashboard cannot say anything, so it
+  stops receiving on its own and Apple tells the orchestrator the token is gone.
 - **Permission is asked for from the connection sheet**, in answer to a tap, never at launch.
 
 The system side sits behind `PushSystem`. The real one, `SystemPushSystem`, is a single object
 because the application delegate and the notification-centre delegate are created by the system
 and have nothing else to report to. A tapped notification carries a `kind`; `PushDestination`
-maps it to the Fleet or Runs tab, and an unknown kind opens the fleet rather than nothing.
+maps it to the Fleet, Runs or Chat tab, and an unknown kind opens the fleet rather than nothing.
 
 The app holds no key. The orchestrator signs and sends; see `docs/push-notifications.md` in the
 platform repository.
@@ -309,8 +326,10 @@ An orchestrator never redirects. A proxy that does not recognise the caller does
 a redirect to a sign-in page. Following it would send the service-token headers to the next host
 and return a web page where a list of agents was expected. `RedirectRefusingDelegate` refuses
 every redirect, so the secrets stay on the origin they were stored for and "not let in" arrives
-as a status this client can name — distinct from `401`, which means the orchestrator refused the
-operator token. The session is ephemeral and keeps no cookies and no cache.
+as a status this client can name — distinct from `401`, which means the orchestrator refused this
+phone's sign-in. The session is ephemeral and keeps no cookies and no cache. The chat service is
+reached through the same proxy on a session with the same rules, whose idle wait outlasts the
+chat stream's twenty-second ping.
 
 ### HTTPS is the truth, the socket is the shortcut
 

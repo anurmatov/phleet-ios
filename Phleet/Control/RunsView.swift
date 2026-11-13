@@ -36,17 +36,15 @@ struct RunsView: View {
             await runs.refreshClosed()
         }
         .toolbar {
-            if runs.canAct {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        runs.resetStart()
-                        isStarting = true
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                    .accessibilityIdentifier(AccessibilityIdentifier.runsStart.identifier)
-                    .accessibilityLabel(AccessibilityIdentifier.runsStart.localizedLabel)
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    runs.resetStart()
+                    isStarting = true
+                } label: {
+                    Image(systemName: "plus")
                 }
+                .accessibilityIdentifier(AccessibilityIdentifier.runsStart.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runsStart.localizedLabel)
             }
         }
         .sheet(isPresented: $isStarting) {

@@ -5,60 +5,42 @@ protocol ProtocolVersionedResponse {
     var protocolVersion: String? { get }
 }
 
-extension RegisterDeviceResponse: ProtocolVersionedResponse {}
-extension MintTokenResponse: ProtocolVersionedResponse {}
 extension SessionResponse: ProtocolVersionedResponse {}
 extension OpenConversationResponse: ProtocolVersionedResponse {}
 extension CatchUpResponse: ProtocolVersionedResponse {}
 extension SubmissionAcceptedResponse: ProtocolVersionedResponse {}
 extension CursorAcceptedResponse: ProtocolVersionedResponse {}
 
-/// The `URLSession` implementation of the seven routes.
+/// The `URLSession` implementation of the chat routes.
 ///
 /// The access token is carried in `Authorization` and appears in no URL — query, path or
 /// fragment — on any request here. URLs are retained by intermediaries, access logs and crash
 /// reports; headers are not.
+///
+/// The chat service is reached through the same address as the orchestrator, so a request goes
+/// through the same access proxy with the same service token, on a session that follows no
+/// redirect and keeps no cookie (`ControlTransport.makeSession`).
 final class URLSessionFleetAPIClient: FleetAPIClient {
 
     private let session: URLSession
+    private let serviceToken: AccessServiceToken?
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession, serviceToken: AccessServiceToken?) {
         self.session = session
+        self.serviceToken = serviceToken
     }
 
     // MARK: - Routes
 
-    func registerDevice(
-        origin: URL,
-        enrollmentCode: String
-    ) async throws -> RegisterDeviceResponse {
-        try await post(
-            origin: origin,
-            path: "/v1/auth/devices",
-            accessToken: nil,
-            body: RegisterDeviceBody(enrollmentCode: enrollmentCode)
-        )
-    }
-
-    func mintToken(
-        origin: URL,
-        deviceId: String,
-        deviceSecret: String
-    ) async throws -> MintTokenResponse {
-        try await post(
-            origin: origin,
-            path: "/v1/auth/token",
-            accessToken: nil,
-            body: MintTokenBody(deviceId: deviceId, deviceSecret: deviceSecret)
-        )
-    }
-
     func session(origin: URL, accessToken: String) async throws -> SessionResponse {
-        var request = URLRequest(url: try Self.routeURL(origin: origin, path: "/v1/session"))
-        request.httpMethod = "GET"
-        request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
+        let request = Self.request(
+            url: try Self.routeURL(origin: origin, path: "/v1/session"),
+            method: "GET",
+            accessToken: accessToken,
+            serviceToken: serviceToken
+        )
         return try await perform(request)
     }
 
@@ -66,6 +48,7 @@ final class URLSessionFleetAPIClient: FleetAPIClient {
         origin: URL,
         accessToken: String,
         externalRef: String,
+        agent: String,
         clientInstanceId: String
     ) async throws -> OpenConversationResponse {
         try await post(
@@ -74,6 +57,7 @@ final class URLSessionFleetAPIClient: FleetAPIClient {
             accessToken: accessToken,
             body: OpenConversationBody(
                 externalRef: externalRef,
+                agent: agent,
                 clientInstanceId: clientInstanceId
             )
         )
@@ -96,9 +80,12 @@ final class URLSessionFleetAPIClient: FleetAPIClient {
                 URLQueryItem(name: "limit", value: String(limit))
             ]
         )
-        var request = URLRequest(url: target)
-        request.httpMethod = "GET"
-        request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
+        let request = Self.request(
+            url: target,
+            method: "GET",
+            accessToken: accessToken,
+            serviceToken: serviceToken
+        )
         return try await perform(request)
     }
 
@@ -135,21 +122,47 @@ final class URLSessionFleetAPIClient: FleetAPIClient {
     private func post<Body: Encodable, Response: Decodable & ProtocolVersionedResponse>(
         origin: URL,
         path: String,
-        accessToken: String?,
+        accessToken: String,
         body: Body
     ) async throws -> Response {
-        var request = URLRequest(url: try Self.routeURL(origin: origin, path: path))
-        request.httpMethod = "POST"
+        var request = Self.request(
+            url: try Self.routeURL(origin: origin, path: path),
+            method: "POST",
+            accessToken: accessToken,
+            serviceToken: serviceToken
+        )
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let accessToken {
-            request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
-        }
         do {
             request.httpBody = try encoder.encode(body)
         } catch {
             throw FleetAPIError.decoding("request body could not be encoded")
         }
         return try await perform(request)
+    }
+
+    /// Builds a request with the credentials in headers and nowhere else.
+    ///
+    /// Static and reachable from the tests: where the secrets go is a property of this function.
+    static func request(
+        url: URL,
+        method: String,
+        accessToken: String,
+        serviceToken: AccessServiceToken?
+    ) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
+        if let serviceToken {
+            request.setValue(
+                serviceToken.clientId,
+                forHTTPHeaderField: ControlRequest.accessClientIdHeader
+            )
+            request.setValue(
+                serviceToken.clientSecret,
+                forHTTPHeaderField: ControlRequest.accessClientSecretHeader
+            )
+        }
+        return request
     }
 
     private func perform<Response: Decodable & ProtocolVersionedResponse>(

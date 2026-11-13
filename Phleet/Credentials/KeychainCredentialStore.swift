@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-/// The device credential at rest.
+/// The sign-in credential at rest.
 ///
 /// One `kSecClassGenericPassword` item holding the whole `DeviceCredential` as JSON, with
 /// `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`:
@@ -15,12 +15,20 @@ import Security
 ///   rule on the client instead of hoping for it.
 final class KeychainCredentialStore: CredentialStore {
 
+    /// A name no earlier build used. The two items earlier builds kept — a chat credential for a
+    /// sign-in that no longer exists, and a Fleet connection holding the operator token — are
+    /// different items, read once and deleted by `KeychainLegacyCredentialStore`. Reusing the old
+    /// chat item's name would make that credential look like a sign-in the orchestrator then
+    /// refuses, which reads as "this phone was revoked" when it never was.
+    static let defaultService = "com.anvarlab.phleet.sign-in"
+    static let defaultAccount = "device"
+
     private let service: String
     private let account: String
 
     init(
-        service: String = "com.anvarlab.phleet.device-credential",
-        account: String = "device"
+        service: String = KeychainCredentialStore.defaultService,
+        account: String = KeychainCredentialStore.defaultAccount
     ) {
         self.service = service
         self.account = account

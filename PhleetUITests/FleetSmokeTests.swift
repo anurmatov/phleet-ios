@@ -1,6 +1,6 @@
 import XCTest
 
-/// Connect, see the fleet, and answer what is waiting — end to end, against the in-app scripted
+/// Sign in, see the fleet, and answer what is waiting — end to end, against the in-app scripted
 /// orchestrator.
 ///
 /// The double is selected by a launch argument rather than a build gate, so this drives the app
@@ -11,21 +11,8 @@ final class FleetSmokeTests: XCTestCase {
         continueAfterFailure = false
     }
 
-    func testConnectSeeTheFleetAndAnswerAGate() throws {
-        let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend]
-        app.launch()
-
-        // Setup: the token first, then the address ending in a return, so the keyboard is down
-        // before the connect control is needed.
-        let token = element(in: app, .controlSetupTokenField)
-        XCTAssertTrue(token.waitForExistence(timeout: 30), "the setup form never appeared")
-        token.focusAndType("synthetic-operator-token")
-
-        let address = element(in: app, .controlSetupAddressField)
-        address.focusAndType("fleet.example.invalid\n")
-
-        element(in: app, .controlSetupConnect).tap()
+    func testSignInSeeTheFleetAndAnswerAGate() throws {
+        let app = SignIn.launch()
 
         // The fleet: what is waiting comes first, and the agent that is down is named.
         let gate = element(in: app, .fleetGate)
@@ -77,47 +64,11 @@ final class FleetSmokeTests: XCTestCase {
         XCTAssertFalse(element(in: app, .fleetGate).exists)
     }
 
-    /// A token the orchestrator rejects is refused at setup, where it can be retyped, and
-    /// nothing is stored: the form is still there and the fleet never appears.
-    func testAnOperatorTokenTheOrchestratorRejectsIsRefusedAtSetup() throws {
-        let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend]
-        app.launch()
-
-        let token = element(in: app, .controlSetupTokenField)
-        XCTAssertTrue(token.waitForExistence(timeout: 30), "the setup form never appeared")
-        // The one value the scripted orchestrator rejects; see `ScriptedControlBackend`.
-        token.focusAndType("a-token-the-scripted-orchestrator-rejects")
-
-        let address = element(in: app, .controlSetupAddressField)
-        address.focusAndType("fleet.example.invalid\n")
-
-        element(in: app, .controlSetupConnect).tap()
-
-        XCTAssertTrue(
-            element(in: app, .controlSetupTokenMessage).waitForExistence(timeout: 30),
-            "a rejected token was not reported against the token field"
-        )
-        XCTAssertFalse(element(in: app, .fleetAgent).exists, "a rejected token still connected")
-        XCTAssertTrue(element(in: app, .controlSetupConnect).exists)
-    }
-
     /// Notifications are turned on and off from the connection sheet, and the state is said in
     /// words each time. Under the scripted backend the system's permission prompt and Apple's
     /// token are stood in for, so this covers the app's own steps and not the system's.
     func testNotificationsCanBeTurnedOnAndOff() throws {
-        let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend]
-        app.launch()
-
-        let scan = element(in: app, .controlSetupScan)
-        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the setup form never appeared")
-        scan.tap()
-        element(in: app, .controlSetupConnect).tap()
-        XCTAssertTrue(
-            element(in: app, .fleetAgent).waitForExistence(timeout: 30),
-            "the fleet never appeared"
-        )
+        let app = SignIn.launch()
 
         element(in: app, .fleetConnection).tap()
 
@@ -152,43 +103,43 @@ final class FleetSmokeTests: XCTestCase {
             .firstMatch
     }
 
-    /// Scanning a setup code fills the form and stops there: the address it read is on screen,
-    /// and connecting is still a separate tap. A simulator has no camera, so the scripted
-    /// backend stands in for one and "scans" a valid code.
-    func testScanningASetupCodeFillsTheFormAndConnectingIsStillASeparateTap() throws {
+    /// Scanning shows the address the code names and stops there: connecting is still a
+    /// separate tap. A simulator has no camera, so the scripted backend stands in for one and
+    /// "scans" a valid code.
+    func testScanningShowsTheAddressAndConnectingIsStillASeparateTap() throws {
         let app = XCUIApplication()
         app.launchArguments = [LaunchArguments.scriptedBackend]
         app.launch()
 
-        let scan = element(in: app, .controlSetupScan)
+        let scan = element(in: app, .setupScan)
         XCTAssertTrue(scan.waitForExistence(timeout: 30), "the scan control is missing")
         scan.tap()
 
+        let scanned = element(in: app, .setupScanned)
+        XCTAssertTrue(scanned.waitForExistence(timeout: 10), "nothing said the code was read")
         XCTAssertTrue(
-            element(in: app, .controlSetupScanNotice).waitForExistence(timeout: 10),
-            "nothing said the code was read"
+            scanned.label.contains("scripted.example.invalid"),
+            "the address the code names is not on screen to be checked: \(scanned.label)"
         )
-        let address = element(in: app, .controlSetupAddressField)
-        XCTAssertEqual(address.value as? String, "https://scripted.example.invalid")
         XCTAssertFalse(
             element(in: app, .fleetAgent).exists,
-            "scanning connected on its own, before the address could be checked"
+            "scanning signed in on its own, before the address could be checked"
         )
 
-        let filled = XCTAttachment(screenshot: app.screenshot())
-        filled.name = "Scanned"
-        filled.lifetime = .keepAlways
-        add(filled)
+        let read = XCTAttachment(screenshot: app.screenshot())
+        read.name = "Scanned"
+        read.lifetime = .keepAlways
+        add(read)
 
-        element(in: app, .controlSetupConnect).tap()
+        element(in: app, .setupConnect).tap()
         XCTAssertTrue(
             element(in: app, .fleetAgent).waitForExistence(timeout: 30),
-            "the scanned connection never reached the fleet"
+            "the scanned code never signed in"
         )
     }
 
-    /// Some other QR code is refused by name and fills nothing.
-    func testAScanThatIsNotASetupCodeFillsNothing() throws {
+    /// Some other QR code is refused by name, and nothing is offered to connect to.
+    func testAScanThatIsNotASetupCodeIsRefused() throws {
         let app = XCUIApplication()
         app.launchArguments = [
             LaunchArguments.scriptedBackend,
@@ -196,19 +147,60 @@ final class FleetSmokeTests: XCTestCase {
         ]
         app.launch()
 
-        let scan = element(in: app, .controlSetupScan)
+        let scan = element(in: app, .setupScan)
         XCTAssertTrue(scan.waitForExistence(timeout: 30), "the scan control is missing")
         scan.tap()
 
-        let notice = app.descendants(matching: .any)
-            .matching(identifier: AccessibilityIdentifier.controlSetupScanNotice.identifier)
-            .matching(NSPredicate(format: "label CONTAINS %@", "not a setup code"))
-            .firstMatch
-        XCTAssertTrue(notice.waitForExistence(timeout: 10), "an unreadable code was not refused")
+        XCTAssertTrue(
+            message(in: app, containing: "not a Phleet setup code").waitForExistence(timeout: 10),
+            "an unreadable code was not refused"
+        )
+        XCTAssertFalse(element(in: app, .setupConnect).exists)
+    }
 
-        let address = element(in: app, .controlSetupAddressField)
-        let value = address.value as? String ?? ""
-        XCTAssertFalse(value.contains("example.invalid"), "an unreadable code filled the address")
+    /// A code from a dashboard that predates one sign-in carried the operator token. It is
+    /// refused by name, with where to make a new one.
+    func testACodeFromAnOlderDashboardIsRefusedByName() throws {
+        let app = XCUIApplication()
+        app.launchArguments = [LaunchArguments.scriptedBackend, LaunchArguments.olderSetupCode]
+        app.launch()
+
+        let scan = element(in: app, .setupScan)
+        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the scan control is missing")
+        scan.tap()
+
+        XCTAssertTrue(
+            message(in: app, containing: "older dashboard").waitForExistence(timeout: 10),
+            "a code from an older dashboard was not named as one"
+        )
+        XCTAssertFalse(element(in: app, .setupConnect).exists)
+    }
+
+    /// Signing out takes two taps and returns the phone to the one setup step.
+    func testSigningOutReturnsToSetup() throws {
+        let app = SignIn.launch()
+
+        element(in: app, .fleetConnection).tap()
+        let signOut = element(in: app, .connectionSignOut)
+        XCTAssertTrue(signOut.waitForExistence(timeout: 30), "signing out is not offered")
+        signOut.tap()
+
+        let confirm = element(in: app, .connectionSignOutConfirm)
+        XCTAssertTrue(confirm.waitForExistence(timeout: 10), "signing out did not ask to confirm")
+        confirm.tap()
+
+        XCTAssertTrue(
+            element(in: app, .setupScan).waitForExistence(timeout: 30),
+            "signing out did not return to setup"
+        )
+        XCTAssertFalse(app.tabBars.buttons[AppTabs.fleetLabel].exists, "the tabs outlived the sign-in")
+    }
+
+    private func message(in app: XCUIApplication, containing text: String) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.setupMessage.identifier)
+            .matching(NSPredicate(format: "label CONTAINS %@", text))
+            .firstMatch
     }
 
     private func element(

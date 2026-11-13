@@ -13,9 +13,11 @@ import Observation
 @Observable
 final class ConversationModel {
 
-    /// One durable thread per owner. Client-chosen, and what makes open idempotent across
-    /// reinstall and re-enrollment: idempotency is scoped to the principal, and the principal is
-    /// the owner, not the device.
+    /// One durable thread per agent. Client-chosen, and what makes open idempotent across
+    /// reinstall, signing in again, and the dashboard: a conversation is found again by the
+    /// person, the agent and this reference, so the same person opening "main" with the same
+    /// agent from the phone or the browser gets the same conversation. Each agent has a single
+    /// model context, so more than one thread with it would look separate without being so.
     nonisolated static let externalRef = "main"
 
     /// A hard stop on paging, so a server that always reports `hasMore` cannot spin the app.
@@ -40,6 +42,9 @@ final class ConversationModel {
         case notPermitted
         /// The thread itself is gone or refused.
         case unavailable
+        /// `agent_unavailable`: chat is off for this agent. Someone turns it on in the agent's
+        /// settings; asking again until then changes nothing, so nothing is retried.
+        case agentUnavailable
         /// The device credential is dead.
         case revoked
         /// Nothing is reachable. The thread stays readable and sending still works, because
@@ -54,6 +59,8 @@ final class ConversationModel {
         /// `409 idempotency_conflict` — a defect in local id generation. Surfaced, and never
         /// worked around by generating a new id.
         case idempotencyConflict
+        /// `409 agent_unavailable` — chat was turned off for this agent. Nothing was sent.
+        case agentUnavailable
         /// Anything else. "Not known to have happened", which is not the same as "did not
         /// happen": a retry reuses the same ids.
         case notKnownToHaveHappened
@@ -94,6 +101,10 @@ final class ConversationModel {
     private let stream: ConversationStream
     private let tokens: AccessTokenHolder
     private let origin: URL
+
+    /// The agent this thread is with. Fixed for the model's life: a conversation is with one
+    /// agent, and another agent is another model.
+    let agent: ChatAgent
     private let clientInstanceId: String
     private let clock: MonotonicClock
     private let sleep: (Double) async -> Void
@@ -149,6 +160,7 @@ final class ConversationModel {
         stream: ConversationStream,
         tokens: AccessTokenHolder,
         origin: URL,
+        agent: ChatAgent,
         clientInstanceId: String,
         limits: SessionLimits = .documentedDefaults,
         clock: MonotonicClock = SystemMonotonicClock(),
@@ -162,6 +174,7 @@ final class ConversationModel {
         self.stream = stream
         self.tokens = tokens
         self.origin = origin
+        self.agent = agent
         self.clientInstanceId = clientInstanceId
         self.limits = limits
         self.clock = clock
@@ -254,6 +267,8 @@ final class ConversationModel {
         } catch FleetAPIError.refused(.idempotencyConflict, _, _) {
             clientDefects.append("submission.idempotencyKey")
             sendFailure = .idempotencyConflict
+        } catch FleetAPIError.refused(.agentUnavailable, _, _) {
+            sendFailure = .agentUnavailable
         } catch {
             sendFailure = .notKnownToHaveHappened
         }
@@ -478,6 +493,7 @@ final class ConversationModel {
                     origin: origin,
                     accessToken: token,
                     externalRef: Self.externalRef,
+                    agent: agent.agentName,
                     clientInstanceId: clientInstanceId
                 )
             }
@@ -485,6 +501,12 @@ final class ConversationModel {
 
         } catch AccessTokenHolder.Failure.deviceRevoked {
             connectionState = .revoked
+            return .stop
+
+        } catch FleetAPIError.refused(.agentUnavailable, _, _) {
+            // Said as itself rather than as "unavailable": the fix is a switch in the agent's
+            // settings, and the person should be told which one.
+            connectionState = .agentUnavailable
             return .stop
 
         } catch FleetAPIError.rateLimited(let seconds) {

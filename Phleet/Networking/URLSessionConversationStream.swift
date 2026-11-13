@@ -10,9 +10,11 @@ import Foundation
 final class URLSessionConversationStream: ConversationStream {
 
     private let session: URLSession
+    private let serviceToken: AccessServiceToken?
 
-    init(session: URLSession = .shared) {
+    init(session: URLSession, serviceToken: AccessServiceToken?) {
         self.session = session
+        self.serviceToken = serviceToken
     }
 
     func frames(
@@ -36,9 +38,14 @@ final class URLSessionConversationStream: ConversationStream {
                 return
             }
 
-            var request = URLRequest(url: target)
             // Header only. The token appears in no query, path or fragment anywhere in this app.
-            request.setValue("Bearer " + accessToken, forHTTPHeaderField: "Authorization")
+            // The access proxy's service token rides along, as on every request to this address.
+            let request = URLSessionFleetAPIClient.request(
+                url: target,
+                method: "GET",
+                accessToken: accessToken,
+                serviceToken: serviceToken
+            )
 
             let socket = SocketBox(task: session.webSocketTask(with: request))
             let pump = Task {

@@ -69,7 +69,7 @@ extension PushNotificationsModel.State {
         case .on: return "bell.badge"
         case .off: return "bell.slash"
         case .asking, .registering: return "ellipsis.circle"
-        case .denied, .readOnly: return "lock"
+        case .denied: return "lock"
         case .disabledOnServer, .unsupportedServer: return "server.rack"
         case .tokenUnavailable, .failed: return "exclamationmark.triangle"
         }
@@ -82,7 +82,6 @@ extension PushNotificationsModel.State {
         case .asking: return "push.state.asking"
         case .registering: return "push.state.registering"
         case .denied: return "push.state.denied"
-        case .readOnly: return "push.state.readOnly"
         case .disabledOnServer: return "push.state.disabledOnServer"
         case .unsupportedServer: return "push.state.unsupportedServer"
         case .tokenUnavailable: return "push.state.tokenUnavailable"
@@ -94,7 +93,6 @@ extension PushNotificationsModel.State {
     var detailKey: LocalizedStringKey? {
         switch self {
         case .denied: return "push.detail.denied"
-        case .readOnly: return "push.detail.readOnly"
         case .disabledOnServer: return "push.detail.disabledOnServer"
         case .unsupportedServer: return "push.detail.unsupportedServer"
         case .tokenUnavailable: return "push.detail.tokenUnavailable"

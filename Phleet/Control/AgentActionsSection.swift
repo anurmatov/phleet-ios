@@ -24,9 +24,7 @@ struct AgentActionsSection: View {
         let actions = AgentAction.available(for: agent.health)
 
         Section {
-            if !model.canDecide {
-                notice("agentAction.notice.readOnly", symbolName: "lock")
-            } else if actions.isEmpty {
+            if actions.isEmpty {
                 notice("agentAction.notice.none", symbolName: "info.circle")
             } else if let chosen {
                 confirmation(chosen)
@@ -169,7 +167,6 @@ extension ControlPlaneModel.ActionFailure {
 
     var messageKey: LocalizedStringKey {
         switch self {
-        case .readOnly: return "action.failure.readOnly"
         case .tokenRejected: return "action.failure.tokenRejected"
         case .accessDenied: return "action.failure.accessDenied"
         case .outcomeUnknown: return "action.failure.outcomeUnknown"
