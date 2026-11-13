@@ -18,13 +18,20 @@ final class FakeControlAPI: ControlAPIClient {
         case cancelRun(namespace: String, workflowId: String, runId: String)
         case workflowTypes
         case startWorkflow(StartWorkflowBody)
-        case checkOperatorToken
         case registerPush(deviceId: String, token: String)
         case unregisterPush(deviceId: String)
+        case registerDevice(enrollmentCode: String, deviceName: String?)
+        case mintToken(deviceId: String, deviceSecret: String)
+        case revokeDevice(deviceId: String)
+        case chatAgents
     }
 
     private(set) var calls: [Call] = []
     private(set) var connections: [ControlConnection] = []
+
+    var onAgents: (() async throws -> [FleetAgent])?
+    var onRevoke: (() async throws -> Void)?
+    var onMint: (() async throws -> MintTokenResponse)?
 
     var agentsResult: Result<[FleetAgent], Error> = .success([])
     var workflowsResult: Result<[WorkflowRun], Error> = .success([])
@@ -37,9 +44,24 @@ final class FakeControlAPI: ControlAPIClient {
     var cancelResult: Result<Void, Error> = .success(())
     var typesResult: Result<[WorkflowType], Error> = .success([])
     var startResult: Result<String, Error> = .success("started-1")
-    var tokenCheckResult: Result<OperatorTokenCheck, Error> = .success(.accepted)
     var registerPushResult: Result<Void, Error> = .success(())
     var unregisterPushResult: Result<Void, Error> = .success(())
+    var registerDeviceResult: Result<RegisteredDevice, Error> = .success(
+        RegisteredDevice(deviceId: "device-1", deviceSecret: "secret-1")
+    )
+    /// One per mint, consumed in order; the last one repeats.
+    var mintResults: [Result<MintTokenResponse, Error>] = [
+        .success(MintTokenResponse(accessToken: "access-token-1", expiresInSeconds: 900))
+    ]
+    var revokeResult: Result<Void, Error> = .success(())
+    var chatAgentsResult: Result<ChatAgentList, Error> = .success(
+        ChatAgentList(available: true, agents: [])
+    )
+
+    /// Runs when a route that takes a token is called, with the token it was given, before the
+    /// route's result is produced. Returning an error answers the call with it instead: lets a
+    /// test refuse one token and accept the next, the way an orchestrator refuses an expired one.
+    var onSignedRequest: ((String?) -> Error?)?
 
     /// Push registrations held open, by token, and push removals held open, by device, until a
     /// test lets them finish. Lets a test choose whether a call completes before or after
@@ -85,6 +107,23 @@ final class FakeControlAPI: ControlAPIClient {
         }
     }
 
+    /// The access token each recorded call carried, in order.
+    var accessTokens: [String?] {
+        lock.withLock { connections.map(\.accessToken) }
+    }
+
+    func mintCount() -> Int {
+        lock.withLock {
+            calls.filter { if case .mintToken = $0 { return true } else { return false } }.count
+        }
+    }
+
+    private func refuseIfAsked(_ connection: ControlConnection) throws {
+        if let error = onSignedRequest?(connection.accessToken) {
+            throw error
+        }
+    }
+
     func registeredToken(of deviceId: String) -> String? {
         lock.withLock { registeredTokens[deviceId] }
     }
@@ -119,8 +158,9 @@ final class FakeControlAPI: ControlAPIClient {
     }
 
     func agents(_ connection: ControlConnection) async throws -> [FleetAgent] {
-        calls.append(.agents)
-        connections.append(connection)
+        record(.agents, connection)
+        try refuseIfAsked(connection)
+        if let onAgents { return try await onAgents() }
         return try agentsResult.get()
     }
 
@@ -208,10 +248,6 @@ extension FakeControlAPI {
         return try startResult.get()
     }
 
-    func checkOperatorToken(_ connection: ControlConnection) async throws -> OperatorTokenCheck {
-        record(.checkOperatorToken, connection)
-        return try tokenCheckResult.get()
-    }
 
     func registerPushDevice(
         _ connection: ControlConnection,
@@ -234,12 +270,57 @@ extension FakeControlAPI {
             registeredTokens[deviceId] = nil
         }
     }
+
+    func registerDevice(
+        _ connection: ControlConnection,
+        enrollmentCode: String,
+        deviceName: String?
+    ) async throws -> RegisteredDevice {
+        record(.registerDevice(enrollmentCode: enrollmentCode, deviceName: deviceName), connection)
+        return try registerDeviceResult.get()
+    }
+
+    func mintToken(
+        _ connection: ControlConnection,
+        deviceId: String,
+        deviceSecret: String
+    ) async throws -> MintTokenResponse {
+        if let onMint {
+            record(.mintToken(deviceId: deviceId, deviceSecret: deviceSecret), connection)
+            return try await onMint()
+        }
+        return try lock.withLock {
+            calls.append(.mintToken(deviceId: deviceId, deviceSecret: deviceSecret))
+            connections.append(connection)
+            guard let first = mintResults.first else {
+                throw ControlAPIError.transport("no scripted mint")
+            }
+            if mintResults.count > 1 {
+                mintResults.removeFirst()
+            }
+            return try first.get()
+        }
+    }
+
+    func revokeDevice(_ connection: ControlConnection, deviceId: String) async throws {
+        record(.revokeDevice(deviceId: deviceId), connection)
+        try refuseIfAsked(connection)
+        if let onRevoke { return try await onRevoke() }
+        try revokeResult.get()
+    }
+
+    func chatAgents(_ connection: ControlConnection) async throws -> ChatAgentList {
+        record(.chatAgents, connection)
+        try refuseIfAsked(connection)
+        return try chatAgentsResult.get()
+    }
 }
 
 /// A scripted agent log. Each attach replays its script and ends.
 final class FakeAgentLogStream: AgentLogStream {
 
     private(set) var agentNames: [String] = []
+    private(set) var accessTokens: [String?] = []
     var script: [AgentLogEvent]
 
     init(script: [AgentLogEvent] = [.ended]) {
@@ -248,6 +329,7 @@ final class FakeAgentLogStream: AgentLogStream {
 
     func log(_ connection: ControlConnection, agentName: String) -> AsyncStream<AgentLogEvent> {
         agentNames.append(agentName)
+        accessTokens.append(connection.accessToken)
         let script = self.script
         return AsyncStream { continuation in
             for event in script {
@@ -262,6 +344,7 @@ final class FakeAgentLogStream: AgentLogStream {
 final class FakeControlLiveStream: ControlLiveStream {
 
     private(set) var attachCount = 0
+    private(set) var accessTokens: [String?] = []
 
     /// One script per attach, consumed in order. The last one repeats.
     var scripts: [[ControlLiveEvent]]
@@ -273,6 +356,7 @@ final class FakeControlLiveStream: ControlLiveStream {
     func frames(_ connection: ControlConnection) -> AsyncStream<ControlLiveEvent> {
         let index = min(attachCount, scripts.count - 1)
         attachCount += 1
+        accessTokens.append(connection.accessToken)
         let script = scripts.isEmpty ? [.ended] : scripts[max(index, 0)]
 
         return AsyncStream { continuation in

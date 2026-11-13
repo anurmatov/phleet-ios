@@ -117,14 +117,7 @@ struct RunDetailView: View {
         let state = runs.cancelState(for: snapshot)
 
         Section {
-            if !runs.canAct {
-                Label {
-                    Text("run.cancel.readOnly").font(.footnote)
-                } icon: {
-                    Image(systemName: "lock")
-                }
-                .accessibilityElement(children: .combine)
-            } else if state == .requested {
+            if state == .requested {
                 Label {
                     Text("run.cancel.requested").font(.footnote)
                 } icon: {

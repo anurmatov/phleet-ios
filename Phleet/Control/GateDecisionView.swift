@@ -54,7 +54,7 @@ struct GateDecisionView: View {
 
             if isHumanSignal {
                 humanInputSection
-            } else if model.canDecide && isWaiting {
+            } else if isWaiting {
                 commentSection
                 decisionSection
             }
@@ -76,7 +76,6 @@ struct GateDecisionView: View {
     private var noticeKey: LocalizedStringKey? {
         if wasSent { return nil }
         if !isWaiting { return "gate.notice.notWaiting" }
-        if !model.canDecide { return "gate.notice.readOnly" }
         return nil
     }
 
@@ -139,7 +138,7 @@ struct GateDecisionView: View {
                 Text(verbatim: request.context).fixedSize(horizontal: false, vertical: true)
             } header: { Text("humanInput.context") }
 
-            if model.canDecide && isWaiting {
+            if isWaiting {
                 Section {
                     if request.mode == .text {
                         TextField("humanInput.answer", text: $humanValue, axis: .vertical)
@@ -319,7 +318,7 @@ extension ControlPlaneModel.DecisionFailure {
 
     var symbolName: String {
         switch self {
-        case .readOnly, .tokenRejected: return "lock"
+        case .tokenRejected: return "lock"
         case .accessDenied: return "hand.raised"
         case .gateChanged: return "arrow.triangle.2.circlepath"
         case .commentRequired: return "text.bubble"
@@ -330,7 +329,6 @@ extension ControlPlaneModel.DecisionFailure {
 
     var messageKey: LocalizedStringKey {
         switch self {
-        case .readOnly: return "gate.failure.readOnly"
         case .tokenRejected: return "gate.failure.tokenRejected"
         case .accessDenied: return "gate.failure.accessDenied"
         case .gateChanged: return "gate.failure.gateChanged"

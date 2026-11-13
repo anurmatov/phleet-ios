@@ -87,6 +87,36 @@ final class DynamicTypeRenderingTests: XCTestCase {
         )
     }
 
+    func testAReplyWrittenInMarkdownRendersAtEverySize() {
+        let text = "A **reply** with `code`, a [link](https://example.invalid/page), and a block:\n"
+            + "```swift\nlet value = 1\nlet other = 2\n```\n- a list item left as written"
+        let reply = AgentReply(
+            id: "e1",
+            text: text,
+            completion: .completed,
+            isPartial: false,
+            truncated: false,
+            isRecovered: false
+        )
+
+        assertRenders(
+            TranscriptEntryView(
+                record: record(.completed(
+                    TurnFinalPayload(
+                        text: text,
+                        completion: .completed,
+                        isPartial: false,
+                        truncated: false,
+                        mergedSubmissionIds: ["s1"]
+                    )
+                ), reply: reply),
+                activity: nil,
+                sendAgain: {}
+            ),
+            "a Markdown reply"
+        )
+    }
+
     func testTheWorkingIndicatorRendersWithAndWithoutMotion() {
         assertRenders(
             TranscriptEntryView(
@@ -179,16 +209,13 @@ final class DynamicTypeRenderingTests: XCTestCase {
     /// belongs to `testTheSendButtonStaysReachableAtAccessibilitySizes` in the UI tests.
     func testTheThreadRendersAtEverySize() throws {
         let environment = AppEnvironment(
-            credentialStore: InMemoryCredentialStore(
-                credential: DeviceCredential(
-                    origin: "https://server.invalid",
-                    deviceId: "device-1",
-                    deviceSecret: "secret-1",
-                    clientInstanceId: "instance-1"
-                )
-            ),
+            credentialStore: InMemoryCredentialStore(credential: .fixture),
+            legacyCredentialStore: InMemoryLegacyCredentialStore(),
             api: FakeFleetAPI(),
             stream: FakeConversationStream(),
+            controlAPI: FakeControlAPI(),
+            controlStream: FakeControlLiveStream(),
+            controlLogStream: FakeAgentLogStream(),
             launchArguments: [],
             launchEnvironment: [:]
         )
@@ -199,7 +226,10 @@ final class DynamicTypeRenderingTests: XCTestCase {
         // as soon as the main actor is next free. The doubles have to tolerate that, and
         // `FakeFleetAPI` guards its state for exactly this reason — see the note on its lock, and
         // `FakeFleetAPIConcurrencyTests`.
-        let model = try XCTUnwrap(environment.conversation)
+        let chat = try XCTUnwrap(environment.chat)
+        let model = chat.conversation(
+            for: ChatAgent(agentName: "agent-1", displayName: "An agent with a long display name")
+        )
 
         assertRenders(ConversationView(model: model).environment(environment), "the thread")
     }
@@ -217,7 +247,7 @@ final class DynamicTypeRenderingTests: XCTestCase {
     func testEveryConnectionStateRendersItsBanner() {
         let states: [ConversationModel.ConnectionState] = [
             .idle, .connecting, .live, .waiting(seconds: 4), .rateLimited(seconds: 12),
-            .superseded, .notPermitted, .unavailable, .revoked, .offline
+            .superseded, .notPermitted, .unavailable, .agentUnavailable, .revoked, .offline
         ]
 
         for state in states {

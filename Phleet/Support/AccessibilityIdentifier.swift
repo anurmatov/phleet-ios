@@ -15,19 +15,15 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case rootTitle = "root.title"
     case rootPurpose = "root.purpose"
 
-    case enrollmentAddressField = "enrollment.addressField"
-    case enrollmentAddressMessage = "enrollment.addressMessage"
-    case enrollmentCodeField = "enrollment.codeField"
-    case enrollmentCodeMessage = "enrollment.codeMessage"
-    case enrollmentConnect = "enrollment.connect"
-    case enrollmentFormMessage = "enrollment.formMessage"
-    case enrollmentRevokedNotice = "enrollment.revokedNotice"
-    case enrollmentCredentialUnavailable = "enrollment.credentialUnavailable"
+    case setupScan = "setup.scan"
+    case setupScanned = "setup.scanned"
+    case setupConnect = "setup.connect"
+    case setupMessage = "setup.message"
+    case setupNotice = "setup.notice"
 
-    case agentLabel = "agent.label"
-    case agentPrincipal = "agent.principal"
-    case agentServer = "agent.server"
-    case agentOpenThread = "agent.openThread"
+    case chatAgent = "chat.agent"
+    case chatNoAgents = "chat.noAgents"
+    case chatNotAvailable = "chat.notAvailable"
 
     case conversationTranscript = "conversation.transcript"
     case conversationEntry = "conversation.entry"
@@ -43,23 +39,10 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case conversationSend = "conversation.send"
     case conversationBanner = "conversation.banner"
     case conversationResume = "conversation.resume"
+    case conversationRetry = "conversation.retry"
     case conversationOutcomeUnknown = "conversation.outcomeUnknown"
     case conversationSendAgain = "conversation.sendAgain"
 
-
-    case controlSetupTitle = "controlSetup.title"
-    case controlSetupScan = "controlSetup.scan"
-    case controlSetupScanNotice = "controlSetup.scanNotice"
-    case controlSetupAddressField = "controlSetup.addressField"
-    case controlSetupAddressMessage = "controlSetup.addressMessage"
-    case controlSetupClientIdField = "controlSetup.clientIdField"
-    case controlSetupClientSecretField = "controlSetup.clientSecretField"
-    case controlSetupServiceTokenMessage = "controlSetup.serviceTokenMessage"
-    case controlSetupTokenField = "controlSetup.tokenField"
-    case controlSetupTokenMessage = "controlSetup.tokenMessage"
-    case controlSetupConnect = "controlSetup.connect"
-    case controlSetupFormMessage = "controlSetup.formMessage"
-    case controlSetupCredentialUnavailable = "controlSetup.credentialUnavailable"
 
     case scannerCamera = "scanner.camera"
     case scannerUnavailable = "scanner.unavailable"
@@ -102,7 +85,6 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case agentLogState = "agentLog.state"
     case agentLogReload = "agentLog.reload"
 
-    case runsUnconnected = "runs.unconnected"
     case runsRun = "runs.run"
     case runsStart = "runs.start"
 
@@ -122,15 +104,14 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case startClose = "start.close"
 
     case connectionAddress = "connection.address"
-    case connectionMode = "connection.mode"
-    case connectionTokenNote = "connection.tokenNote"
     case pushState = "push.state"
     case pushTurnOn = "push.turnOn"
     case pushTurnOff = "push.turnOff"
 
-    case connectionRemove = "connection.remove"
-    case connectionRemoveConfirm = "connection.removeConfirm"
-    case connectionRemoveCancel = "connection.removeCancel"
+    case connectionSignOut = "connection.signOut"
+    case connectionSignOutConfirm = "connection.signOutConfirm"
+    case connectionSignOutCancel = "connection.signOutCancel"
+    case connectionSignOutProgress = "connection.signOutProgress"
     case connectionDone = "connection.done"
 
     /// The UI-test hook. Applied with `.accessibilityIdentifier(_:)`.

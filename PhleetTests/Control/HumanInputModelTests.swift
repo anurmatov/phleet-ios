@@ -46,21 +46,15 @@ final class HumanInputModelTests: XCTestCase {
         }
     }
 
-    func testReadOnlyInvalidSelectionAndLimitsSendNothing() async throws {
-        for connection in [ControlConnection.fixture, .readOnlyFixture] {
-            let (api, model, gate) = try setup(connection: connection)
-            await model.refresh()
-            await model.loadHumanInput(for: gate)
-            for (value, comment) in [("", ""), ("Second\n🧭", ""), ("option_b", String(repeating: "x", count: 2001))] {
-                let accepted = await model.answerHumanInput(gate: gate, value: value, comment: comment)
-                XCTAssertFalse(accepted)
-            }
-            if connection.operatorToken == nil {
-                let accepted = await model.answerHumanInput(gate: gate, value: "option_b", comment: "")
-                XCTAssertFalse(accepted)
-            }
-            XCTAssertTrue(api.sentSignals.isEmpty)
+    func testInvalidSelectionAndLimitsSendNothing() async throws {
+        let (api, model, gate) = try setup()
+        await model.refresh()
+        await model.loadHumanInput(for: gate)
+        for (value, comment) in [("", ""), ("Second\n🧭", ""), ("option_b", String(repeating: "x", count: 2001))] {
+            let accepted = await model.answerHumanInput(gate: gate, value: value, comment: comment)
+            XCTAssertFalse(accepted)
         }
+        XCTAssertTrue(api.sentSignals.isEmpty)
     }
 
     func testHistoryFailureAndMalformedInputAreNotActionable() async throws {

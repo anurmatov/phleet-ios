@@ -3,96 +3,97 @@ import Observation
 
 /// The composition root.
 ///
-/// It resolves the server profile once at launch, holds the credential store, the API client and
-/// the stream, and owns the routing decision between enrollment and the thread. It is still the
-/// **only** reader of `ServerProfileResolution.overrideAllowedForCurrentBuild`, which is what
-/// keeps the single compile-time branch out of the resolution logic itself.
+/// It holds the one credential this phone signs in with and builds everything that uses it: the
+/// Fleet and Runs models over the orchestrator's routes, notifications, and Chat over the chat
+/// service's. All of them reach the server through one address, with one access token, minted
+/// from that credential when it is needed. It is still the **only** reader of
+/// `ServerProfileResolution.overrideAllowedForCurrentBuild`, which is what keeps the single
+/// compile-time branch out of the resolution logic itself.
 @MainActor
 @Observable
 final class AppEnvironment {
 
-    enum Route: Equatable {
-        case enrollment
-        case agent
+    /// Why the phone is signed out, when there is more to say than "not set up yet".
+    enum SignedOutNotice: Equatable, Sendable {
+        /// The orchestrator refused this phone's credential: it was revoked from the dashboard.
+        case revoked
+        /// The stored sign-in could not be read, or could not be removed. Nothing on this path
+        /// deletes it: a read that failed because the phone is locked must not destroy it.
+        case credentialUnavailable
+        /// Signed out on this phone, but the server could not be told. The phone stays on the
+        /// dashboard's device list until it is revoked there.
+        case serverNotTold
     }
 
-    /// The server this launch resolved to, or `nil` when unenrolled.
+    /// The server this launch resolved to, or `nil` when signed out.
     private(set) var serverProfile: FleetServerProfile?
 
-    private(set) var route: Route = .enrollment
+    /// The sign-in, or `nil` when this phone is not signed in.
+    private(set) var credential: DeviceCredential?
 
-    /// The credential store answered with something other than "there is no credential".
-    ///
-    /// Treated as unenrolled and shown as its own message, because it is not the same thing as a
-    /// fresh install — and nothing on this path deletes the item.
-    private(set) var credentialUnavailable = false
+    private(set) var signedOutNotice: SignedOutNotice?
 
-    /// This device's access was revoked. Cleared by a successful enrollment.
-    private(set) var wasRevoked = false
+    /// Signing out is under way: the server is being told before the credential goes.
+    private(set) var isSigningOut = false
 
-    private(set) var agentSummary: AgentSummary?
-    private(set) var limits: SessionLimits = .documentedDefaults
-    private(set) var conversation: ConversationModel?
+    var isSignedIn: Bool { credential != nil }
 
-    /// The composer's contents, held here rather than in the conversation.
-    ///
-    /// Sign-out tears down the token, the transcript and the conversation — and must **not**
-    /// silently discard a message the person typed. Holding the draft above all of that is what
-    /// makes "it is still there after re-enrollment" structural rather than remembered.
-    var composerDraft = ""
+    // MARK: - What the sign-in builds
 
-    let credentialStore: CredentialStore
-    let api: FleetAPIClient
-    let stream: ConversationStream
-
-    private var tokens: AccessTokenHolder?
-
-    // MARK: - Control plane
-
-    /// The orchestrator this device is connected to, or `nil` when it is not.
-    ///
-    /// Independent of enrollment in both directions. The thread and the control plane talk to
-    /// different surfaces with different credentials, and either can be set up without the
-    /// other.
-    private(set) var controlCredential: ControlCredential?
-
-    /// What setup learned about the operator token, for this launch only.
-    ///
-    /// Not stored. It describes a check made at one moment against one orchestrator; after a
-    /// relaunch the honest answer is "not checked since", which is what `nil` shows as nothing.
-    private(set) var controlTokenVerification: ControlSetupModel.TokenVerification?
+    /// Agents, runs in progress, gates. Exists exactly when the sign-in does.
     private(set) var controlPlane: ControlPlaneModel?
 
-    /// Closed runs, run history, cancelling and starting. Exists exactly when `controlPlane`
-    /// does: both are built from the same connection and torn down together.
+    /// Closed runs, run history, cancelling and starting. Built and torn down with `controlPlane`.
     private(set) var runs: RunsModel?
 
-    /// The control-plane credential could not be read, for a reason other than "there is none".
-    /// Shown as its own message, and nothing on this path deletes the item.
-    private(set) var controlCredentialUnavailable = false
+    /// Notifications for this sign-in. Built and torn down with `controlPlane`.
+    private(set) var pushNotifications: PushNotificationsModel?
 
-    let controlCredentialStore: ControlCredentialStore
+    /// Who can be chatted with, and a thread with each. Built and torn down with `controlPlane`.
+    private(set) var chat: ChatModel?
+
+    /// Where a tapped notification asked to land. The root view takes it and clears it.
+    var requestedDestination: PushDestination?
+
+    /// What the person has typed to each agent and not yet sent, by agent name.
+    ///
+    /// Held here, above everything sign-out tears down, so signing out cannot silently discard a
+    /// message someone typed — and one per agent, so a message typed to one agent is never sitting
+    /// in another agent's composer.
+    private var drafts: [String: String] = [:]
+
+    // MARK: - Dependencies
+
+    let credentialStore: CredentialStore
+    let legacyCredentialStore: LegacyCredentialStore
     let controlAPI: ControlAPIClient
     let controlStream: ControlLiveStream
     let controlLogStream: AgentLogStream
+    let pushSystem: PushSystem
 
     /// Set only under the scripted backend, where it stands in for the camera. `nil` in a real
     /// launch, where the scan button opens the scanner.
     let scriptedSetupCode: String?
 
-    /// Notifications for the current connection. Exists exactly when `controlPlane` does.
-    private(set) var pushNotifications: PushNotificationsModel?
+    /// Chat doubles, when a test or the scripted backend supplies them. Otherwise the real ones
+    /// are built at sign-in, for the address and service token the credential names.
+    private let injectedChatAPI: FleetAPIClient?
+    private let injectedChatStream: ConversationStream?
 
-    /// Where a tapped notification asked to land. The root view takes it and clears it.
-    var requestedDestination: PushDestination?
+    private var sessionGeneration = UUID()
+    private var activeTokens: AccessTokenHolder?
+    private var signedInAPI: SignedInControlAPI?
+    private var signedInLogStream: AgentLogStream?
 
-    let pushSystem: PushSystem
+    /// What an earlier build's Fleet connection said about notifications, kept for this launch
+    /// so the first sign-in to the same address carries it over. See `LegacyCredentialStore`.
+    private var legacyWish: LegacyNotificationWish?
 
     init(
         credentialStore: CredentialStore? = nil,
+        legacyCredentialStore: LegacyCredentialStore? = nil,
         api: FleetAPIClient? = nil,
         stream: ConversationStream? = nil,
-        controlCredentialStore: ControlCredentialStore? = nil,
         controlAPI: ControlAPIClient? = nil,
         controlStream: ControlLiveStream? = nil,
         controlLogStream: AgentLogStream? = nil,
@@ -106,13 +107,13 @@ final class AppEnvironment {
 
         self.credentialStore = credentialStore ?? double?.credentialStore
             ?? KeychainCredentialStore()
-        self.api = api ?? double?.api ?? URLSessionFleetAPIClient()
-        self.stream = stream ?? double?.stream ?? URLSessionConversationStream()
+        self.legacyCredentialStore = legacyCredentialStore ?? double?.legacyCredentialStore
+            ?? KeychainLegacyCredentialStore()
+        self.injectedChatAPI = api ?? double?.api
+        self.injectedChatStream = stream ?? double?.stream
 
         self.scriptedSetupCode = double?.scannedSetupCode
         self.pushSystem = pushSystem ?? double?.pushSystem ?? SystemPushSystem.shared
-        self.controlCredentialStore = controlCredentialStore ?? double?.controlCredentialStore
-            ?? KeychainControlCredentialStore()
         if let controlAPI = controlAPI ?? double?.controlAPI,
            let controlStream = controlStream ?? double?.controlStream,
            let controlLogStream = controlLogStream ?? double?.controlLogStream {
@@ -120,7 +121,7 @@ final class AppEnvironment {
             self.controlStream = controlStream
             self.controlLogStream = controlLogStream
         } else {
-            // One session for all three, so a request and the sockets share the same rules: no
+            // One session for the three, so a request and the sockets share the same rules: no
             // redirects followed, no cookies kept, nothing cached.
             let session = ControlTransport.makeSession()
             self.controlAPI = controlAPI ?? URLSessionControlAPIClient(session: session)
@@ -134,8 +135,8 @@ final class AppEnvironment {
             overrideAllowed: ServerProfileResolution.overrideAllowedForCurrentBuild
         )
 
-        // Set before anything is restored: restoring a connection with notifications on asks
-        // Apple for the token again, and the answer has to have somewhere to go.
+        // Set before anything is restored: restoring a sign-in with notifications on asks Apple
+        // for the token again, and the answer has to have somewhere to go.
         self.pushSystem.onDeviceToken = { [weak self] token in
             Task { await self?.pushNotifications?.handleDeviceToken(token) }
         }
@@ -146,36 +147,38 @@ final class AppEnvironment {
             self?.requestedDestination = destination
         }
 
-        restoreEnrollment()
-        restoreControlPlane()
+        restore()
     }
 
-    // MARK: - Routing
+    // MARK: - Signing in
 
-    private func restoreEnrollment() {
+    private func restore() {
+        // First, whatever an earlier build left behind: its operator token must not outlive it.
+        legacyWish = legacyCredentialStore.takeNotificationWish()
+
+        let stored: DeviceCredential?
         do {
-            guard let credential = try credentialStore.load() else {
-                route = .enrollment
-                return
-            }
-            adopt(credential)
-            route = .agent
+            stored = try credentialStore.load()
         } catch {
-            credentialUnavailable = true
-            route = .enrollment
+            signedOutNotice = .credentialUnavailable
+            return
+        }
+        if let stored {
+            adopt(stored, tokens: makeTokenHolder(credentialStore))
         }
     }
 
-    func makeEnrollmentModel() -> EnrollmentModel {
-        EnrollmentModel(
-            api: api,
+    func makeSetupModel(deviceName: String?) -> SetupModel {
+        SetupModel(
+            api: controlAPI,
             credentialStore: credentialStore,
+            deviceName: deviceName,
             makeTokenHolder: { [weak self] store in
                 guard let self else {
                     // Unreachable in practice — the environment outlives every screen — but a
                     // holder that cannot mint is a truthful answer, and better than a crash.
                     return AccessTokenHolder(credentialStore: store) { _ in
-                        throw FleetAPIError.transport("no environment")
+                        throw ControlAPIError.transport("no environment")
                     }
                 }
                 return self.makeTokenHolder(store)
@@ -183,184 +186,254 @@ final class AppEnvironment {
         )
     }
 
-    /// Adopts the result of a successful enrollment.
-    func finishEnrollment(_ outcome: EnrollmentOutcome) {
-        limits = outcome.limits
-        agentSummary = AgentSummary(
-            label: outcome.agentLabel,
-            principalId: outcome.principalId,
-            serverDisplayName: outcome.displayName
-        )
-        wasRevoked = false
-        credentialUnavailable = false
-        adopt(outcome.credential)
-        route = .agent
-    }
-
-    private func adopt(_ credential: DeviceCredential) {
-        guard let origin = credential.originURL else {
-            credentialUnavailable = true
+    /// Adopts a sign-in that setup has already stored.
+    func finishSetup(_ outcome: SetupOutcome) {
+        // A cancelled setup may finish its mint after another setup has already been adopted.
+        // Never let that old completion replace the newer sign-in or revive retired tokens.
+        guard let stored = try? credentialStore.load(),
+              stored.isSameSignIn(as: outcome.credential),
+              let connection = outcome.credential.connection,
+              (try? outcome.tokens.validateSession(for: connection)) != nil else {
+            if activeTokens !== outcome.tokens { outcome.tokens.invalidateSession() }
+            if credential == nil { signedOutNotice = .credentialUnavailable }
             return
         }
-
-        if let components = URLComponents(string: credential.origin) {
-            serverProfile = try? FleetServerProfile(
-                displayName: ServerDisplayName.derive(from: components),
-                urlString: credential.origin
-            )
+        var credential = outcome.credential
+        if credential.pushDeviceId == nil,
+           let wish = legacyWish,
+           Self.sameOrigin(wish.origin, credential.origin) {
+            // Notifications were on for this server under the earlier build, and the
+            // orchestrator knows this phone by that identifier. Keeping it means turning them
+            // back on replaces that row instead of adding a second one beside it.
+            credential = credential.withPushDeviceId(wish.pushDeviceId)
+            try? credentialStore.save(credential)
         }
-        if agentSummary == nil {
-            agentSummary = AgentSummary(
-                label: nil,
-                principalId: nil,
-                serverDisplayName: serverProfile?.displayName ?? ""
-            )
-        }
-
-        let holder = makeTokenHolder(credentialStore)
-        tokens = holder
-        conversation = ConversationModel(
-            api: api,
-            stream: stream,
-            tokens: holder,
-            origin: origin,
-            clientInstanceId: credential.clientInstanceId,
-            limits: limits
-        )
+        legacyWish = nil
+        signedOutNotice = nil
+        adopt(credential, tokens: outcome.tokens)
     }
 
-    private func makeTokenHolder(_ store: CredentialStore) -> AccessTokenHolder {
-        let api = self.api
-        let holder = AccessTokenHolder(credentialStore: store) { credential in
-            guard let origin = credential.originURL else {
-                throw FleetAPIError.transport("malformed stored origin")
-            }
-            return try await api.mintToken(
-                origin: origin,
-                deviceId: credential.deviceId,
-                deviceSecret: credential.deviceSecret
-            )
-        }
-        holder.onDeviceRevoked = { [weak self] in
-            self?.handleDeviceRevoked()
-        }
-        return holder
-    }
-
-    /// The sign-out path.
-    ///
-    /// The credential has **already** been deleted, by the one place allowed to delete it: the
-    /// token mint answering `401`. Nothing here deletes anything, which is what keeps "exactly
-    /// one path removes the credential" true.
-    ///
-    /// `composerDraft` is deliberately untouched.
-    private func handleDeviceRevoked() {
-        tokens = nil
-        conversation = nil
-        agentSummary = nil
-        serverProfile = nil
-        wasRevoked = true
-        route = .enrollment
-    }
-
-    // MARK: - Control plane
-
-    private func restoreControlPlane() {
-        do {
-            guard let credential = try controlCredentialStore.load() else { return }
-            adoptControl(credential)
-        } catch {
-            controlCredentialUnavailable = true
-        }
-    }
-
-    func makeControlSetupModel() -> ControlSetupModel {
-        ControlSetupModel(api: controlAPI, credentialStore: controlCredentialStore)
-    }
-
-    /// Adopts a connection that setup has already proved and stored.
-    func finishControlSetup(
-        _ credential: ControlCredential,
-        tokenVerification: ControlSetupModel.TokenVerification? = nil
-    ) {
-        controlCredentialUnavailable = false
-        adoptControl(credential)
-        controlTokenVerification = tokenVerification
-    }
-
-    /// Removes the connection from this device.
-    ///
-    /// Deletes the stored credential, which is the whole point: an operator token should not
-    /// outlive the decision to stop using this device for it. Nothing is revoked on the server —
-    /// there is nothing device-specific there to revoke — and the thread's own credential is a
-    /// different Keychain item that this does not touch.
-    func removeControlConnection() {
-        controlPlane?.stop()
-        controlPlane = nil
-        runs = nil
-        // Told to forget this device before the credential that could tell it is gone. Best
-        // effort, and the phone has stopped receiving either way.
-        if let push = pushNotifications {
-            Task { await push.forget() }
-        }
-        pushNotifications = nil
-        controlCredential = nil
-        controlTokenVerification = nil
-        do {
-            try controlCredentialStore.delete()
-        } catch {
-            // The connection is gone from this launch either way. Saying so is what keeps a
-            // failed delete from looking like a successful removal on the next launch.
-            controlCredentialUnavailable = true
-        }
-    }
-
-    private func adoptControl(_ credential: ControlCredential) {
-        guard let connection = credential.connection else {
-            controlCredentialUnavailable = true
+    private func adopt(_ credential: DeviceCredential, tokens: AccessTokenHolder) {
+        guard let connection = credential.connection, let origin = credential.originURL else {
+            signedOutNotice = .credentialUnavailable
             return
         }
         controlPlane?.stop()
-        controlCredential = credential
+
+        if activeTokens !== tokens { activeTokens?.invalidateSession() }
+        let generation = UUID()
+        sessionGeneration = generation
+        activeTokens = tokens
+        isSigningOut = false
+        tokens.onDeviceRevoked = { [weak self] in
+            guard let self, self.sessionGeneration == generation else { return }
+            self.handleDeviceRevoked()
+        }
+        self.credential = credential
+        serverProfile = try? FleetServerProfile(
+            displayName: ServerDisplayName.derive(fromOrigin: credential.origin),
+            urlString: credential.origin
+        )
+
+        let api = SignedInControlAPI(base: controlAPI, tokens: tokens)
+        signedInAPI = api
         controlPlane = ControlPlaneModel(
-            api: controlAPI,
-            stream: controlStream,
+            api: api,
+            stream: SignedInControlLiveStream(base: controlStream, tokens: tokens),
             connection: connection
         )
-        runs = RunsModel(api: controlAPI, connection: connection)
+        runs = RunsModel(api: api, connection: connection)
+        signedInLogStream = SignedInAgentLogStream(base: controlLogStream, tokens: tokens)
+
+        let chatAPI: FleetAPIClient
+        let chatStream: ConversationStream
+        if let injectedChatAPI, let injectedChatStream {
+            chatAPI = injectedChatAPI
+            chatStream = injectedChatStream
+        } else {
+            // The chat service is behind the same address and the same proxy, on a session with
+            // the same rules and a longer wait between a socket's frames.
+            let session = ControlTransport.makeSession(
+                requestTimeout: ControlTransport.chatRequestTimeoutSeconds
+            )
+            chatAPI = injectedChatAPI
+                ?? URLSessionFleetAPIClient(session: session, serviceToken: credential.serviceToken)
+            chatStream = injectedChatStream
+                ?? URLSessionConversationStream(
+                    session: session,
+                    serviceToken: credential.serviceToken
+                )
+        }
+        let clientInstanceId = credential.clientInstanceId
+        chat = ChatModel(
+            api: api,
+            connection: connection,
+            chatAPI: chatAPI,
+            tokens: tokens
+        ) { agent, limits in
+            ConversationModel(
+                api: chatAPI,
+                stream: chatStream,
+                tokens: tokens,
+                origin: origin,
+                agent: agent,
+                clientInstanceId: clientInstanceId,
+                limits: limits
+            )
+        }
 
         let push = PushNotificationsModel(
-            api: controlAPI,
+            api: api,
             system: pushSystem,
             connection: connection,
             deviceId: credential.pushDeviceId,
             persist: { [weak self] deviceId in
-                self?.persistPushDeviceId(deviceId)
+                guard let self, self.sessionGeneration == generation else { return }
+                self.persistPushDeviceId(deviceId)
             }
         )
         pushNotifications = push
         push.resume()
     }
 
-    /// Records, with the connection, whether notifications are wanted.
-    ///
-    /// The models are not rebuilt: this changes nothing about how the orchestrator is reached.
-    /// A failed write is not surfaced. The worst outcome is that the wish is forgotten on the
-    /// next launch and has to be stated again, which the notifications control then shows.
-    private func persistPushDeviceId(_ deviceId: String?) {
-        guard let current = controlCredential else { return }
-        let updated = current.withPushDeviceId(deviceId)
-        controlCredential = updated
-        try? controlCredentialStore.save(updated)
+    private func makeTokenHolder(_ store: CredentialStore) -> AccessTokenHolder {
+        let api = controlAPI
+        return AccessTokenHolder(credentialStore: store) { credential in
+            guard let connection = credential.connection else {
+                throw ControlAPIError.transport("malformed stored origin")
+            }
+            return try await api.mintToken(
+                connection,
+                deviceId: credential.deviceId,
+                deviceSecret: credential.deviceSecret
+            )
+        }
     }
 
-    /// A log model for one agent's log screen, or `nil` when there is no connection.
+    // MARK: - Signing out
+
+    /// The orchestrator refused this phone's credential, and the token holder has **already**
+    /// attempted to delete only its own credential: that is the one place allowed to on this path.
+    ///
+    /// Notifications are stopped on the phone. The orchestrator cannot be told any more, but
+    /// Apple tells it the token is gone the next time it sends, and it drops the row then.
+    private func handleDeviceRevoked() {
+        if pushNotifications?.isWanted == true {
+            pushSystem.unregisterForRemoteNotifications()
+        }
+        tearDown()
+        signedOutNotice = .revoked
+    }
+
+    /// Signs this phone out of the server and deletes its credential.
+    ///
+    /// The server is told first, while there is still a credential to tell it with: forget this
+    /// phone for notifications, then revoke it. The credential is deleted whatever the answers
+    /// were — the person asked to be signed out of this phone — and a server that could not be
+    /// told is said so, because the phone then stays on the dashboard's device list until it is
+    /// revoked there.
+    func signOut() async {
+        guard !isSigningOut, let credential, let api = signedInAPI else { return }
+        let generation = sessionGeneration
+        isSigningOut = true
+        defer { if sessionGeneration == generation { isSigningOut = false } }
+
+        if let push = pushNotifications {
+            await push.forget()
+        }
+
+        guard sessionGeneration == generation else { return }
+        var serverTold = false
+        if let connection = credential.connection {
+            do {
+                try await api.revokeDevice(connection, deviceId: credential.deviceId)
+                serverTold = true
+            } catch ControlAPIError.unauthorized {
+                // The orchestrator already refuses this phone: there is nothing left to revoke.
+                serverTold = true
+            } catch ControlAPIError.refused(let status, _) where status == 404 {
+                serverTold = true
+            } catch {
+                serverTold = false
+            }
+        }
+
+        guard sessionGeneration == generation else { return }
+        tearDown()
+        do {
+            if let stored = try credentialStore.load(), stored.isSameSignIn(as: credential) {
+                try credentialStore.delete()
+            }
+            signedOutNotice = serverTold ? nil : .serverNotTold
+        } catch {
+            signedOutNotice = .credentialUnavailable
+        }
+    }
+
+    private func tearDown() {
+        sessionGeneration = UUID()
+        activeTokens?.invalidateSession()
+        activeTokens = nil
+        isSigningOut = false
+        controlPlane?.stop()
+        controlPlane = nil
+        runs = nil
+        chat = nil
+        pushNotifications = nil
+        signedInAPI = nil
+        signedInLogStream = nil
+        credential = nil
+        serverProfile = nil
+    }
+
+    // MARK: - Drafts
+
+    func draft(for agentName: String) -> String {
+        drafts[agentName] ?? ""
+    }
+
+    func setDraft(_ text: String, for agentName: String) {
+        drafts[agentName] = text.isEmpty ? nil : text
+    }
+
+    // MARK: - Notifications
+
+    /// Records, with the credential, whether notifications are wanted.
+    ///
+    /// The models are not rebuilt: this changes nothing about how the server is reached. A failed
+    /// write is not surfaced. The worst outcome is that the wish is forgotten on the next launch
+    /// and has to be stated again, which the notifications control then shows.
+    private func persistPushDeviceId(_ deviceId: String?) {
+        guard let current = credential else { return }
+        let updated = current.withPushDeviceId(deviceId)
+        credential = updated
+        try? credentialStore.save(updated)
+    }
+
+    // MARK: - Logs
+
+    /// A log model for one agent's log screen, or `nil` when signed out.
     func makeAgentLogModel(agentName: String) -> AgentLogModel? {
-        guard let connection = controlCredential?.connection else { return nil }
-        return AgentLogModel(
-            stream: controlLogStream,
-            connection: connection,
-            agentName: agentName
-        )
+        guard let connection = credential?.connection, let stream = signedInLogStream else {
+            return nil
+        }
+        return AgentLogModel(stream: stream, connection: connection, agentName: agentName)
+    }
+
+    /// Two spellings of the same address: a trailing slash and the case of the scheme and host
+    /// are not differences.
+    static func sameOrigin(_ first: String, _ second: String) -> Bool {
+        normalizedOrigin(first) == normalizedOrigin(second)
+    }
+
+    private static func normalizedOrigin(_ origin: String) -> String {
+        var trimmed = origin.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.hasSuffix("/") {
+            trimmed.removeLast()
+        }
+        guard var components = URLComponents(string: trimmed) else { return trimmed }
+        components.scheme = components.scheme?.lowercased()
+        components.host = components.host?.lowercased()
+        return components.string ?? trimmed
     }
 }

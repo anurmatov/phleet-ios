@@ -35,9 +35,7 @@ final class ControlPlaneModel {
 
     /// Why a decision did not land.
     enum DecisionFailure: Equatable, Sendable {
-        /// This connection has no operator token.
-        case readOnly
-        /// The orchestrator refused the operator token.
+        /// The orchestrator refused this phone's sign-in, even with a freshly minted token.
         case tokenRejected
         case accessDenied
         /// The gate is no longer the one that was on screen. Nothing was sent to the workflow.
@@ -59,7 +57,7 @@ final class ControlPlaneModel {
     /// Why something other than a gate decision did not land: an agent action, a cancelled run,
     /// a started workflow.
     enum ActionFailure: Equatable, Sendable {
-        case readOnly
+        /// The orchestrator refused this phone's sign-in, even with a freshly minted token.
         case tokenRejected
         case accessDenied
         /// The request did not complete, so it may or may not have taken effect.
@@ -68,8 +66,6 @@ final class ControlPlaneModel {
 
         static func from(_ error: Error) -> ActionFailure {
             switch error as? ControlAPIError {
-            case .readOnly?:
-                return .readOnly
             case .unauthorized?:
                 return .tokenRejected
             case .accessDenied?:
@@ -127,7 +123,7 @@ final class ControlPlaneModel {
 
     @discardableResult
     func answerHumanInput(gate: PendingGate, value: String, comment: String) async -> Bool {
-        guard canDecide, decisionStates[gate.id] != .sending,
+        guard decisionStates[gate.id] != .sending,
               let request = humanInput(for: gate),
               let body = try? request.body(gate: gate, value: value, comment: comment) else { return false }
         return await send(body, gate: gate)
@@ -194,9 +190,6 @@ final class ControlPlaneModel {
     }
 
     // MARK: - Derived
-
-    /// Whether this connection may change anything.
-    var canDecide: Bool { connection.operatorToken != nil }
 
     /// Runs that are in progress, oldest first.
     var runningRuns: [WorkflowRun] {
@@ -343,7 +336,7 @@ final class ControlPlaneModel {
             return .accessDenied
         case .transport?:
             return .unreachable
-        case .decoding?, .unauthorized?, .gateChanged?, .refused?, .readOnly?, nil:
+        case .decoding?, .unauthorized?, .gateChanged?, .refused?, nil:
             return .unexpectedAnswer
         }
     }
@@ -446,8 +439,6 @@ final class ControlPlaneModel {
 
     private static func decisionFailure(for error: Error) -> DecisionFailure {
         switch error as? ControlAPIError {
-        case .readOnly?:
-            return .readOnly
         case .unauthorized?:
             return .tokenRejected
         case .accessDenied?:

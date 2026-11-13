@@ -1,7 +1,7 @@
 # Phleet
 
 **Phleet** is the native iOS client for the public [phleet](https://github.com/anurmatov/phleet)
-platform. It connects to a **Fleet server profile that you supply at enrollment time**. No server
+platform. It connects to a **Fleet server that you supply when you sign in**. No server
 address of any kind ships in this repository or inside the app — a fresh install has nothing
 configured, and says so on its first screen.
 
@@ -18,25 +18,34 @@ signing-material file extension, or an absolute address. Its patterns are generi
 contains no list of real hosts, addresses, or identifiers, because publishing the list of things to
 hide is itself the leak.
 
-## Status — a fleet view, and one thread
+## Status — one sign-in, a fleet view, and chat with any agent
 
-The app has three tabs over two surfaces that share nothing but the app.
+The app has three tabs over one sign-in. **Fleet** and **Runs** use the orchestrator's operator
+API: what is waiting for you, how every agent is doing, and workflow runs in progress and
+recently closed. **Chat** lists the agents that have chat turned on and keeps one thread with
+each. All three reach the server through one address — the one you open the dashboard at — with
+one credential.
 
-**Fleet** and **Runs** connect to an orchestrator you supply. Fleet shows what is waiting for you
-and how every agent is doing; Runs shows workflow runs in progress and recently closed. **Chat**
-enrolls a device against a server you supply, shows the one agent that deployment binds, opens a
-thread, sends messages, and renders what comes back.
+What signing in does:
+
+- **one step** — the dashboard shows a QR code under Credentials → Devices → Connect a phone.
+  Scanning it shows the address it names and connects to nothing; a second tap registers this
+  phone with the code's one-time enrollment code. The credential is stored before the first
+  token is minted, and presenting the same code again overwrites a rotated secret
+- **one credential** — one Keychain item, `AfterFirstUnlockThisDeviceOnly`, holding the address,
+  the access proxy's service token when there is one, and this phone's device id and secret. The
+  fifteen-minute access token is minted from it when needed and held in memory only; every
+  request carries it in a header, never in a URL
+- **sign out** — from the connection sheet: the orchestrator is told to forget this phone for
+  notifications and to revoke it, then the credential is deleted. A phone revoked from the
+  dashboard returns to setup and says why
+- **older codes and older installs** — a code from a dashboard that predates one sign-in (it
+  carried the operator token) is refused by name. The Keychain items an earlier build kept,
+  including that operator token, are deleted at launch; whether notifications were on carries
+  over to the first sign-in to the same address
 
 What Fleet does:
 
-- **connection** — type the address you open the dashboard at; optionally a service token for an
-  access proxy in front of it, and optionally the orchestrator's operator token. One read of the
-  agent list proves the address and the proxy before anything is stored, and the operator token
-  is checked with the orchestrator's token-check read: a token it rejects is refused at setup
-- **setup code** — scan the QR code the dashboard shows instead of typing; scanning fills the
-  form and never connects, so the address it read is on screen to be checked first
-- **credentials** — a second Keychain item, separate from the device credential and likewise
-  `AfterFirstUnlockThisDeviceOnly`; without an operator token the connection is read-only
 - **needs you** — the workflow runs waiting at a gate, oldest first, with the decisions the
   orchestrator registers for that gate; a decision takes two taps and is sent with the run and
   gate reference that were on screen, so a stale screen is refused rather than obeyed
@@ -44,8 +53,8 @@ What Fleet does:
   from exact namespace/workflow/run history, literally and in full; choose one ordered option,
   enter multiline text, or choose the approve/reject preset, then confirm separately
 - **answer safety** — Value and optional Comment are preserved unchanged (2000 UTF-16 units each);
-  input is data only, never authority to execute work; missing/invalid history, read-only,
-  loading and stale requests cannot send, and an uncertain send refreshes the same run without replay
+  input is data only, never authority to execute work; missing/invalid history, loading and stale
+  requests cannot send, and an uncertain send refreshes the same run without replay
 - **agents** — every agent, the ones that are down or late first, with its current task
 - **agent actions** — restart, stop, start, or cancel the task in hand; which are offered follows
   the agent's state, each takes two taps, and the agent's own state afterwards is the evidence
@@ -63,18 +72,25 @@ What Fleet does:
 
 What Chat does:
 
-- **enrollment** — type the origin, paste the operator-issued code; the credential is persisted
-  before the token mint is attempted, and re-presenting the same code overwrites a rotated secret
-- **credentials** — one Keychain item, `AfterFirstUnlockThisDeviceOnly`, so it never migrates to a
-  new device; the access token is held in memory only and refreshed on a monotonic deadline
-- **one agent** — derived from `GET /v1/session`, because no route on the boundary enumerates
-  agents
-- **one thread** — stream attached first, then catch-up, with the live frames buffered in between;
-  paging, history-gap separators, cursor advance, and every one of the eight close codes handled
-  distinctly
+- **agents** — the agents with chat turned on, read from the orchestrator each time the list
+  appears; a server without the chat service says so instead of showing an empty list
+- **a thread per agent** — opened as `main` with that agent, which is the same conversation the
+  dashboard opens for the same person; stream attached first, then catch-up, with the live frames
+  buffered in between; paging, history-gap separators, cursor advance, and every one of the eight
+  close codes handled distinctly
+- **chat turned off** — an agent whose chat was turned off says so, names where it is turned back
+  on, and offers to try again
+- **Markdown** — an agent's reply renders emphasis, code spans, fenced code blocks and web links;
+  everything else stays as the characters the agent wrote, nothing is read as HTML, and a link
+  that is not `http` or `https` opens nothing. Your own messages stay plain text
+- **drafts** — what you typed to one agent stays with that agent, and survives signing out
+- **reply notifications** — when notifications are on, the orchestrator tells this phone when an
+  agent replies while no client is watching that thread; tapping one opens the Chat tab
 
 What it still does not do:
 
+- **no setup without a camera** — the dashboard shows the setup code only as a QR code, so a
+  phone that cannot scan cannot be set up
 - **no provisioning** — an agent that was never provisioned, or needs reprovisioning, is handled
   from the web dashboard
 - **no terminate or restart of a run** — a run can be cancelled, which asks it to stop; forcing
@@ -82,27 +98,22 @@ What it still does not do:
 - **no rich workflow inputs** — a workflow that needs a list or a nested value is started from
   the dashboard
 - **no editing** — instructions, project contexts, workflow definitions, credentials and secret
-  bindings stay on the web dashboard
-- **no token check against an older orchestrator** — one without `GET /api/operator-token` cannot
-  be asked, so the token is stored unverified and the connection sheet says so
+  bindings stay on the web dashboard; chat is turned on per agent there too
 - **limited notification destinations** — a human-input tap with complete run identity refreshes
   Fleet and opens only the matching pending request; missing or stale identities stay on the list,
-  and other notifications still open the Fleet or Runs tab
+  and other notifications still open the Fleet, Runs or Chat tab, not the particular gate, run or
+  thread
 - **human-input compatibility** — requires the shipped human-input backend contract and exact-run
   history support; older or unknown request formats remain unavailable rather than guessed
-- **no notifications for Chat** — an agent's reply does not notify; only the control plane does
 - **no voice, attachments, approvals, or multi-agent rooms**
 - **no steer or cancel interface** — the routes exist; this app does not surface them
 - **no local persistence of conversation history** — the transcript is in memory only
-- **no QR enrollment for Chat** — the operator's code-issuing path prints to a terminal, so there
-  is nothing to scan yet. (The Fleet tab's setup code is a different thing: it carries an address
-  and tokens an operator already holds, not a single-use enrollment.)
 
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
-offline. Nothing here has been exercised against a live server yet — and for the Fleet tab that
-includes an access proxy: the orchestrator fixtures are written from its source, not captured
-from a running one, and whether its sockets (live state, agent logs) pass a proxy with
-service-token headers is untested. The camera scanner cannot run on a simulator, so CI covers
+offline. Nothing here has been exercised against a live server yet — including the sign-in, the
+chat agent list and an access proxy: the fixtures are written from the server's source, not
+captured from a running one, and whether its sockets (live state, agent logs, chat) pass a proxy
+with service-token headers is untested. The camera scanner cannot run on a simulator, so CI covers
 reading a setup code and what it may do, not the camera itself. Notifications are covered the
 same way: the app's own steps run against a stand-in for the system, and no test asks Apple for a
 device token or receives a real notification.

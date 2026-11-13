@@ -32,6 +32,8 @@ enum PushDestination: Equatable, Sendable {
     case gate(GateNotificationTarget)
     /// A failed run: the Runs tab lists it under what stopped without finishing.
     case runs
+    /// An agent replied in chat while no client was attached: the Chat tab lists who.
+    case chat
 
     /// Only identity fields are consumed. Questions and answers never come from a push.
     static func destination(in userInfo: [AnyHashable: Any]) -> PushDestination {
@@ -51,7 +53,11 @@ enum PushDestination: Equatable, Sendable {
     /// build does not know, or no kind at all — opens the fleet: it is where a person looks
     /// first, and a notification must never open nothing.
     static func destination(forKind kind: String?) -> PushDestination {
-        kind == "run" ? .runs : .fleet
+        switch kind {
+        case "run"?: return .runs
+        case "chat"?: return .chat
+        default: return .fleet
+        }
     }
 
     /// The `kind` in a notification's payload, if it carries one in the expected place.
@@ -91,8 +97,6 @@ final class PushNotificationsModel {
         case on
         /// The person said no. Changed in Settings, not here.
         case denied
-        /// This connection has no operator token, and registering is a change.
-        case readOnly
         /// The orchestrator has notifications switched off.
         case disabledOnServer
         /// The orchestrator predates notifications.
@@ -103,13 +107,12 @@ final class PushNotificationsModel {
         case failed(ControlPlaneModel.ActionFailure)
 
         /// Whether asking again could change anything. Not after a refusal the person made at
-        /// the system prompt (that is changed in Settings), and not on a connection that cannot
-        /// write.
+        /// the system prompt: that is changed in Settings.
         var offersTurnOn: Bool {
             switch self {
             case .off, .disabledOnServer, .unsupportedServer, .tokenUnavailable, .failed:
                 return true
-            case .asking, .registering, .on, .denied, .readOnly:
+            case .asking, .registering, .on, .denied:
                 return false
             }
         }
@@ -159,7 +162,7 @@ final class PushNotificationsModel {
     var offersTurnOff: Bool {
         switch state {
         case .on, .registering, .failed, .tokenUnavailable: return isWanted
-        case .off, .asking, .denied, .readOnly, .disabledOnServer, .unsupportedServer: return false
+        case .off, .asking, .denied, .disabledOnServer, .unsupportedServer: return false
         }
     }
 
@@ -172,11 +175,6 @@ final class PushNotificationsModel {
     }
 
     func turnOn() async {
-        guard connection.operatorToken != nil else {
-            state = .readOnly
-            return
-        }
-
         state = .asking
         guard await system.requestPermission() == .granted else {
             state = .denied
@@ -229,8 +227,6 @@ final class PushNotificationsModel {
                 giveUp(.disabledOnServer)
             case .refused(let status, _)? where status == 404 || status == 405:
                 giveUp(.unsupportedServer)
-            case .readOnly?:
-                giveUp(.readOnly)
             default:
                 state = .failed(ControlPlaneModel.ActionFailure.from(error))
             }

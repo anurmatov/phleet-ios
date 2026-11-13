@@ -188,18 +188,6 @@ final class ControlActionsSmokeTests: XCTestCase {
         XCTAssertTrue(element(in: app, .fleetGate).waitForExistence(timeout: 10))
     }
 
-    func testHumanInputReadOnlyShowsLiteralQuestionWithoutSend() throws {
-        let app = launchConnected(humanMode: LaunchArguments.humanInputText,
-                                  extra: [LaunchArguments.humanInputReadOnly])
-        try openHumanInput(app, mode: "read-only")
-        let notice = element(in: app, .gateNotice)
-        scrollTo(notice, in: app)
-        XCTAssertTrue(notice.exists)
-        XCTAssertFalse(element(in: app, .humanInputAnswer).exists)
-        XCTAssertFalse(element(in: app, .gateDecision).exists)
-        XCTAssertFalse(element(in: app, .gateConfirm).exists)
-    }
-
     private func openHumanInput(_ app: XCUIApplication, mode: String) throws {
         let gate = element(in: app, .fleetGate)
         XCTAssertTrue(gate.waitForExistence(timeout: 30))
@@ -243,30 +231,9 @@ final class ControlActionsSmokeTests: XCTestCase {
         }
     }
 
-    /// Setup through to the fleet. Shared so each test asserts its own behaviour.
+    /// Signed in through to the fleet. Shared so each test asserts its own behaviour.
     private func launchConnected(humanMode: String? = nil, extra: [String] = []) -> XCUIApplication {
-        let app = XCUIApplication()
-        app.launchArguments = [LaunchArguments.scriptedBackend] + (humanMode.map { [$0] } ?? []) + extra
-        app.launch()
-
-        // The scripted stand-in for the camera fills the form, so nothing here types. Typing
-        // into the form is covered once, by `FleetSmokeTests`; every other journey that merely
-        // needs a connection should not depend on the keyboard.
-        let scan = element(in: app, .controlSetupScan)
-        XCTAssertTrue(scan.waitForExistence(timeout: 30), "the setup form never appeared")
-        scan.tap()
-        XCTAssertTrue(
-            element(in: app, .controlSetupScanNotice).waitForExistence(timeout: 10),
-            "the setup code was not read"
-        )
-
-        element(in: app, .controlSetupConnect).tap()
-
-        XCTAssertTrue(
-            element(in: app, .fleetAgent).waitForExistence(timeout: 30),
-            "the fleet never appeared"
-        )
-        return app
+        SignIn.launch(extraArguments: (humanMode.map { [$0] } ?? []) + extra)
     }
 
     private func labelled(_ text: String, in app: XCUIApplication) -> XCUIElement {

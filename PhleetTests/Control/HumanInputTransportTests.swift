@@ -18,6 +18,25 @@ final class HumanInputTransportTests: XCTestCase {
                                  body: request.body(gate: gate, value: "  raw\n🧭 ", comment: " \"why\" "))
     }
 
+    /// The app reaches the orchestrator through the signed-in wrapper, so the exact-run read
+    /// must carry this phone's access token like every other read.
+    @MainActor
+    func testSignedInExactHistoryCarriesTheCurrentToken() async throws {
+        let base = FakeControlAPI()
+        let tokens = AccessTokenHolder(
+            credentialStore: InMemoryCredentialStore(credential: .fixture), clock: TestClock()
+        ) { credential in
+            try await base.mintToken(try XCTUnwrap(credential.connection),
+                                     deviceId: credential.deviceId, deviceSecret: credential.deviceSecret)
+        }
+        let api = SignedInControlAPI(base: base, tokens: tokens)
+        _ = try await api.exactRunHistory(.unsignedFixture, namespace: "fleet",
+                                          workflowId: "human-input-sample", runId: "request-run")
+        XCTAssertEqual(base.calls.last,
+                       .exactRunHistory(namespace: "fleet", workflowId: "human-input-sample", runId: "request-run"))
+        XCTAssertEqual(base.accessTokens.last, "access-token-1")
+    }
+
     func testMissingExactRunNeverBuildsALatestRunRequest() async throws {
         let session = URLSession(configuration: .ephemeral)
         defer { session.invalidateAndCancel() }
@@ -41,7 +60,7 @@ private final class HumanInputURLProtocol: URLProtocol {
         XCTAssertEqual(request.url?.absoluteString, isRead
             ? "https://fleet.example.invalid/api/workflows/fleet%2Fone/history/human-input%2Fa%20b?runId=run/one"
             : "https://fleet.example.invalid/api/workflows/fleet%2Fone/signal/human-input%2Fa%20b")
-        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), isRead ? nil : "Bearer operator-token-1")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer access-token-1")
         if !isRead {
             // URLSession may move the encoded body to its stream before handing it to a protocol.
             var body = request.httpBody ?? Data()

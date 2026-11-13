@@ -6,8 +6,8 @@ import Foundation
 /// the test at compile time instead of leaving it launching an app that quietly ignores it.
 enum LaunchArguments {
 
-    /// Selects the in-app scripted backend, so the UI smoke test can drive
-    /// enroll → thread → send → terminal with no network.
+    /// Selects the in-app scripted backend, so the UI smoke tests can drive
+    /// scan → sign in → fleet and thread → send → terminal with no network.
     ///
     /// A launch argument rather than a build gate: this codebase has exactly one `#if DEBUG`,
     /// `make lint` fails on a second, and a UI test runs against the app as built.
@@ -18,7 +18,6 @@ enum LaunchArguments {
     static let humanInputText = "-phleet-human-input-text"
     static let humanInputPreset = "-phleet-human-input-preset"
     static let humanInputUnavailable = "-phleet-human-input-unavailable"
-    static let humanInputReadOnly = "-phleet-human-input-read-only"
 
     /// Makes the scripted backend seed catch-up with a thread taller than any viewport.
     ///
@@ -32,4 +31,8 @@ enum LaunchArguments {
     /// code, so the smoke test can watch the form refuse it. Without this argument the stand-in
     /// scans a valid one.
     static let unreadableSetupCode = "-phleet-unreadable-setup-code"
+
+    /// Makes the stand-in for the camera "scan" a setup code from a dashboard that predates one
+    /// sign-in, so the smoke test can watch it refused by name.
+    static let olderSetupCode = "-phleet-older-setup-code"
 }

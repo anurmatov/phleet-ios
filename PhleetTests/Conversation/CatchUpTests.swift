@@ -37,6 +37,7 @@ final class CatchUpTests: XCTestCase {
             stream: stream,
             tokens: tokens,
             origin: origin,
+            agent: ChatAgent(agentName: "agent-1", displayName: "Agent one"),
             clientInstanceId: "instance-1",
             limits: limits,
             clock: TestClock(),
@@ -495,6 +496,76 @@ final class CatchUpTests: XCTestCase {
 
         XCTAssertEqual(stream.attaches.count, 0)
         XCTAssertEqual(model.connectionState, .unavailable)
+    }
+
+    // MARK: - One thread per agent
+
+    func testTheThreadIsOpenedAsMainWithThisModelsAgent() async {
+        // "main" with the agent's name is the convention the dashboard shares: the same person
+        // opening it from the browser gets the same conversation.
+        let api = FakeFleetAPI()
+        let stream = FakeConversationStream(scripts: [closingScript()])
+        let model = makeModel(api: api, stream: stream)
+
+        _ = await model.runOnce()
+
+        XCTAssertEqual(
+            api.calls.first { if case .openConversation = $0 { return true } else { return false } },
+            .openConversation(externalRef: "main", agent: "agent-1", clientInstanceId: "instance-1")
+        )
+    }
+
+    func testChatTurnedOffForTheAgentIsSaidAsItselfAndNotRetried() async {
+        let api = FakeFleetAPI()
+        api.openResults = [
+            .failure(FleetAPIError.refused(.agentUnavailable, status: 409, message: nil))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript(code: 4409)])
+        var slept: [Double] = []
+        let model = makeModel(api: api, stream: stream, recordSleep: { slept.append($0) })
+
+        await model.run()
+
+        XCTAssertEqual(model.connectionState, .agentUnavailable)
+        XCTAssertEqual(stream.attaches.count, 0)
+        XCTAssertTrue(slept.isEmpty, "asking again cannot turn chat on, so nothing waits to")
+        XCTAssertEqual(
+            api.calls.filter { if case .openConversation = $0 { return true } else { return false } }.count,
+            1
+        )
+    }
+
+    func testTryingAgainAfterChatIsTurnedBackOnOpensTheThread() async {
+        let api = FakeFleetAPI()
+        api.openResults = [
+            .failure(FleetAPIError.refused(.agentUnavailable, status: 409, message: nil)),
+            .success(open(nextSeq: 41))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript(code: 4409)])
+        let model = makeModel(api: api, stream: stream)
+
+        await model.run()
+        XCTAssertEqual(model.connectionState, .agentUnavailable)
+
+        await model.resumeManually()
+
+        XCTAssertEqual(stream.attaches.count, 1)
+        XCTAssertEqual(model.connectionState, .superseded)
+    }
+
+    func testAMessageToAnAgentWhoseChatWasTurnedOffSaysSo() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [
+            .failure(FleetAPIError.refused(.agentUnavailable, status: 409, message: nil))
+        ]
+        let stream = FakeConversationStream(scripts: [closingScript()])
+        let model = makeModel(api: api, stream: stream)
+
+        _ = await model.runOnce()
+        _ = await model.send("hello")
+
+        XCTAssertEqual(model.sendFailure, .agentUnavailable)
+        XCTAssertEqual(api.submissions.count, 1, "not retried: asking again cannot change it")
     }
 
     // MARK: - Close handling

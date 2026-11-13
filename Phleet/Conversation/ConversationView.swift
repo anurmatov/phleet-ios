@@ -22,8 +22,6 @@ struct ConversationView: View {
     @FocusState private var composerFocused: Bool
 
     var body: some View {
-        @Bindable var environment = appEnvironment
-
         VStack(spacing: 0) {
             ConnectionBanner(state: model.connectionState) {
                 Task { await model.resumeManually() }
@@ -31,9 +29,9 @@ struct ConversationView: View {
 
             transcript
 
-            composer(draft: $environment.composerDraft)
+            composer(draft: draft)
         }
-        .navigationTitle(Text("conversation.title"))
+        .navigationTitle(Text(verbatim: model.agent.displayName))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await model.run()
@@ -48,6 +46,17 @@ struct ConversationView: View {
                 Task { await model.advanceCursor(force: true) }
             }
         }
+    }
+
+    /// This agent's draft. Held on the environment, one per agent, so a message typed to one
+    /// agent is never offered for sending to another — and so signing out does not discard it.
+    private var draft: Binding<String> {
+        let environment = appEnvironment
+        let agentName = model.agent.agentName
+        return Binding(
+            get: { environment.draft(for: agentName) },
+            set: { environment.setDraft($0, for: agentName) }
+        )
     }
 
     private var transcript: some View {
@@ -76,8 +85,9 @@ struct ConversationView: View {
                                 .foregroundStyle(.secondary)
                             // Its own element, for the same reason as every other body: text
                             // merged into an opaque parent cannot be long-pressed, so it cannot
-                            // be selected.
-                            Text(verbatim: reply.text)
+                            // be selected. An agent's words, so rendered as Markdown.
+                            let rendered = ReplyMarkdown.render(reply.text)
+                            Text(rendered)
                                 .font(.body)
                                 .textSelection(.enabled)
                                 .accessibilityIdentifier(
@@ -85,7 +95,7 @@ struct ConversationView: View {
                                 )
                                 .accessibilityLabel(
                                     String(localized: "conversation.recovered") + ". "
-                                        + reply.text
+                                        + String(rendered.characters)
                                 )
                                 .accessibilityAction(named: Text("conversation.copy.reply")) {
                                     if let text = TranscriptCopy.copyable(reply.text) {
@@ -249,6 +259,7 @@ struct ConversationView: View {
         switch failure {
         case .tooLarge: return "conversation.send.failure.tooLarge"
         case .idempotencyConflict: return "conversation.send.failure.idempotencyConflict"
+        case .agentUnavailable: return "conversation.send.failure.agentUnavailable"
         case .notKnownToHaveHappened: return "conversation.send.failure.notKnown"
         }
     }
