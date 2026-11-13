@@ -14,6 +14,7 @@ final class FakeControlAPI: ControlAPIClient {
         case agentAction(agentName: String, action: AgentAction)
         case closedRuns(hours: Int)
         case runHistory(namespace: String, workflowId: String)
+        case exactRunHistory(namespace: String, workflowId: String, runId: String)
         case cancelRun(namespace: String, workflowId: String, runId: String)
         case workflowTypes
         case startWorkflow(StartWorkflowBody)
@@ -39,6 +40,7 @@ final class FakeControlAPI: ControlAPIClient {
     var agentActionResult: Result<Void, Error> = .success(())
     var closedResult: Result<[WorkflowRun], Error> = .success([])
     var historyResult: Result<[WorkflowEvent], Error> = .success([])
+    var onExactHistory: (() async throws -> [WorkflowEvent])?
     var cancelResult: Result<Void, Error> = .success(())
     var typesResult: Result<[WorkflowType], Error> = .success([])
     var startResult: Result<String, Error> = .success("started-1")
@@ -212,6 +214,14 @@ extension FakeControlAPI {
         workflowId: String
     ) async throws -> [WorkflowEvent] {
         record(.runHistory(namespace: namespace, workflowId: workflowId), connection)
+        return try historyResult.get()
+    }
+
+    func exactRunHistory(
+        _ connection: ControlConnection, namespace: String, workflowId: String, runId: String
+    ) async throws -> [WorkflowEvent] {
+        record(.exactRunHistory(namespace: namespace, workflowId: workflowId, runId: runId), connection)
+        if let onExactHistory { return try await onExactHistory() }
         return try historyResult.get()
     }
 

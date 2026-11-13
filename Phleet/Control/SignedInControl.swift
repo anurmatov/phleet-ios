@@ -87,6 +87,22 @@ final class SignedInControlAPI: ControlAPIClient {
         }
     }
 
+    func exactRunHistory(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> [WorkflowEvent] {
+        try await signedIn(connection) {
+            try await base.exactRunHistory(
+                $0,
+                namespace: namespace,
+                workflowId: workflowId,
+                runId: runId
+            )
+        }
+    }
+
     func cancelRun(
         _ connection: ControlConnection,
         namespace: String,

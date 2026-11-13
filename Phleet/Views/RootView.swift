@@ -21,20 +21,29 @@ struct RootView: View {
     @Environment(AppEnvironment.self) private var appEnvironment
 
     @State private var selection: Pane = .fleet
+    @State private var fleetPath = NavigationPath()
+    @State private var notificationVisit = UUID()
 
     var body: some View {
-        if appEnvironment.isSignedIn {
-            tabs
-        } else {
-            NavigationStack {
-                SetupView()
+        Group {
+            if appEnvironment.isSignedIn {
+                tabs
+            } else {
+                NavigationStack {
+                    SetupView()
+                }
             }
+        }
+        // The Fleet path outlives the tabs, so a gate opened under one sign-in must not
+        // reappear under the next.
+        .onChange(of: appEnvironment.controlPlane.map { ObjectIdentifier($0) }) { _, _ in
+            fleetPath = NavigationPath()
         }
     }
 
     private var tabs: some View {
         TabView(selection: $selection) {
-            NavigationStack {
+            NavigationStack(path: $fleetPath) {
                 fleet
             }
             .tabItem {
@@ -83,10 +92,24 @@ struct RootView: View {
     /// Takes a tapped notification to its tab, and clears the request so it is honoured once.
     private func open(_ destination: PushDestination?) {
         guard let destination else { return }
+        let visit = UUID()
+        notificationVisit = visit
         switch destination {
         case .fleet: selection = .fleet
         case .runs: selection = .runs
         case .chat: selection = .chat
+        case .gate(let target):
+            selection = .fleet
+            fleetPath = NavigationPath()
+            if let model = appEnvironment.controlPlane {
+                Task {
+                    let gate = await model.gateForNotification(target)
+                    guard notificationVisit == visit, selection == .fleet, fleetPath.isEmpty,
+                          appEnvironment.controlPlane === model,
+                          let gate, model.isWaiting(gate) else { return }
+                    fleetPath = NavigationPath([gate])
+                }
+            }
         }
         appEnvironment.requestedDestination = nil
     }

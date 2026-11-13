@@ -61,6 +61,14 @@ protocol ControlAPIClient {
         workflowId: String
     ) async throws -> [WorkflowEvent]
 
+    /// Original input for an exact run. Never falls back to latest-run history.
+    func exactRunHistory(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> [WorkflowEvent]
+
     /// `POST /api/workflows/{namespace}/cancel/{workflowId}?runId=`
     func cancelRun(
         _ connection: ControlConnection,

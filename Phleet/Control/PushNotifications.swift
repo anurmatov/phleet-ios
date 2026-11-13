@@ -29,10 +29,25 @@ protocol PushSystem: AnyObject {
 enum PushDestination: Equatable, Sendable {
     /// A waiting gate or an agent that went down: the Fleet tab shows both first.
     case fleet
+    case gate(GateNotificationTarget)
     /// A failed run: the Runs tab lists it under what stopped without finishing.
     case runs
     /// An agent replied in chat while no client was attached: the Chat tab lists who.
     case chat
+
+    /// Only identity fields are consumed. Questions and answers never come from a push.
+    static func destination(in userInfo: [AnyHashable: Any]) -> PushDestination {
+        guard let payload = userInfo["phleet"] as? [String: Any] else { return .fleet }
+        if payload["kind"] as? String == "gate",
+           let namespace = payload["namespace"] as? String, !namespace.isEmpty,
+           let workflowId = payload["workflowId"] as? String, !workflowId.isEmpty,
+           let runId = payload["runId"] as? String, !runId.isEmpty,
+           let signal = payload["signal"] as? String, signal == "request-input" {
+            return .gate(GateNotificationTarget(namespace: namespace, workflowId: workflowId,
+                                                runId: runId, signal: signal))
+        }
+        return destination(forKind: payload["kind"] as? String)
+    }
 
     /// Reads the `kind` the orchestrator put in the notification. Anything else — a kind this
     /// build does not know, or no kind at all — opens the fleet: it is where a person looks
@@ -48,6 +63,19 @@ enum PushDestination: Equatable, Sendable {
     /// The `kind` in a notification's payload, if it carries one in the expected place.
     static func kind(in userInfo: [AnyHashable: Any]) -> String? {
         (userInfo["phleet"] as? [String: Any])?["kind"] as? String
+    }
+}
+
+/// No latest-run fallback: a stale tap may open the Fleet list, never a replacement request.
+struct GateNotificationTarget: Equatable, Sendable {
+    let namespace: String
+    let workflowId: String
+    let runId: String
+    let signal: String
+
+    func matches(_ gate: PendingGate) -> Bool {
+        gate.isHumanInput && gate.run.namespace == namespace && gate.run.workflowId == workflowId &&
+        gate.run.runId == runId && gate.signal.name == signal
     }
 }
 

@@ -87,6 +87,55 @@ final class ControlPlaneModel {
         case failed(AgentAction, ActionFailure)
     }
 
+    enum HumanInputState: Equatable, Sendable {
+        case loading
+        case ready(HumanInputRequest)
+        case unavailable
+    }
+
+    private(set) var humanInputStates: [String: HumanInputState] = [:]
+    private var humanInputLoads: [String: UUID] = [:]
+
+    func humanInput(for gate: PendingGate) -> HumanInputRequest? {
+        guard isWaiting(gate), case .current = status,
+              case .ready(let request)? = humanInputStates[gate.id] else { return nil }
+        return request
+    }
+
+    /// The response belongs only to the snapshot that initiated this read, even if another
+    /// screen loads the same workflow ID while it is in flight.
+    func loadHumanInput(for gate: PendingGate) async {
+        guard gate.isHumanInput, isWaiting(gate), case .current = status else { return }
+        let load = UUID()
+        humanInputLoads[gate.id] = load
+        humanInputStates[gate.id] = .loading
+        do {
+            let events = try await api.exactRunHistory(connection, namespace: gate.run.namespace,
+                                                       workflowId: gate.run.workflowId, runId: gate.run.runId)
+            let request = try HumanInputRequest.from(history: events, gate: gate)
+            guard !Task.isCancelled, humanInputLoads[gate.id] == load, isWaiting(gate) else { return }
+            humanInputStates[gate.id] = .ready(request)
+        } catch {
+            guard !Task.isCancelled, humanInputLoads[gate.id] == load, isWaiting(gate) else { return }
+            humanInputStates[gate.id] = .unavailable
+        }
+    }
+
+    @discardableResult
+    func answerHumanInput(gate: PendingGate, value: String, comment: String) async -> Bool {
+        guard decisionStates[gate.id] != .sending,
+              let request = humanInput(for: gate),
+              let body = try? request.body(gate: gate, value: value, comment: comment) else { return false }
+        return await send(body, gate: gate)
+    }
+
+    /// A push is an identity hint, never request content or permission to send.
+    func gateForNotification(_ target: GateNotificationTarget) async -> PendingGate? {
+        await refresh()
+        guard case .current = status else { return nil }
+        return gates.first { target.matches($0) }
+    }
+
     // MARK: - Dependencies
 
     private let api: ControlAPIClient
@@ -166,7 +215,7 @@ final class ControlPlaneModel {
 
     /// Whether a gate that was on screen is still waiting.
     func isWaiting(_ gate: PendingGate) -> Bool {
-        gates.contains { $0.id == gate.id }
+        gates.contains { $0.id == gate.id && $0.run.workflowType == gate.run.workflowType }
     }
 
     func decisionState(for gate: PendingGate) -> DecisionState? {
@@ -254,6 +303,8 @@ final class ControlPlaneModel {
         let listed = Set(PendingGates.derive(runs: runs, registry: registry).map(\.id))
         answeredGateIds.formIntersection(listed)
         decisionStates = decisionStates.filter { listed.contains($0.key) }
+        humanInputStates = humanInputStates.filter { listed.contains($0.key) }
+        humanInputLoads = humanInputLoads.filter { listed.contains($0.key) }
     }
 
     private func setLive(_ live: Bool) {
@@ -298,7 +349,9 @@ final class ControlPlaneModel {
     /// orchestrator answers `409` and nothing reaches the workflow.
     @discardableResult
     func decide(gate: PendingGate, button: SignalButton, comment: String) async -> Bool {
-        guard decisionStates[gate.id] != .sending else { return false }
+        // Human input never uses registry button payloads (including on malformed new types).
+        guard gate.signal.name != "request-input", !gate.isHumanInput,
+              decisionStates[gate.id] != .sending else { return false }
 
         let body: SignalRequestBody
         do {
@@ -311,6 +364,10 @@ final class ControlPlaneModel {
             return false
         }
 
+        return await send(body, gate: gate)
+    }
+
+    private func send(_ body: SignalRequestBody, gate: PendingGate) async -> Bool {
         decisionStates[gate.id] = .sending
         do {
             try await api.sendSignal(
@@ -325,7 +382,9 @@ final class ControlPlaneModel {
             if failure == .gateChanged || failure == .outcomeUnknown {
                 // Either the screen was stale or the outcome is unknown. Both are settled by
                 // reading again, and reading drops the state above if the gate has gone.
+                if gate.isHumanInput { humanInputStates[gate.id] = nil }
                 await refresh()
+                if gate.isHumanInput { await loadHumanInput(for: gate) }
             }
             return false
         }

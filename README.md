@@ -49,6 +49,12 @@ What Fleet does:
 - **needs you** — the workflow runs waiting at a gate, oldest first, with the decisions the
   orchestrator registers for that gate; a decision takes two taps and is sent with the run and
   gate reference that were on screen, so a stale screen is refused rather than obeyed
+- **human input** — the existing gate screen loads the original Question, Context and requester
+  from exact namespace/workflow/run history, literally and in full; choose one ordered option,
+  enter multiline text, or choose the approve/reject preset, then confirm separately
+- **answer safety** — Value and optional Comment are preserved unchanged (2000 UTF-16 units each);
+  input is data only, never authority to execute work; missing/invalid history, loading and stale
+  requests cannot send, and an uncertain send refreshes the same run without replay
 - **agents** — every agent, the ones that are down or late first, with its current task
 - **agent actions** — restart, stop, start, or cancel the task in hand; which are offered follows
   the agent's state, each takes two taps, and the agent's own state afterwards is the evidence
@@ -93,8 +99,12 @@ What it still does not do:
   the dashboard
 - **no editing** — instructions, project contexts, workflow definitions, credentials and secret
   bindings stay on the web dashboard; chat is turned on per agent there too
-- **no opening the exact item from a notification** — a tap opens the Fleet, Runs or Chat tab,
-  not the particular gate, run or thread
+- **limited notification destinations** — a human-input tap with complete run identity refreshes
+  Fleet and opens only the matching pending request; missing or stale identities stay on the list,
+  and other notifications still open the Fleet, Runs or Chat tab, not the particular gate, run or
+  thread
+- **human-input compatibility** — requires the shipped human-input backend contract and exact-run
+  history support; older or unknown request formats remain unavailable rather than guessed
 - **no voice, attachments, approvals, or multi-agent rooms**
 - **no steer or cancel interface** — the routes exist; this app does not surface them
 - **no local persistence of conversation history** — the transcript is in memory only

@@ -43,7 +43,11 @@ struct LaunchDouble {
         let backend = ScriptedBackend(
             tallTranscript: arguments.contains(LaunchArguments.tallTranscript)
         )
-        let controlBackend = ScriptedControlBackend()
+        let humanMode: String? = arguments.contains(LaunchArguments.humanInputChoice) ? "choice"
+            : arguments.contains(LaunchArguments.humanInputText) ? "text"
+            : arguments.contains(LaunchArguments.humanInputPreset) ? "approve-reject" : nil
+        let controlBackend = ScriptedControlBackend(humanInputMode: humanMode,
+            humanInputUnavailable: arguments.contains(LaunchArguments.humanInputUnavailable))
         let scanned: String
         if arguments.contains(LaunchArguments.unreadableSetupCode) {
             scanned = "not a setup code"
@@ -293,7 +297,15 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
 
     static let gatePhase = "merge-approval"
 
-    private var phase: String? = ScriptedControlBackend.gatePhase
+    private let humanInputMode: String?
+    private let humanInputUnavailable: Bool
+    private var phase: String?
+
+    init(humanInputMode: String? = nil, humanInputUnavailable: Bool = false) {
+        self.humanInputMode = humanInputMode
+        self.humanInputUnavailable = humanInputUnavailable
+        phase = humanInputMode == nil ? Self.gatePhase : "request-input"
+    }
     private var isCancelled = false
     private var plannerStatus = "dead"
     private var started: [WorkflowRun] = []
@@ -303,13 +315,13 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         WorkflowRun(
             workflowId: "scripted-run",
             runId: "scripted-run-1",
-            workflowType: "ScriptedWorkflow",
+            workflowType: humanInputMode == nil ? "ScriptedWorkflow" : "UweHumanInputWorkflow",
             namespace: "scripted",
             status: isCancelled ? "Canceled" : WorkflowRun.runningStatus,
             prNumber: 42,
             repo: "scripted/project",
             phase: phase,
-            gateRef: phase == nil ? nil : "scripted-gate"
+            gateRef: phase == nil ? nil : (humanInputMode == nil ? "scripted-gate" : "scripted-run-1")
         )
     }
 
@@ -347,7 +359,12 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
     func signalRegistry(
         _ connection: ControlConnection
     ) async throws -> [String: [SignalDefinition]] {
-        [
+        if humanInputMode != nil {
+            return ["UweHumanInputWorkflow": [SignalDefinition(
+                name: "request-input", label: "Answer request", buttons: [], validPhases: ["request-input"]
+            )]]
+        }
+        return [
             "ScriptedWorkflow": [
                 SignalDefinition(
                     name: "merge-approval",
@@ -372,6 +389,20 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         workflowId: String,
         body: SignalRequestBody
     ) async throws {
+        if humanInputMode != nil {
+            let history = try await exactRunHistory(connection, namespace: namespace,
+                                                    workflowId: workflowId, runId: body.runId)
+            let gate = PendingGate(run: run, signal: SignalDefinition(name: "request-input",
+                label: "Answer request", buttons: [], validPhases: ["request-input"]))
+            let request = try HumanInputRequest.from(history: history, gate: gate)
+            guard body.signalName == "request-input", body.workflowType == run.workflowType,
+                  body.expectedGateRef == run.gateRef,
+                  let answer = try JSONSerialization.jsonObject(with: Data(body.payload.utf8)) as? [String: String],
+                  Set(answer.keys).isSubset(of: ["Value", "Comment"]), let value = answer["Value"],
+                  request.valid(value: value, comment: answer["Comment"] ?? "") else {
+                throw ControlAPIError.refused(status: 400, message: "invalid answer")
+            }
+        }
         phase = "merging"
         continuation?.yield(.frame(.workflows(running)))
     }
@@ -438,6 +469,27 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
                 failureMessage: "Scripted failure"
             )
         ]
+    }
+
+    func exactRunHistory(
+        _ connection: ControlConnection, namespace: String, workflowId: String, runId: String
+    ) async throws -> [WorkflowEvent] {
+        if humanInputUnavailable { throw ControlAPIError.transport("scripted history unavailable") }
+        guard let humanInputMode, namespace == "scripted", workflowId == "scripted-run",
+              runId == "scripted-run-1" else { throw ControlAPIError.gateChanged(nil) }
+        var request: [String: Any] = [
+            "Question": "Which \"answer\"?\n{{literal}} 🧭",
+            "Context": "**Literal context**, not Markdown.\nNo action is executed.",
+            "AnswerMode": humanInputMode,
+            "Origin": ["Kind": "agent", "RequesterAgent": "agent1"]
+        ]
+        if humanInputMode == "choice" {
+            request["Choices"] = [["Id": "option_b", "Label": "Second choice 🧭"],
+                                  ["Id": "option_a", "Label": "First choice {{literal}}"]]
+        }
+        let data = try JSONSerialization.data(withJSONObject: request, options: [.sortedKeys])
+        return [WorkflowEvent(eventId: 1, eventType: "WorkflowStarted",
+                              inputSummary: String(decoding: data, as: UTF8.self))]
     }
 
     func cancelRun(

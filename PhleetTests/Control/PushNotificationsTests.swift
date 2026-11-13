@@ -36,6 +36,21 @@ final class PushNotificationsTests: XCTestCase {
 
     // MARK: - Turning on
 
+    func testHumanInputPushReadsOnlyCompleteExactIdentity() {
+        let target = GateNotificationTarget(namespace: "fleet", workflowId: "request", runId: "run", signal: "request-input")
+        let payload = ["kind": "gate", "namespace": "fleet", "workflowId": "request", "runId": "run", "signal": "request-input"]
+        XCTAssertEqual(PushDestination.destination(in: ["phleet": payload]), .gate(target))
+        for field in ["namespace", "workflowId", "runId", "signal"] {
+            var incomplete = payload
+            incomplete[field] = nil
+            XCTAssertEqual(PushDestination.destination(in: ["phleet": incomplete]), .fleet)
+        }
+        XCTAssertEqual(PushDestination.destination(in: ["phleet": ["kind": "run"]]), .runs)
+        XCTAssertEqual(PushDestination.destination(in: ["phleet": ["kind": "chat"]]), .chat)
+        XCTAssertEqual(PushDestination.destination(in: ["phleet": ["kind": "agent"]]), .fleet)
+        XCTAssertEqual(PushDestination.destination(in: [:]), .fleet)
+    }
+
     func testTurningOnAsksThePersonThenAppleThenTheOrchestrator() async {
         let api = FakeControlAPI()
         let system = FakePushSystem()
