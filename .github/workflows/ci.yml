@@ -47,6 +47,7 @@ jobs:
         run: make generate
 
       - name: Build and test
+        id: test
         run: make test
 
       - name: Print crash and hang reports
@@ -66,5 +67,129 @@ jobs:
           # warn, not error: this step is `if: always()`, so it also runs when the job failed
           # before xcodebuild produced a bundle. Erroring there adds a second red step that
           # reports a missing artifact instead of the failure that actually stopped the job.
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Export portable evidence
+        # Readable copies of what the result bundle above holds — test counts, every kept
+        # attachment, and the human-input screenshots and accessibility snapshots under plain
+        # names — so a reviewer without Xcode can inspect them. The bundle stays the record.
+        # Runs whatever the tests did and never changes their outcome: this step fails only on
+        # its own account, when the bundle, a count or an expected capture is missing.
+        if: always()
+        env:
+          TEST_OUTCOME: ${{ steps.test.outcome }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          CHECKED_OUT_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          BUNDLE=build/Phleet.xcresult
+          OUT=build/portable-evidence
+          rm -rf "$OUT" && mkdir -p "$OUT/attachments" "$OUT/human-input"
+          {
+            echo "head: $HEAD_SHA (checked out $CHECKED_OUT_SHA)"
+            echo "run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+            echo "build and test step: $TEST_OUTCOME"
+          } > "$OUT/INDEX.md"
+          if [ ! -f "$BUNDLE/Info.plist" ]; then
+            echo "no result bundle at $BUNDLE: nothing exported, no counts" | tee -a "$OUT/INDEX.md"
+            exit 1
+          fi
+          # The syntax used below is the runner's own, logged so it can be checked afterwards.
+          # Logging it never stops the export; the export commands themselves are what count.
+          for help in "version" "help get test-results summary" "help get test-results tests" \
+                      "help export attachments"; do
+            echo "\$ xcresulttool $help"; xcrun xcresulttool $help || echo "(exit $?)"
+          done 2>&1 | tee "$OUT/xcresulttool-help.txt"
+          xcrun xcresulttool get test-results summary --path "$BUNDLE" --format json > "$OUT/summary.json"
+          xcrun xcresulttool get test-results tests --path "$BUNDLE" --format json > "$OUT/tests.json"
+          xcrun xcresulttool export attachments --path "$BUNDLE" --output-path "$OUT/attachments"
+          python3 - "$OUT" <<'PY'
+          import collections, json, pathlib, shutil, sys
+          out = pathlib.Path(sys.argv[1])
+          bundles = ("PhleetTests", "PhleetUITests")
+          results = ("Passed", "Failed", "Skipped", "Expected Failure")
+          problems, lines, seen = [], [], set()
+
+          # Counts per test bundle, from the test tree, by each case's own result.
+          counts = collections.defaultdict(collections.Counter)
+          def walk(node, bundle):
+              seen.add((node.get("nodeType"), None if node.get("nodeType") == "Test Case" else node.get("name")))
+              if node.get("nodeType", "").endswith("test bundle") or node.get("name") in bundles:
+                  bundle = str(node.get("name", "")).removesuffix(".xctest")
+              if node.get("nodeType") == "Test Case":
+                  counts[bundle][node.get("result", "missing")] += 1
+              for child in node.get("children") or []:
+                  walk(child, bundle)
+          for node in json.loads((out / "tests.json").read_text()).get("testNodes") or []:
+              walk(node, None)
+          lines += ["", "| bundle | cases | passed | failed | skipped | expected failure | other |",
+                    "|---|---|---|---|---|---|---|"]
+          for bundle in bundles:
+              c = counts.get(bundle)
+              if not c:
+                  problems.append(f"no test cases found for {bundle}")
+                  continue
+              other = sum(n for r, n in c.items() if r not in results)
+              lines.append(f"| {bundle} | {sum(c.values())} | " + " | ".join(str(c[r]) for r in results) + f" | {other} |")
+          if set(counts) - set(bundles):
+              problems.append(f"test cases outside {bundles}: {sorted(map(str, set(counts) - set(bundles)))}")
+
+          # The summary must agree with the tree, or neither is trusted.
+          summary = json.loads((out / "summary.json").read_text())
+          keys = ("totalTestCount", "passedTests", "failedTests", "skippedTests", "expectedFailures")
+          missing = [k for k in keys if not isinstance(summary.get(k), int)]
+          if missing:
+              problems.append("summary.json lacks " + ", ".join(missing))
+          else:
+              tree = sum(counts.values(), collections.Counter())
+              lines.append("")
+              lines.append("summary: " + ", ".join(f"{k} {summary[k]}" for k in keys) + f", result {summary.get('result')}")
+              if [summary[k] for k in keys] != [sum(tree.values())] + [tree[r] for r in results]:
+                  problems.append("summary.json totals disagree with the test tree")
+
+          # The human-input captures, copied out under plain names.
+          manifest = out / "attachments" / "manifest.json"
+          blocks = json.loads(manifest.read_text()) if manifest.is_file() else None
+          if not isinstance(blocks, list):
+              problems.append("export wrote no attachments/manifest.json list")
+              blocks = []
+          exported = [(item.get("suggestedHumanReadableName") or "", item.get("exportedFileName") or "",
+                       block.get("testIdentifier") or "")
+                      for block in blocks if isinstance(block, dict)
+                      for item in block.get("attachments") or [] if isinstance(item, dict)]
+          lines += ["", "| capture | file | bytes | test |", "|---|---|---|---|"]
+          for mode in ("choice", "text", "preset"):
+              for stage in ("literal-request", "confirm"):
+                  for kind, name in (("screenshot", f"human-input-{mode}-{stage}"),
+                                     ("accessibility", f"human-input-accessibility-{mode}-{stage}")):
+                      found = [(e, t) for s, e, t in exported
+                               if pathlib.Path(s).stem == name or s.startswith(name + "_")]
+                      source = out / "attachments" / found[0][0] if len(found) == 1 and found[0][0] else None
+                      if source is None or not source.is_file() or source.stat().st_size == 0:
+                          problems.append(f"{name}: {len(found)} exported, expected exactly one non-empty file")
+                          lines.append(f"| {name} | MISSING | 0 | |")
+                          continue
+                      target = out / "human-input" / f"{mode}-{stage}-{kind}{source.suffix}"
+                      shutil.copyfile(source, target)
+                      lines.append(f"| {name} | human-input/{target.name} | {target.stat().st_size} | {found[0][1]} |")
+
+          lines += ["", "attachments/ holds every exported attachment and its manifest.json; the raw",
+                    "Phleet-xcresult artifact stays the record.", "", "export problems:"]
+          lines += [f"- {p}" for p in problems] or ["- none"]
+          if problems:
+              lines += ["", "node types seen: " + ", ".join(sorted(f"{t}:{n}" if n else str(t) for t, n in seen if t != "Test Case"))]
+          with open(out / "INDEX.md", "a") as index:
+              index.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          sys.exit(1 if problems else 0)
+          PY
+
+      - name: Upload portable evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Phleet-portable-evidence
+          path: build/portable-evidence
           if-no-files-found: warn
           retention-days: 14
