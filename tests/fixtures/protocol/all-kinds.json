@@ -3,8 +3,25 @@
   "events": [
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "submission.accepted-1",
+      "eventId": "submission.text-1",
       "seq": 1,
+      "emittedAt": "2026-01-01T00:00:00Z",
+      "kind": "submission.text",
+      "identity": {
+        "principalId": "principal-synthetic",
+        "channel": "first-party",
+        "conversationId": "conversation-synthetic",
+        "attempt": 1,
+        "submissionId": "s1"
+      },
+      "payload": {
+        "text": "  What the person typed.\n**Literal** and unrendered 🧭  "
+      }
+    },
+    {
+      "protocol": "fleet.conversation.v1",
+      "eventId": "submission.accepted-2",
+      "seq": 2,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "submission.accepted",
       "identity": {
@@ -21,8 +38,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.started-2",
-      "seq": 2,
+      "eventId": "turn.started-3",
+      "seq": 3,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.started",
       "identity": {
@@ -37,8 +54,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.progress-3",
-      "seq": 3,
+      "eventId": "turn.progress-4",
+      "seq": 4,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.progress",
       "identity": {
@@ -56,8 +73,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.notice-4",
-      "seq": 4,
+      "eventId": "turn.notice-5",
+      "seq": 5,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.notice",
       "identity": {
@@ -75,8 +92,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.recovered_answer-5",
-      "seq": 5,
+      "eventId": "turn.recovered_answer-6",
+      "seq": 6,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.recovered_answer",
       "identity": {
@@ -93,8 +110,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "protocol.rejected-6",
-      "seq": 6,
+      "eventId": "protocol.rejected-7",
+      "seq": 7,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "protocol.rejected",
       "identity": {
@@ -111,8 +128,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "control.ack-7",
-      "seq": 7,
+      "eventId": "control.ack-8",
+      "seq": 8,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "control.ack",
       "identity": {
@@ -148,8 +165,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.something_this_build_has_never_seen-8",
-      "seq": 8,
+      "eventId": "turn.something_this_build_has_never_seen-9",
+      "seq": 9,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.something_this_build_has_never_seen",
       "identity": {
@@ -165,8 +182,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.canceled-9",
-      "seq": 9,
+      "eventId": "turn.canceled-10",
+      "seq": 10,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.canceled",
       "identity": {
@@ -186,8 +203,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.error-10",
-      "seq": 10,
+      "eventId": "turn.error-11",
+      "seq": 11,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.error",
       "identity": {
@@ -205,8 +222,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.final-11",
-      "seq": 11,
+      "eventId": "turn.final-12",
+      "seq": 12,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.final",
       "identity": {
@@ -229,8 +246,8 @@
     },
     {
       "protocol": "fleet.conversation.v1",
-      "eventId": "turn.outcome_unknown-12",
-      "seq": 12,
+      "eventId": "turn.outcome_unknown-13",
+      "seq": 13,
       "emittedAt": "2026-01-01T00:00:00Z",
       "kind": "turn.outcome_unknown",
       "identity": {

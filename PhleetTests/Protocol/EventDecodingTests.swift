@@ -16,6 +16,17 @@ final class EventDecodingTests: XCTestCase {
 
         for event in events {
             switch event.kind {
+            case .submissionText:
+                guard case .submissionText(let payload) = event.payload else {
+                    return XCTFail("submission.text decoded to \(event.payload)")
+                }
+                // Whole and untouched: edge whitespace, a line break and Markdown characters.
+                XCTAssertEqual(
+                    payload.text,
+                    "  What the person typed.\n**Literal** and unrendered 🧭  "
+                )
+                XCTAssertEqual(event.identity.submissionId, "s1")
+
             case .submissionAccepted:
                 guard case .submissionAccepted(let payload) = event.payload else {
                     return XCTFail("submission.accepted decoded to \(event.payload)")
@@ -124,6 +135,49 @@ final class EventDecodingTests: XCTestCase {
         XCTAssertTrue(CancelReason.user.wasInitiatedHere)
         for reason in [CancelReason.operatorAction, .bridge, .unknown, .unrecognized("x")] {
             XCTAssertFalse(reason.wasInitiatedHere)
+        }
+    }
+
+    // MARK: - submission.text
+
+    private func submissionText(payload: String) throws -> ConversationEvent {
+        try ConversationEvent.decode(
+            from: Data(
+                (#"{"protocol":"fleet.conversation.v1","eventId":"e1","seq":7,"#
+                    + #""kind":"submission.text","identity":{"submissionId":"durable-1"},"#
+                    + #""payload":"# + payload + "}").utf8
+            )
+        )
+    }
+
+    func testSubmissionTextIgnoresFieldsItDoesNotRead() throws {
+        // Attachment descriptors ride on the same payload when there are any. They are another
+        // feature's; the text beside them still decodes, exactly.
+        let event = try submissionText(
+            payload: #"{"text":"with a photo","attachments":[{"attachmentId":"a1"}],"later":true}"#
+        )
+
+        XCTAssertEqual(event.kind, .submissionText)
+        XCTAssertEqual(event.seq, 7)
+        XCTAssertEqual(event.payload, .submissionText(SubmissionTextPayload(text: "with a photo")))
+    }
+
+    func testValidEmptySubmissionTextIsNotMissingText() throws {
+        XCTAssertEqual(
+            try submissionText(payload: #"{"text":""}"#).payload,
+            .submissionText(SubmissionTextPayload(text: ""))
+        )
+    }
+
+    func testSubmissionTextWithoutAStringDecodesAsMissingRatherThanThrowing() throws {
+        // One malformed event must not cost the rest of a catch-up page, and must not become an
+        // empty message either: the machine sees `nil` and ignores it.
+        for payload in [#"{}"#, #"{"text":null}"#, #"{"text":42}"#, #"{"text":["a"]}"#, #""text""#] {
+            XCTAssertEqual(
+                try submissionText(payload: payload).payload,
+                .submissionText(SubmissionTextPayload(text: nil)),
+                payload
+            )
         }
     }
 

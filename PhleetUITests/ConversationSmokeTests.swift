@@ -223,6 +223,131 @@ final class ConversationSmokeTests: XCTestCase {
         )
     }
 
+    /// History as a fresh install reads it from a server that keeps the person's words: their
+    /// message, selectable and exactly as typed; a reply whose question is older than the server
+    /// keeps, under a plain statement that its text is unavailable; a message sent with no text;
+    /// and the separator for what was pruned. Opened, reopened, and read again by a new process
+    /// with nothing local — and on none of those visits is anything sent.
+    ///
+    /// Scripted, so this is the app reading synthetic events, not a check against a real server.
+    func testRestoredHistoryShowsThePersonsOwnWordsAndSendsNothing() throws {
+        var app = launchAndOpenTheThread(extraArguments: [LaunchArguments.restoredHistory])
+        assertRestoredHistory(in: app, visit: "the first open")
+
+        let screenshot = XCTAttachment(screenshot: app.screenshot())
+        screenshot.name = "Restored history"
+        screenshot.lifetime = .keepAlways
+        add(screenshot)
+
+        let mine = restoredMessage(in: app)
+        mine.press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app),
+            "a long press on a restored message raised no selection menu"
+        )
+        dismissAnyMenu(in: app)
+
+        // Back to the list and into the same thread again.
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        openThread(with: "Scripted builder", in: app)
+        assertRestoredHistory(in: app, visit: "a reopen")
+
+        // A new process: nothing on the phone, the same history from the server.
+        app.terminate()
+        app = launchAndOpenTheThread(extraArguments: [LaunchArguments.restoredHistory])
+        assertRestoredHistory(in: app, visit: "a relaunch")
+    }
+
+    private func restoredMessage(in app: XCUIApplication) -> XCUIElement {
+        element(in: app, .conversationMessageBody)
+    }
+
+    private func assertRestoredHistory(
+        in app: XCUIApplication,
+        visit: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let mine = restoredMessage(in: app)
+        XCTAssertTrue(
+            mine.waitForExistence(timeout: 30),
+            "\(visit): the restored message never rendered",
+            file: file,
+            line: line
+        )
+        // Plain text, never Markdown: the asterisks are still there.
+        for fragment in ["Restored message — ünïcødé 🧭", "with **literal** Markdown"] {
+            XCTAssertTrue(
+                mine.label.contains(fragment),
+                "\(visit): the message reads \"\(mine.label)\", without \"\(fragment)\"",
+                file: file,
+                line: line
+            )
+        }
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(identifier: AccessibilityIdentifier.conversationMessageBody.identifier)
+                .count,
+            1,
+            "\(visit): the restored message is shown once",
+            file: file,
+            line: line
+        )
+
+        for reply in [
+            "Restored reply to a message older than the server keeps.",
+            "Restored reply one.",
+            "Restored reply two."
+        ] {
+            XCTAssertTrue(
+                app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", reply))
+                    .firstMatch.exists,
+                "\(visit): the reply \"\(reply)\" is missing",
+                file: file,
+                line: line
+            )
+        }
+
+        let unavailable = element(in: app, .conversationMessageUnavailable)
+        XCTAssertTrue(
+            unavailable.exists,
+            "\(visit): a reply with no question shows no reason",
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(
+            unavailable.label.contains("Message text unavailable"),
+            "\(visit): the unavailable text is not said aloud",
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(
+            element(in: app, .conversationMessageEmpty).exists,
+            "\(visit): a message sent with no text is not said as one",
+            file: file,
+            line: line
+        )
+
+        // The separator sits above everything; bring the top into view before asking for it.
+        element(in: app, .conversationTranscript).swipeDown()
+        XCTAssertTrue(
+            element(in: app, .conversationReplayGap).waitForExistence(timeout: 5),
+            "\(visit): the separator for pruned history is missing",
+            file: file,
+            line: line
+        )
+
+        // The scripted backend answers every submission with this. Its absence is how a UI test
+        // can see that reading history sent nothing.
+        XCTAssertFalse(
+            app.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "Scripted reply."))
+                .firstMatch.exists,
+            "\(visit): reading history sent a message",
+            file: file,
+            line: line
+        )
+    }
+
     /// The edit menu a selection raises.
     ///
     /// Checked as a button as well as a menu item: both shapes have surfaced across releases,

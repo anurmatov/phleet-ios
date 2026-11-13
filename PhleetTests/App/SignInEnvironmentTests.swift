@@ -20,12 +20,13 @@ final class SignInEnvironmentTests: XCTestCase {
         store: CredentialStore = InMemoryCredentialStore(),
         legacy: LegacyCredentialStore = InMemoryLegacyCredentialStore(),
         control: FakeControlAPI = FakeControlAPI(),
-        push: FakePushSystem? = nil
+        push: FakePushSystem? = nil,
+        chat: FakeFleetAPI = FakeFleetAPI()
     ) -> AppEnvironment {
         AppEnvironment(
             credentialStore: store,
             legacyCredentialStore: legacy,
-            api: FakeFleetAPI(),
+            api: chat,
             stream: FakeConversationStream(),
             controlAPI: control,
             controlStream: FakeControlLiveStream(),
@@ -183,6 +184,62 @@ final class SignInEnvironmentTests: XCTestCase {
             unregisteredAtLaunch + 1,
             "the phone stops receiving; the orchestrator cannot be told any more"
         )
+    }
+
+    // MARK: - Restored history stays in its scope
+
+    func testRestoredHistoryStaysWithItsAgentAndItsSignIn() async throws {
+        let chat = FakeFleetAPI()
+        chat.catchUpResults = [
+            .success(CatchUpResponse(
+                events: [
+                    TestEvent.text("durable-1", seq: 1, text: "for the builder"),
+                    TestEvent.final("durable-1", seq: 2, merged: ["durable-1"])
+                ],
+                nextAfterSeq: 2,
+                hasMore: false,
+                protocolVersion: ProtocolVersion.current
+            )),
+            .success(CatchUpResponse(
+                events: [],
+                nextAfterSeq: 0,
+                hasMore: false,
+                protocolVersion: ProtocolVersion.current
+            ))
+        ]
+        let store = InMemoryCredentialStore(credential: .fixture)
+        let environment = makeEnvironment(store: store, chat: chat)
+        let builder = ChatAgent(agentName: "builder", displayName: "Builder")
+        let reviewer = ChatAgent(agentName: "reviewer", displayName: "Reviewer")
+
+        let builderThread = try XCTUnwrap(environment.chat).conversation(for: builder)
+        _ = await builderThread.runOnce()
+        XCTAssertEqual(builderThread.machine.orderedRecords.map(\.text), ["for the builder"])
+
+        // Another agent is another conversation, opened under its own name and read on its own.
+        let reviewerThread = try XCTUnwrap(environment.chat).conversation(for: reviewer)
+        XCTAssertTrue(reviewerThread.machine.orderedRecords.isEmpty)
+        _ = await reviewerThread.runOnce()
+        XCTAssertTrue(reviewerThread.machine.orderedRecords.isEmpty, "no rows borrowed")
+        XCTAssertTrue(chat.calls.contains(.openConversation(
+            externalRef: "main",
+            agent: "reviewer",
+            clientInstanceId: DeviceCredential.fixture.clientInstanceId
+        )))
+
+        // A replaced sign-in starts from what its own reads return, never from the old rows.
+        let second = DeviceCredential(
+            origin: "https://second.example.invalid",
+            deviceId: "second-device",
+            deviceSecret: "second-secret",
+            clientInstanceId: "second-instance"
+        )
+        environment.finishSetup(outcome(second, store: store))
+        let replaced = try XCTUnwrap(environment.chat).conversation(for: builder)
+        XCTAssertFalse(replaced === builderThread)
+        XCTAssertTrue(replaced.machine.orderedRecords.isEmpty, "nothing carried across a sign-in")
+
+        XCTAssertTrue(chat.submissions.isEmpty, "reading history sent nothing")
     }
 
     // MARK: - Signing out

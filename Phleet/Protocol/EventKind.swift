@@ -7,6 +7,8 @@ import Foundation
 /// still show. So decoding an unrecognised kind is an ordinary outcome — `.unknown` — and the
 /// renderer ignores it and counts it.
 enum EventKind: Hashable, Sendable {
+    /// The person's own words, as the server stored them when it accepted the submission.
+    case submissionText
     case submissionAccepted
     case turnStarted
     case turnProgress
@@ -23,8 +25,10 @@ enum EventKind: Hashable, Sendable {
     /// A kind this build does not know. Ignored without error, never rendered.
     case unknown(String)
 
-    /// The twelve kinds this slice renders, in the order the issue's allowlist states them.
+    /// The thirteen kinds this build renders: the issue's allowlist, with `submission.text` first
+    /// because it takes the seq before everything its turn produces.
     static let rendered: [EventKind] = [
+        .submissionText,
         .submissionAccepted,
         .turnStarted,
         .turnProgress,
@@ -41,6 +45,7 @@ enum EventKind: Hashable, Sendable {
 
     init(rawValue: String) {
         switch rawValue {
+        case "submission.text": self = .submissionText
         case "submission.accepted": self = .submissionAccepted
         case "turn.started": self = .turnStarted
         case "turn.progress": self = .turnProgress
@@ -59,6 +64,7 @@ enum EventKind: Hashable, Sendable {
 
     var rawValue: String {
         switch self {
+        case .submissionText: return "submission.text"
         case .submissionAccepted: return "submission.accepted"
         case .turnStarted: return "turn.started"
         case .turnProgress: return "turn.progress"

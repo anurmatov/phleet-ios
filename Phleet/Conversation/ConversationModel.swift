@@ -223,7 +223,9 @@ final class ConversationModel {
     /// means "did not happen"; it means "not known to have happened", and minting a fresh id on
     /// retry is how one message becomes two turns.
     func retrySend(submissionId: String) async {
-        guard let submission = pending[submissionId] else { return }
+        guard let submission = pending[machine.localSubmissionId(for: submissionId)] else {
+            return
+        }
         await post(submission)
     }
 
@@ -233,9 +235,14 @@ final class ConversationModel {
     /// deliberately submitting a second time, so this is a **new** submission with new
     /// identifiers. There is no automatic retry anywhere — the server never auto-reruns and
     /// neither does the client.
+    ///
+    /// Only for a message this device sent. A row restored from history, with no send of this
+    /// device's behind it, offers nothing to send: reading history never submits.
     @discardableResult
     func sendAgain(after submissionId: String) async -> PendingSubmission? {
-        guard let previous = pending[submissionId] else { return nil }
+        guard let previous = pending[machine.localSubmissionId(for: submissionId)] else {
+            return nil
+        }
         return await send(previous.text)
     }
 
@@ -253,7 +260,7 @@ final class ConversationModel {
         )
 
         do {
-            _ = try await tokens.authorized { token in
+            let receipt = try await tokens.authorized { token in
                 try await api.submit(
                     origin: origin,
                     accessToken: token,
@@ -262,6 +269,13 @@ final class ConversationModel {
                 )
             }
             sendFailure = nil
+            // The receipt is what joins this device's echo to the row the server wrote: its
+            // `acceptedSeq` is the seq of that submission's `submission.text`. A send that ended
+            // without one stays unconfirmed until a retry's receipt resolves it.
+            machine.reconcileReceipt(
+                localSubmissionId: submission.submissionId,
+                acceptedSeq: receipt.acceptedSeq
+            )
         } catch FleetAPIError.refused(.payloadTooLarge, _, _) {
             sendFailure = .tooLarge
         } catch FleetAPIError.refused(.idempotencyConflict, _, _) {

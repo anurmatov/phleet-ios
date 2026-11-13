@@ -27,6 +27,11 @@ enum LaunchArguments {
     /// without exercising anything.
     static let tallTranscript = "-phleet-tall-transcript"
 
+    /// Makes the scripted backend answer catch-up with history as a fresh install reads it from a
+    /// server that keeps the person's words: their messages and the replies, one whose text is
+    /// older than the server retains, one sent empty, and the separator for what was pruned.
+    static let restoredHistory = "-phleet-restored-history"
+
     /// Makes the scripted backend's stand-in for the camera "scan" a code that is not a setup
     /// code, so the smoke test can watch the form refuse it. Without this argument the stand-in
     /// scans a valid one.

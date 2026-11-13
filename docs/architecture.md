@@ -27,7 +27,8 @@ Not in this slice, and not partially present either:
 - no opening a thread from a notification: a reply's notification opens the Chat tab
 - no voice, attachments, or multi-agent rooms
 - no steer or cancel interface — the routes exist, this app does not surface them
-- no local persistence of conversation history: no database, no file store, no user defaults
+- no local persistence of conversation history: no database, no file store, no user defaults —
+  history, the person's own messages included, is read back from the server
 - no setup without a camera: the dashboard shows the setup code only as a QR code
 - no provisioning, no terminate or restart of a run, and no editing of instructions, contexts,
   workflow definitions or secrets — those stay on the web dashboard
@@ -147,6 +148,42 @@ list at all, so the host turn's terminal closes everything attached to that turn
 
 The invariant the implementation states: **no submission is ever left working with no path to a
 terminal.**
+
+### The person's own words come back from the server
+
+A compatible chat service appends `submission.text` in the transaction that accepts a submission,
+at the seq it reports as `acceptedSeq`, so the words sort before everything their turn produces
+and are retained like any other durable event. The client reads them from the same catch-up and
+stream as everything else and puts the text on the row its `identity.submissionId` names. Text is
+all it sets: no state, no progress, no reply, and text arriving after a terminal changes nothing
+the terminal decided.
+
+The server keeps a submission under an id of its own; the receipt for a send names the id this
+device chose. So a message sent here exists twice until something joins them, and the only thing
+that does is the receipt's `acceptedSeq` matching the seq of a `submission.text` — whichever of
+the two arrives second. Then the echo is retired and the durable row, which every later event
+names, is the one shown. Nothing is matched by text, which two submissions may share, or by time.
+
+| Case | Behaviour |
+|---|---|
+| `201` with `acceptedSeq` | joins its `submission.text`, before or after that event arrives |
+| `202`, no `acceptedSeq` | already durable: the echo is retired, the transcript's row stands, and no seq is invented |
+| no receipt (transport failure) | the echo stays, unconfirmed, until a retry's receipt resolves it; the retry reuses the same ids |
+| "Send again" on a joined row | follows the link to what this device sent, as a new submission with new ids |
+| "Send again" on a restored row | nothing: no send of this device's is behind it, and reading history never submits |
+
+A row with no `submission.text` says **Message text unavailable** where the words would be, and
+keeps its reply and status. That covers conversations from before the server kept the text and
+messages beneath the retained floor, where the existing gap separator says history was pruned;
+nothing is backfilled, guessed from the reply, or offered for resending. A message sent with no
+text says so differently, because it is a different fact. A `submission.text` without a string
+`text`, or naming no submission, is counted with the other ignored events and erases nothing.
+
+This needs a chat service that writes `submission.text`, as public phleet does from
+[`cb6153f`](https://github.com/anurmatov/phleet/blob/cb6153f2cac04521916ce61706f8a7641b3c6443/docs/conversation-protocol.md#submissiontext--the-users-own-messages-are-part-of-the-log-305).
+Against one that does not, every restored row reads as unavailable. The scripted backend writes
+durable ids distinct from the app's, so its UI tests take the same route; no installed server has
+been checked by this client.
 
 ### `turn.outcome_unknown` is a third state
 

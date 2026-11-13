@@ -41,7 +41,8 @@ struct LaunchDouble {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
         let backend = ScriptedBackend(
-            tallTranscript: arguments.contains(LaunchArguments.tallTranscript)
+            tallTranscript: arguments.contains(LaunchArguments.tallTranscript),
+            restoredHistory: arguments.contains(LaunchArguments.restoredHistory)
         )
         let humanMode: String? = arguments.contains(LaunchArguments.humanInputChoice) ? "choice"
             : arguments.contains(LaunchArguments.humanInputText) ? "text"
@@ -71,11 +72,17 @@ struct LaunchDouble {
 }
 
 /// The scripted backend. One turn, one answer — on an optionally pre-populated thread.
+///
+/// It keeps each accepted submission under an id of its own, as the real server does, and
+/// writes the person's words as `submission.text` at the seq the receipt reports. The receipt
+/// names the id the app chose; every event names the server's. So the app's echo of a message
+/// it sent only becomes one row by the same route it takes against a real server.
 final class ScriptedBackend: FleetAPIClient, ConversationStream {
 
     private let conversationId = "scripted-conversation"
     private var continuation: AsyncStream<ConversationStreamEvent>.Continuation?
     private var seq = 40
+    private var accepted = 0
     private var seededCatchUp = false
 
     /// Answer catch-up with a back-and-forth long enough to overflow any viewport.
@@ -85,9 +92,75 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
     /// only arrives after the first send proves nothing about the scroll position on arrival.
     private let tallTranscript: Bool
 
-    init(tallTranscript: Bool = false) {
+    /// Answer catch-up with `restoredEvents`, read as history the way a fresh install reads it.
+    private let restoredHistory: Bool
+
+    init(tallTranscript: Bool = false, restoredHistory: Bool = false) {
         self.tallTranscript = tallTranscript
+        self.restoredHistory = restoredHistory
     }
+
+    /// Restored history, between the retained floor (`12`) and the first live seq (`41`).
+    ///
+    /// The first reply's question is older than the server keeps, so its text is unavailable;
+    /// the rest carry the person's words exactly — edge spaces, a line break, characters outside
+    /// ASCII and Markdown that must stay literal — and one message was sent with no text at all.
+    private static let restoredMessage = "  Restored message — ünïcødé 🧭\nwith **literal** Markdown  "
+
+    private static let restoredEvents: [ConversationEvent] = {
+        func event(
+            _ seq: Int,
+            _ kind: EventKind,
+            _ submissionId: String,
+            _ payload: EventPayload
+        ) -> ConversationEvent {
+            ConversationEvent(
+                eventId: "restored-\(seq)",
+                seq: seq,
+                kind: kind,
+                identity: EventIdentity(
+                    conversationId: "scripted-conversation",
+                    submissionId: submissionId
+                ),
+                payload: payload
+            )
+        }
+        func answer(_ text: String, _ submissionId: String) -> EventPayload {
+            .turnFinal(
+                TurnFinalPayload(
+                    text: text,
+                    completion: .completed,
+                    isPartial: false,
+                    truncated: false,
+                    mergedSubmissionIds: [submissionId]
+                )
+            )
+        }
+        return [
+            event(12, .turnFinal, "scripted-restored-0", answer(
+                "Restored reply to a message older than the server keeps.",
+                "scripted-restored-0"
+            )),
+            event(13, .submissionText, "scripted-restored-1", .submissionText(
+                SubmissionTextPayload(text: ScriptedBackend.restoredMessage)
+            )),
+            event(14, .submissionAccepted, "scripted-restored-1", .submissionAccepted(
+                SubmissionAcceptedPayload(disposition: .ran)
+            )),
+            event(15, .turnStarted, "scripted-restored-1", .turnStarted(TurnStartedPayload())),
+            event(16, .turnFinal, "scripted-restored-1", answer(
+                "Restored reply one.",
+                "scripted-restored-1"
+            )),
+            event(17, .submissionText, "scripted-restored-2", .submissionText(
+                SubmissionTextPayload(text: "")
+            )),
+            event(18, .turnFinal, "scripted-restored-2", answer(
+                "Restored reply two.",
+                "scripted-restored-2"
+            ))
+        ]
+    }()
 
     /// `openConversation` reports `nextSeq: 41`, and history before `retainedFloorSeq: 12` is
     /// pruned, so seq 12...40 is exactly the readable range: seeding it leaves no gap at either
@@ -141,6 +214,21 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         afterSeq: Int,
         limit: Int
     ) async throws -> CatchUpResponse {
+        if restoredHistory {
+            // Answered by cursor, like the real route: a reopen catches up from where it was and
+            // gets nothing it already has; a read from beneath the floor is told about the gap.
+            let events = Self.restoredEvents.filter { ($0.seq ?? 0) > afterSeq }
+            let pruned = afterSeq < 11
+                ? CatchUpGap(fromSeq: afterSeq + 1, toSeq: 11, retainedFloorSeq: 12)
+                : nil
+            return CatchUpResponse(
+                gap: pruned,
+                events: events,
+                nextAfterSeq: events.last?.seq ?? afterSeq,
+                hasMore: false,
+                protocolVersion: ProtocolVersion.current
+            )
+        }
         guard tallTranscript, !seededCatchUp else {
             return CatchUpResponse(
                 events: [],
@@ -186,11 +274,16 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         conversationId: String,
         body: SubmissionBody
     ) async throws -> SubmissionAcceptedResponse {
-        let accepted = nextSeq()
-        emitTurn(for: body.submissionId, acceptedSeq: accepted)
+        let acceptedSeq = nextSeq()
+        accepted += 1
+        emitTurn(
+            text: body.text,
+            durableSubmissionId: "scripted-durable-\(accepted)",
+            acceptedSeq: acceptedSeq
+        )
         return SubmissionAcceptedResponse(
             submissionId: body.submissionId,
-            acceptedSeq: accepted,
+            acceptedSeq: acceptedSeq,
             protocolVersion: ProtocolVersion.current
         )
     }
@@ -236,7 +329,11 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         return seq
     }
 
-    private func emitTurn(for submissionId: String, acceptedSeq: Int) {
+    private func emitTurn(
+        text: String,
+        durableSubmissionId submissionId: String,
+        acceptedSeq: Int
+    ) {
         let identity = EventIdentity(
             conversationId: conversationId,
             submissionId: submissionId
@@ -245,8 +342,19 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         continuation?.yield(
             .event(
                 ConversationEvent(
-                    eventId: "scripted-accepted-" + submissionId,
+                    eventId: "scripted-text-" + submissionId,
                     seq: acceptedSeq,
+                    kind: .submissionText,
+                    identity: identity,
+                    payload: .submissionText(SubmissionTextPayload(text: text))
+                )
+            )
+        )
+        continuation?.yield(
+            .event(
+                ConversationEvent(
+                    eventId: "scripted-accepted-" + submissionId,
+                    seq: nextSeq(),
                     kind: .submissionAccepted,
                     identity: identity,
                     payload: .submissionAccepted(SubmissionAcceptedPayload(disposition: .ran))

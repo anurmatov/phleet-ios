@@ -349,6 +349,30 @@
         }
       }
     },
+    "a11y.conversation.messageEmpty" : {
+      "comment" : "Spoken label for the note shown when the person's own message was sent with no text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty message"
+          }
+        }
+      }
+    },
+    "a11y.conversation.messageUnavailable" : {
+      "comment" : "Spoken label for the note shown when the person's own message text is not available.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message text unavailable"
+          }
+        }
+      }
+    },
     "a11y.conversation.outcomeUnknown" : {
       "comment" : "Spoken label for the state where the outcome of a turn cannot be confirmed.",
       "extractionState" : "manual",
@@ -2009,6 +2033,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Text only for now — images can’t be sent or shown yet."
+          }
+        }
+      }
+    },
+    "conversation.message.empty" : {
+      "comment" : "Shown where the person's own message would be when it was sent with no text. Distinct from text that is unavailable.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty message"
+          }
+        }
+      }
+    },
+    "conversation.message.unavailable" : {
+      "comment" : "Shown where the person's own message would be when the server has no text for it: a conversation from before the server kept it, or history older than it retains. Not a claim that anything was deleted.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message text unavailable"
           }
         }
       }

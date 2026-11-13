@@ -41,15 +41,7 @@ struct TranscriptEntryView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let text = record.text, !text.isEmpty {
-                selectableBody(
-                    text,
-                    speaker: "conversation.speaker.you",
-                    identifier: .conversationMessageBody,
-                    copyActionKey: "conversation.copy.message"
-                )
-                .frame(maxWidth: .infinity, alignment: .trailing)
-            }
+            humanBody
 
             stateRow
 
@@ -61,6 +53,47 @@ struct TranscriptEntryView: View {
                 replyView(reply)
             }
         }
+    }
+
+    /// The person's own words, or a plain statement of why they are not here.
+    ///
+    /// A reply with no question above it reads as the agent talking to itself, so a missing
+    /// message is said rather than left blank — without guessing at it, without claiming it was
+    /// deleted, and without offering to send anything. A message sent with no text is a
+    /// different fact from one whose text is unavailable, and is said differently.
+    @ViewBuilder
+    private var humanBody: some View {
+        if let text = record.text, !text.isEmpty {
+            selectableBody(
+                text,
+                speaker: "conversation.speaker.you",
+                identifier: .conversationMessageBody,
+                copyActionKey: "conversation.copy.message"
+            )
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        } else if record.text == nil {
+            statedBody(
+                "conversation.message.unavailable",
+                identifier: .conversationMessageUnavailable
+            )
+        } else {
+            statedBody("conversation.message.empty", identifier: .conversationMessageEmpty)
+        }
+    }
+
+    /// This app's own copy in the body's place: not selectable and not copyable, because it is
+    /// not something anyone wrote.
+    private func statedBody(
+        _ key: String.LocalizationValue,
+        identifier: AccessibilityIdentifier
+    ) -> some View {
+        let said = String(localized: key)
+        return Text(verbatim: said)
+            .font(.body.italic())
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .accessibilityIdentifier(identifier.identifier)
+            .accessibilityLabel(String(localized: "conversation.speaker.you") + ". " + said)
     }
 
     /// State and the answered-together marker as one spoken element: neither is worth stopping

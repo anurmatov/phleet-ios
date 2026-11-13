@@ -176,6 +176,16 @@ enum ProgressActivity: Hashable, Sendable {
 
 // MARK: - Payloads
 
+/// What the person said, appended in the same transaction that accepted it and at the seq the
+/// accept reported as `acceptedSeq`.
+///
+/// Stored whole and never truncated, so it has no `truncated` flag, and it may legitimately be
+/// empty. `nil` means the payload carried no string at all — a malformed event, which is ignored
+/// and counted rather than rendered as an empty message.
+struct SubmissionTextPayload: Equatable, Sendable {
+    let text: String?
+}
+
 struct SubmissionAcceptedPayload: Equatable, Sendable {
     let disposition: Disposition
 }
@@ -257,6 +267,7 @@ struct ReplayGapPayload: Equatable, Sendable {
 // MARK: - The payload union
 
 enum EventPayload: Equatable, Sendable {
+    case submissionText(SubmissionTextPayload)
     case submissionAccepted(SubmissionAcceptedPayload)
     case turnStarted(TurnStartedPayload)
     case turnProgress(TurnProgressPayload)

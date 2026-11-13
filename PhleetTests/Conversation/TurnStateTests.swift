@@ -180,7 +180,7 @@ final class TurnStateTests: XCTestCase {
 
     // MARK: - Transcript
 
-    func testALocalSubmissionKeepsItsTextAndAReplayedOneHasNone() {
+    func testALocalSubmissionKeepsItsTextAndAReplayedOneWithoutATextEventHasNone() {
         var state = TurnStateMachine()
         state.registerLocalSubmission(id: "s1", text: "hello")
         state.apply(TestEvent.started("s2", seq: 1))
@@ -188,8 +188,209 @@ final class TurnStateTests: XCTestCase {
         XCTAssertEqual(state.record("s1")?.text, "hello")
         XCTAssertNil(
             state.record("s2")?.text,
-            "catch-up carries the agent's side of a turn, not the words that started it"
+            "no submission.text was read for it, so its words are unavailable, not empty"
         )
+    }
+
+    // MARK: - Restored text
+
+    func testRestoredTextLandsOnTheDurableRowWithoutInventingATurn() {
+        let state = machine([TestEvent.text("durable-1", seq: 1, text: "hello")])
+
+        XCTAssertEqual(state.orderedRecords.map(\.id), ["durable-1"])
+        XCTAssertEqual(state.record("durable-1")?.text, "hello")
+        // Durably accepted and nothing more: no disposition, progress, terminal or reply.
+        XCTAssertEqual(state.record("durable-1")?.state, .sending)
+        XCTAssertNil(state.record("durable-1")?.reply)
+        XCTAssertNil(state.activity)
+        XCTAssertTrue(state.pendingAnnouncements.isEmpty)
+    }
+
+    func testTextArrivingAfterATerminalChangesNothingTheTerminalDecided() {
+        var state = machine([
+            TestEvent.started("durable-1", seq: 2),
+            TestEvent.final("durable-1", seq: 3, text: "Answer.", merged: ["durable-1"])
+        ])
+        let decided = state.record("durable-1")?.state
+        let announced = state.pendingAnnouncements.count
+
+        state.apply(TestEvent.text("durable-1", seq: 1, text: "the question"))
+
+        XCTAssertEqual(state.record("durable-1")?.text, "the question")
+        XCTAssertEqual(state.record("durable-1")?.state, decided)
+        XCTAssertEqual(state.record("durable-1")?.reply?.text, "Answer.")
+        XCTAssertEqual(state.pendingAnnouncements.count, announced, "no second announcement")
+        XCTAssertEqual(state.orderedRecords.count, 1)
+    }
+
+    func testValidEmptyTextIsDistinctFromMissingText() {
+        let state = machine([
+            TestEvent.text("durable-1", seq: 1, text: ""),
+            TestEvent.final("durable-2", seq: 2, merged: ["durable-2"])
+        ])
+
+        XCTAssertEqual(state.record("durable-1")?.text, "", "sent with no text")
+        XCTAssertNil(state.record("durable-2")?.text, "text unavailable")
+    }
+
+    func testTheExactTextIsKeptWithoutTrimmingOrInterpretation() {
+        let typed = "  leading\n\ttabbed — ünïcødé 🧭 **not bold** "
+            + "[not a link](https://example.invalid)  "
+        let state = machine([TestEvent.text("durable-1", seq: 1, text: typed)])
+
+        XCTAssertEqual(state.record("durable-1")?.text, typed)
+        XCTAssertEqual(TranscriptCopy.copyable(state.record("durable-1")?.text), typed)
+    }
+
+    func testMalformedSubmissionTextIsIgnoredAndCountedAndErasesNothing() {
+        let state = machine([
+            TestEvent.text("durable-1", seq: 1, text: "known"),
+            TestEvent.text("durable-1", seq: 2, text: nil, eventId: "missing-text"),
+            TestEvent.text(nil, seq: 3, text: "names no submission", eventId: "no-identity"),
+            TestEvent.text("", seq: 4, text: "names an empty one", eventId: "empty-identity"),
+            TestEvent.text("durable-2", seq: 5, text: nil, eventId: "missing-text-new-id"),
+            TestEvent.final("durable-1", seq: 6, merged: ["durable-1"])
+        ])
+
+        XCTAssertEqual(state.record("durable-1")?.text, "known", "known text is never erased")
+        XCTAssertNil(state.record("durable-2"), "no empty message is fabricated")
+        XCTAssertNil(state.record(""))
+        XCTAssertEqual(state.orderedRecords.map(\.id), ["durable-1"])
+        XCTAssertEqual(state.ignoredEventKinds, Array(repeating: "submission.text", count: 4))
+        XCTAssertNotNil(state.record("durable-1")?.reply, "the rest of the transcript still applies")
+    }
+
+    func testTheRestoredFixtureReplaysEveryHumanTextInServerOrder() throws {
+        let state = machine(try ProtocolFixture.events("restored-human-text"))
+
+        XCTAssertEqual(
+            state.orderedRecords.map(\.id),
+            ["durable-legacy", "durable-1", "durable-2", "durable-3", "durable-4", "durable-6"]
+        )
+        XCTAssertEqual(
+            state.orderedRecords.map(\.text),
+            [
+                nil,
+                "  leading and trailing spaces  ",
+                "Line one\nLine two — ünïcødé 🧭",
+                "**not bold** `not code` [not a link](https://example.invalid)",
+                "",
+                "Was this run?"
+            ]
+        )
+        // The gap separator stays first, and the pruned message keeps its reply.
+        XCTAssertEqual(state.entries.first?.id, "system:restored-gap")
+        XCTAssertEqual(state.record("durable-legacy")?.reply?.text,
+                       "A reply to a message from before the retained floor.")
+        // One group, one reply, both members marked.
+        XCTAssertEqual(state.orderedRecords.compactMap(\.reply).count, 3)
+        XCTAssertNil(state.record("durable-2")?.reply)
+        XCTAssertEqual(state.record("durable-3")?.reply?.text, "One answer for both.")
+        XCTAssertTrue(state.record("durable-2")?.isAnsweredTogether == true)
+        XCTAssertTrue(state.record("durable-3")?.isAnsweredTogether == true)
+        XCTAssertEqual(state.record("durable-4")?.state, .notRun(.queueFull))
+        XCTAssertEqual(state.record("durable-6")?.state, .outcomeUnknown(.attemptAbandoned))
+        XCTAssertTrue(state.unresolvedSubmissionIds.isEmpty)
+        XCTAssertEqual(state.ignoredEventKinds, Array(repeating: "submission.text", count: 4))
+    }
+
+    // MARK: - Receipts
+
+    /// The server keeps a submission under an id of its own; the receipt answers with the one this
+    /// device chose. Only `acceptedSeq` joins them.
+    private func sentAndAccepted(at acceptedSeq: Int) -> [ConversationEvent] {
+        [
+            TestEvent.text("durable-1", seq: acceptedSeq, text: "hello"),
+            TestEvent.accepted("durable-1", .ran, seq: acceptedSeq + 1),
+            TestEvent.started("durable-1", seq: acceptedSeq + 2),
+            TestEvent.final("durable-1", seq: acceptedSeq + 3, text: "Hi.", merged: ["durable-1"])
+        ]
+    }
+
+    func testAReceiptBeforeItsTextLeavesOneRowUnderTheDurableId() {
+        var state = TurnStateMachine()
+        state.registerLocalSubmission(id: "local-1", text: "hello")
+        state.reconcileReceipt(localSubmissionId: "local-1", acceptedSeq: 41)
+        XCTAssertEqual(state.orderedRecords.map(\.id), ["local-1"], "the echo stands until its row")
+
+        for event in sentAndAccepted(at: 41) {
+            state.apply(event)
+        }
+
+        XCTAssertEqual(state.entries, [.submission("durable-1")])
+        XCTAssertEqual(state.record("durable-1")?.text, "hello")
+        XCTAssertEqual(state.record("durable-1")?.reply?.text, "Hi.")
+        XCTAssertNil(state.record("local-1"))
+        XCTAssertEqual(state.localSubmissionId(for: "durable-1"), "local-1")
+    }
+
+    func testATextBeforeItsReceiptLeavesOneRowOnceTheReceiptArrives() {
+        var state = TurnStateMachine()
+        state.registerLocalSubmission(id: "local-1", text: "hello")
+        for event in sentAndAccepted(at: 41) {
+            state.apply(event)
+        }
+        XCTAssertEqual(
+            state.orderedRecords.map(\.id),
+            ["local-1", "durable-1"],
+            "nothing joins them before the receipt: not the text, not the timing"
+        )
+
+        state.reconcileReceipt(localSubmissionId: "local-1", acceptedSeq: 41)
+
+        XCTAssertEqual(state.entries, [.submission("durable-1")])
+        XCTAssertEqual(state.record("durable-1")?.reply?.text, "Hi.")
+        XCTAssertEqual(state.localSubmissionId(for: "durable-1"), "local-1")
+    }
+
+    func testTwoSubmissionsWithIdenticalTextStayTwoRows() {
+        var state = TurnStateMachine()
+        state.registerLocalSubmission(id: "local-1", text: "same words")
+        state.registerLocalSubmission(id: "local-2", text: "same words")
+        state.reconcileReceipt(localSubmissionId: "local-2", acceptedSeq: 43)
+        state.apply(TestEvent.text("durable-1", seq: 41, text: "same words"))
+        state.apply(TestEvent.text("durable-2", seq: 43, text: "same words"))
+        state.reconcileReceipt(localSubmissionId: "local-1", acceptedSeq: 41)
+
+        XCTAssertEqual(state.orderedRecords.map(\.id), ["durable-1", "durable-2"])
+        XCTAssertEqual(state.localSubmissionId(for: "durable-1"), "local-1")
+        XCTAssertEqual(state.localSubmissionId(for: "durable-2"), "local-2")
+    }
+
+    func testTextAtASeqNoReceiptNamedNeverRetiresAnEcho() {
+        var state = TurnStateMachine()
+        state.registerLocalSubmission(id: "local-1", text: "same words")
+        state.reconcileReceipt(localSubmissionId: "local-1", acceptedSeq: 41)
+        // Another device's message with the same words, at another seq.
+        state.apply(TestEvent.text("durable-other", seq: 40, text: "same words"))
+
+        XCTAssertEqual(state.orderedRecords.map(\.id), ["local-1", "durable-other"])
+        XCTAssertEqual(state.localSubmissionId(for: "durable-other"), "durable-other")
+    }
+
+    func testAnAcceptedWithoutSeqRetiresTheEchoAndInventsNoLink() {
+        // `202`: the same key landed again while the first accept was still being decided.
+        var state = TurnStateMachine()
+        state.registerLocalSubmission(id: "local-1", text: "hello")
+        state.apply(TestEvent.text("durable-1", seq: 41, text: "hello"))
+
+        state.reconcileReceipt(localSubmissionId: "local-1", acceptedSeq: nil)
+
+        XCTAssertEqual(state.orderedRecords.map(\.id), ["durable-1"])
+        XCTAssertEqual(state.localSubmissionId(for: "durable-1"), "durable-1", "no seq was invented")
+    }
+
+    func testAServerThatKeepsTheDevicesOwnIdLeavesTheRowInPlace() {
+        // A server whose events name the id this device chose: the echo *is* the durable row.
+        var state = TurnStateMachine()
+        state.registerLocalSubmission(id: "s1", text: "hello")
+        state.reconcileReceipt(localSubmissionId: "s1", acceptedSeq: 41)
+        state.apply(TestEvent.text("s1", seq: 41, text: "hello"))
+        state.apply(TestEvent.final("s1", seq: 42, merged: ["s1"]))
+        state.reconcileReceipt(localSubmissionId: "s1", acceptedSeq: nil)
+
+        XCTAssertEqual(state.entries, [.submission("s1")])
+        XCTAssertNotNil(state.record("s1")?.reply)
     }
 
     func testAHistoryGapIsRenderedOnceAndNeverDropped() {

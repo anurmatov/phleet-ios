@@ -78,6 +78,13 @@ What Chat does:
   dashboard opens for the same person; stream attached first, then catch-up, with the live frames
   buffered in between; paging, history-gap separators, cursor advance, and every one of the eight
   close codes handled distinctly
+- **your own messages, read back** — what you said comes back from the server with the rest of
+  the thread, so another phone or a relaunch shows each message once, exactly as typed, above its
+  reply. A message the server no longer has — older than it retains, or from before it kept them
+  — says its text is unavailable rather than leaving a reply with no question. Needs a chat
+  service that stores `submission.text`, as public phleet does from
+  [`cb6153f`](https://github.com/anurmatov/phleet/blob/cb6153f2cac04521916ce61706f8a7641b3c6443/docs/conversation-protocol.md#submissiontext--the-users-own-messages-are-part-of-the-log-305);
+  nothing earlier is backfilled
 - **chat turned off** — an agent whose chat was turned off says so, names where it is turned back
   on, and offers to try again
 - **Markdown** — an agent's reply renders emphasis, code spans, fenced code blocks and web links;
@@ -107,7 +114,8 @@ What it still does not do:
   history support; older or unknown request formats remain unavailable rather than guessed
 - **no voice, attachments, approvals, or multi-agent rooms**
 - **no steer or cancel interface** — the routes exist; this app does not surface them
-- **no local persistence of conversation history** — the transcript is in memory only
+- **no local persistence of conversation history** — the transcript is in memory only; history
+  is read back from the server, never from the phone
 
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
 offline. Nothing here has been exercised against a live server yet — including the sign-in, the

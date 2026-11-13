@@ -120,6 +120,24 @@ enum TestEvent {
         )
     }
 
+    /// The person's words as the server stored them. The server's submission id is its own,
+    /// never the one the sending device chose, so tests name it `durable-…` to keep that visible.
+    static func text(
+        _ submissionId: String?,
+        seq: Int?,
+        text: String?,
+        eventId: String? = nil
+    ) -> ConversationEvent {
+        let seqLabel = seq.map { String($0) } ?? "null"
+        return ConversationEvent(
+            eventId: eventId ?? "text-\(submissionId ?? "none")-\(seqLabel)",
+            seq: seq,
+            kind: .submissionText,
+            identity: identity(submissionId: submissionId),
+            payload: .submissionText(SubmissionTextPayload(text: text))
+        )
+    }
+
     static func accepted(
         _ submissionId: String,
         _ disposition: Disposition,
