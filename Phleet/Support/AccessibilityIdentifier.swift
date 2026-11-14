@@ -151,6 +151,7 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case connectionConfirmOwner = "connection.confirmOwner"
 
     case chatAgentState = "chat.agentState"
+    case chatAgentLastMessage = "chat.agentLastMessage"
     case conversationStop = "conversation.stop"
     case conversationStopNotice = "conversation.stopNotice"
     case conversationAgentInfo = "conversation.agentInfo"

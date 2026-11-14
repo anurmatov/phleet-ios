@@ -448,9 +448,21 @@ struct ConversationSummary: Equatable, Sendable, Decodable {
     /// The position the next event will take. One less is the newest there is.
     let nextSeq: Int
     let lastActivityAt: Date?
+    /// The start of the thread's newest message and who wrote it, where the server says. `nil`
+    /// from a server older than this, and for a thread in which nothing has been said.
+    let lastMessage: LastMessage?
+
+    /// One line of a thread, for a list of threads.
+    struct LastMessage: Equatable, Sendable, Decodable {
+        /// `user` for the person; anything else is the agent.
+        let from: String
+        let text: String
+
+        var isFromUser: Bool { from == "user" }
+    }
 
     private enum CodingKeys: String, CodingKey {
-        case conversationId, agent, externalRef, nextSeq, lastActivityAt
+        case conversationId, agent, externalRef, nextSeq, lastActivityAt, lastMessage
     }
 
     init(
@@ -458,13 +470,15 @@ struct ConversationSummary: Equatable, Sendable, Decodable {
         agent: String,
         externalRef: String,
         nextSeq: Int,
-        lastActivityAt: Date? = nil
+        lastActivityAt: Date? = nil,
+        lastMessage: LastMessage? = nil
     ) {
         self.conversationId = conversationId
         self.agent = agent
         self.externalRef = externalRef
         self.nextSeq = nextSeq
         self.lastActivityAt = lastActivityAt
+        self.lastMessage = lastMessage
     }
 
     init(from decoder: Decoder) throws {
@@ -475,7 +489,9 @@ struct ConversationSummary: Equatable, Sendable, Decodable {
             externalRef: try container.decode(String.self, forKey: .externalRef),
             nextSeq: (try? container.decodeIfPresent(Int.self, forKey: .nextSeq)) ?? 0,
             lastActivityAt: (try? container.decodeIfPresent(String.self, forKey: .lastActivityAt))
-                .flatMap(ControlTimestamp.parse)
+                .flatMap(ControlTimestamp.parse),
+            // A line this build cannot read costs the line, never the thread.
+            lastMessage: try? container.decodeIfPresent(LastMessage.self, forKey: .lastMessage)
         )
     }
 }
