@@ -15,6 +15,11 @@ enum CredentialStoreError: Error, Equatable {
 
     /// The credential could not be turned into bytes, or back.
     case malformedPayload
+
+    /// The access group a store must stay inside is missing, empty or was never expanded by the
+    /// build. Raised before any Security call: a query that names no group searches — and a
+    /// delete removes from — every group this app may read, including the shared one.
+    case invalidAccessGroup
 }
 
 /// Where the device credential lives.

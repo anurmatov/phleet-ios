@@ -23,6 +23,11 @@
 	<string>The camera reads the setup code your dashboard shows, which signs this phone in to your fleet.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>When you turn on “Confirm it’s you”, Face ID is asked before a decision or a disruptive action is sent to your fleet.</string>
+	<!-- The app's private keychain access group, expanded by the build exactly as the
+	     keychain-access-groups entitlement is. KeychainCredentialStore names it on every call,
+	     so cleaning up the app's own copy can never reach the app group's. -->
+	<key>PhleetPrivateKeychainAccessGroup</key>
+	<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>
