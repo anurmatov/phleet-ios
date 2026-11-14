@@ -125,6 +125,12 @@ final class FakeFleetAPI: FleetAPIClient {
     /// The attachments each submission named, in order, alongside `submissions`.
     private(set) var submittedAttachments: [[SubmissionAttachmentRef]] = []
 
+    /// The message each submission said it answers, in order, alongside `submissions`.
+    private(set) var submittedReplyTargets: [String?] = []
+
+    /// What each reservation said it was reserving: its kind, declared type and label.
+    private(set) var reservedFiles: [(kind: String, contentType: String, fileName: String)] = []
+
     // MARK: - Convenience readers
 
     var catchUpCursors: [Int] {
@@ -243,6 +249,7 @@ final class FakeFleetAPI: FleetAPIClient {
                 )
             )
             submittedAttachments.append(body.attachments ?? [])
+            submittedReplyTargets.append(body.replyToEventId)
             accessTokensPresented.append(accessToken)
             return try Self.next(&submitResults)
         }
@@ -283,6 +290,7 @@ final class FakeFleetAPI: FleetAPIClient {
                     sha256: body.sha256
                 )
             )
+            reservedFiles.append((kind: body.kind, contentType: body.contentType, fileName: body.fileName))
             accessTokensPresented.append(accessToken)
             return try Self.next(&reserveResults)
         }

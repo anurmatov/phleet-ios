@@ -187,14 +187,18 @@ struct SubmissionTextPayload: Equatable, Sendable {
     /// What was sent with the words. Empty for a message that was only words, which is what a
     /// payload without the key means.
     var attachments: [AttachmentDescriptor] = []
+    /// The `eventId` of the earlier message this one answers, as the server confirmed it when it
+    /// accepted the message. `nil` for a message that answers nothing.
+    var replyToEventId: String?
 }
 
 /// One file sent with a message, as the server describes it. The bytes are not here: they are
 /// read from `GET /v1/attachments/{attachmentId}/content` with the phone's own sign-in.
 struct AttachmentDescriptor: Hashable, Sendable, Identifiable, Decodable {
     let attachmentId: String
-    /// `image` is the only kind there is. Kept as the server spelled it, so a kind this build
-    /// has never heard of is shown as a file it cannot draw rather than guessed at.
+    /// `image` for a picture; anything else (`other` today) is a file that is named and saved,
+    /// never drawn. Kept as the server spelled it, so a kind this build has never heard of is
+    /// shown as a file rather than guessed at.
     let kind: String
     let contentType: String?
     let byteSize: Int?
@@ -270,6 +274,13 @@ struct TurnRecoveredAnswerPayload: Equatable, Sendable {
     let truncated: Bool?
 }
 
+/// A whole message the agent wrote mid-turn, before a tool call. The server sends it only once a
+/// tool call has followed the text, so it is never the turn's answer: that is `turn.final`.
+struct TurnMessagePayload: Equatable, Sendable {
+    let text: String
+    let truncated: Bool?
+}
+
 struct TurnFinalPayload: Equatable, Sendable {
     let text: String
     let completion: Completion
@@ -329,6 +340,7 @@ enum EventPayload: Equatable, Sendable {
     case turnProgress(TurnProgressPayload)
     case turnNotice(TurnNoticePayload)
     case turnRecoveredAnswer(TurnRecoveredAnswerPayload)
+    case turnMessage(TurnMessagePayload)
     case turnFinal(TurnFinalPayload)
     case turnError(TurnErrorPayload)
     case turnCanceled(TurnCanceledPayload)

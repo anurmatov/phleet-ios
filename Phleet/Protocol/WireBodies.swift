@@ -68,6 +68,9 @@ struct SubmissionBody: Equatable, Sendable, Encodable {
     let text: String
     /// `nil` for a message with nothing attached, which leaves the key out of the body.
     var attachments: [SubmissionAttachmentRef]?
+    /// The `eventId` of the message this one answers. `nil` for a message that answers nothing,
+    /// which leaves the key out of the body.
+    var replyToEventId: String?
 
     private enum CodingKeys: String, CodingKey {
         case protocolVersion = "protocol"
@@ -76,6 +79,7 @@ struct SubmissionBody: Equatable, Sendable, Encodable {
         case idempotencyKey
         case text
         case attachments
+        case replyToEventId
     }
 }
 

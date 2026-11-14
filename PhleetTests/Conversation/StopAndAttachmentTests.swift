@@ -522,3 +522,125 @@ final class StopAndAttachmentTests: XCTestCase {
         )
     }
 }
+
+// MARK: - Replies and files, through the model
+
+extension StopAndAttachmentTests {
+
+    func testAReplyNamesTheMessageItAnswersOnceAndTheNextMessageAnswersNothing() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [
+            .success(SubmissionAcceptedResponse(submissionId: "local-1", acceptedSeq: 41)),
+            .success(SubmissionAcceptedResponse(submissionId: "local-2", acceptedSeq: 42))
+        ]
+        let model = makeModel(
+            api: api,
+            stream: FakeConversationStream(scripts: [script()]),
+            identifiers: ["local-1", "key-1", "local-2", "key-2"]
+        )
+        _ = await model.runOnce()
+
+        model.startReply(to: QuotedMessage(eventId: "event-answer", author: .agent, text: "Want a PR?"))
+        XCTAssertEqual(model.replyingTo?.eventId, "event-answer")
+
+        let reply = await model.send("yes please")
+        await model.send("and thanks")
+
+        XCTAssertEqual(reply?.replyToEventId, "event-answer")
+        XCTAssertEqual(api.submittedReplyTargets, ["event-answer", nil])
+        // The row this phone shows for it already knows what it answers.
+        XCTAssertEqual(model.machine.record("local-1")?.replyToEventId, "event-answer")
+        XCTAssertNil(model.replyingTo)
+    }
+
+    func testAReplyCanBeTakenBackBeforeItIsSent() async {
+        let api = FakeFleetAPI()
+        let model = makeModel(api: api, stream: FakeConversationStream(scripts: [script()]))
+        _ = await model.runOnce()
+
+        model.startReply(to: QuotedMessage(eventId: "event-answer", author: .agent, text: "Want a PR?"))
+        model.cancelReply()
+        await model.send("never mind")
+
+        XCTAssertEqual(api.submittedReplyTargets, [nil])
+    }
+
+    func testAReplyToAMessageTheServerNoLongerHoldsSaysSo() async {
+        let api = FakeFleetAPI()
+        api.submitResults = [
+            .failure(FleetAPIError.refused(.unknown("reply_target_not_found"), status: 400, message: nil))
+        ]
+        let model = makeModel(api: api, stream: FakeConversationStream(scripts: [script()]))
+        _ = await model.runOnce()
+
+        model.startReply(to: QuotedMessage(eventId: "event-gone", author: .agent, text: "old"))
+        await model.send("still there?")
+
+        XCTAssertEqual(model.sendFailure, .replyTargetGone)
+    }
+
+    func testAFileGoesUpAsAFileUnderItsOwnNameAndIsNamedByTheMessage() async {
+        let api = FakeFleetAPI()
+        let model = makeModel(
+            api: api,
+            stream: FakeConversationStream(scripts: [script()]),
+            identifiers: ["file-1", "local-1", "key-1"]
+        )
+        _ = await model.runOnce()
+
+        XCTAssertTrue(model.addFile(Data([1, 2, 3]), named: "/private/var/tmp/Q3 report.pdf"))
+        XCTAssertEqual(model.draftImages.map(\.fileName), ["Q3 report.pdf"])
+        XCTAssertEqual(model.draftImages.map(\.isFile), [true])
+
+        let sent = await model.send("read this")
+
+        XCTAssertEqual(api.reservedFiles.map(\.kind), ["file"])
+        XCTAssertEqual(api.reservedFiles.map(\.contentType), ["application/octet-stream"])
+        XCTAssertEqual(api.reservedFiles.map(\.fileName), ["Q3 report.pdf"])
+        XCTAssertEqual(sent?.attachments, [SubmissionAttachmentRef(attachmentId: "attachment-1", kind: "file")])
+        // Its own row names it, and does not hold its bytes as a picture to draw.
+        let shown = model.machine.record("local-1")?.attachments.first
+        XCTAssertEqual(shown?.fileName, "Q3 report.pdf")
+        XCTAssertEqual(shown?.isImage, false)
+        XCTAssertNil(model.images.data(for: "attachment-1"))
+    }
+
+    func testAFileOverTheLimitOrEmptyIsRefusedBeforeAnythingIsSent() async {
+        let api = FakeFleetAPI()
+        let model = makeModel(api: api, stream: FakeConversationStream(scripts: [script()]))
+        _ = await model.runOnce()
+
+        XCTAssertFalse(model.addFile(Data(count: ConversationModel.maxFileBytes + 1), named: "big.zip"))
+        XCTAssertEqual(model.attachmentFailure, .fileTooLarge)
+        XCTAssertFalse(model.addFile(Data(), named: "empty.txt"))
+        XCTAssertEqual(model.attachmentFailure, .unreadable)
+        XCTAssertTrue(model.draftImages.isEmpty)
+        XCTAssertTrue(api.reservedFiles.isEmpty)
+    }
+
+    func testAServerFromBeforeFilesIsSaidToTakePicturesOnlyAndTheDraftIsKept() async {
+        let api = FakeFleetAPI()
+        api.reserveResults = [
+            .failure(FleetAPIError.refused(.unknown("unsupported_media_type"), status: 415, message: nil))
+        ]
+        let model = makeModel(api: api, stream: FakeConversationStream(scripts: [script()]))
+        _ = await model.runOnce()
+        model.addFile(Data([1]), named: "notes.md")
+
+        let sent = await model.send("read this")
+
+        XCTAssertNil(sent)
+        XCTAssertEqual(model.attachmentFailure, .filesUnsupported)
+        XCTAssertFalse(model.attachmentsUnsupported)
+        XCTAssertEqual(model.draftImages.count, 1)
+        XCTAssertTrue(api.submissions.isEmpty)
+    }
+
+    func testAFileNameIsALabelNeverAPath() {
+        XCTAssertEqual(ConversationModel.label(forFileNamed: "/a/b/notes.md"), "notes.md")
+        XCTAssertEqual(ConversationModel.label(forFileNamed: "C:\\Users\\me\\a.txt"), "a.txt")
+        XCTAssertEqual(ConversationModel.label(forFileNamed: "  "), "file")
+        XCTAssertEqual(ConversationModel.label(forFileNamed: ""), "file")
+        XCTAssertEqual(ConversationModel.label(forFileNamed: String(repeating: "x", count: 500)).count, 120)
+    }
+}

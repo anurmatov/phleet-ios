@@ -326,25 +326,61 @@
       }
     },
     "a11y.conversation.attach" : {
-      "comment" : "Spoken label for the button that picks images to send.",
+      "comment" : "Spoken label for the button that picks photos or files to send.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add images"
+            "value" : "Attach"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attachCamera" : {
+      "comment" : "Spoken label for the choice that takes a photo to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take a photo"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attachFile" : {
+      "comment" : "Spoken label for the choice that picks a file to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a file"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attachPhotos" : {
+      "comment" : "Spoken label for the choice that picks photos to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo library"
           }
         }
       }
     },
     "a11y.conversation.attachment" : {
-      "comment" : "Spoken label for an image picked for the message being written.",
+      "comment" : "Spoken label for a photo or file picked for the message being written.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Image to send"
+            "value" : "To send"
           }
         }
       }
@@ -409,6 +445,18 @@
         }
       }
     },
+    "a11y.conversation.day" : {
+      "comment" : "Spoken label for the line that names the day where it changes in a thread.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day"
+          }
+        }
+      }
+    },
     "a11y.conversation.entry" : {
       "comment" : "Spoken label for one transcript entry. Views compose the spoken sentence from the entry's own content.",
       "extractionState" : "manual",
@@ -417,6 +465,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Message"
+          }
+        }
+      }
+    },
+    "a11y.conversation.interim" : {
+      "comment" : "Spoken label for something the agent wrote mid-turn, before its answer.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Said while working"
           }
         }
       }
@@ -493,6 +553,18 @@
         }
       }
     },
+    "a11y.conversation.quote" : {
+      "comment" : "Spoken label for the quotation above a message that answers an earlier one.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In reply to"
+          }
+        }
+      }
+    },
     "a11y.conversation.replayGap" : {
       "comment" : "Spoken label for the separator marking history that is no longer available.",
       "extractionState" : "manual",
@@ -505,6 +577,18 @@
         }
       }
     },
+    "a11y.conversation.reply" : {
+      "comment" : "Spoken label for the button that starts a reply to a message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reply"
+          }
+        }
+      }
+    },
     "a11y.conversation.replyBody" : {
       "comment" : "Spoken label for the agent's selectable reply text.",
       "extractionState" : "manual",
@@ -513,6 +597,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agent reply"
+          }
+        }
+      }
+    },
+    "a11y.conversation.replyCancel" : {
+      "comment" : "Spoken label for the button that stops answering a particular message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel reply"
+          }
+        }
+      }
+    },
+    "a11y.conversation.replyingTo" : {
+      "comment" : "Spoken label for the bar above the composer naming the message being answered.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replying to"
           }
         }
       }
@@ -609,6 +717,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "System message"
+          }
+        }
+      }
+    },
+    "a11y.conversation.trail" : {
+      "comment" : "Spoken label for the list of tools a running turn has started.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools used so far"
           }
         }
       }
@@ -2541,6 +2661,66 @@
         }
       }
     },
+    "conversation.attach.camera" : {
+      "comment" : "Menu choice that takes a photo to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Take Photo"
+          }
+        }
+      }
+    },
+    "conversation.attach.file" : {
+      "comment" : "Menu choice that picks a file to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose File"
+          }
+        }
+      }
+    },
+    "conversation.attach.photos" : {
+      "comment" : "Menu choice that picks photos to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Photo Library"
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.fileTooLarge" : {
+      "comment" : "Shown when a picked file is over the size limit.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That file is larger than 8 MB, which is the most this server takes."
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.filesUnsupported" : {
+      "comment" : "Shown when the server is older than files in chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This server takes pictures only, so the message was not sent. Remove the file, or update the server."
+          }
+        }
+      }
+    },
     "conversation.attachment.failure.notSent" : {
       "comment" : "Shown when an image upload did not complete.",
       "extractionState" : "manual",
@@ -2566,25 +2746,25 @@
       }
     },
     "conversation.attachment.failure.tooMany" : {
-      "comment" : "Shown when more images were picked than a message may carry.",
+      "comment" : "Shown when more photos or files were picked than a message may carry.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A message carries at most four images."
+            "value" : "A message carries at most four attachments."
           }
         }
       }
     },
     "conversation.attachment.failure.unreadable" : {
-      "comment" : "Shown when a picked image cannot be used.",
+      "comment" : "Shown when a picked photo or file cannot be used.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "That could not be read as an image, or is too large to send."
+            "value" : "That could not be read, or is a photo too large to send."
           }
         }
       }
@@ -2596,7 +2776,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This server has images switched off, so the message was not sent. Send it as text."
+            "value" : "This server has attachments switched off, so the message was not sent. Send it as text."
           }
         }
       }
@@ -2829,14 +3009,26 @@
         }
       }
     },
-    "conversation.media.unsupported" : {
-      "comment" : "Shown under the composer when the server takes no image attachments.",
+    "conversation.interim.truncated" : {
+      "comment" : "Under something the agent wrote mid-turn that the server cut short.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This server has images switched off, so messages here are text only."
+            "value" : "This message was shortened."
+          }
+        }
+      }
+    },
+    "conversation.media.unsupported" : {
+      "comment" : "Shown under the composer when the server takes no attachments.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This server has attachments switched off, so messages here are text only."
           }
         }
       }
@@ -2921,6 +3113,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Working"
+          }
+        }
+      }
+    },
+    "conversation.quote.gone" : {
+      "comment" : "In place of a quotation when the message being answered is no longer in the thread.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An earlier message"
           }
         }
       }
@@ -3065,6 +3269,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "We could not confirm this message was received. Sending it again reuses the same identifiers, so it cannot start a second turn."
+          }
+        }
+      }
+    },
+    "conversation.send.failure.replyTargetGone" : {
+      "comment" : "A reply was refused because the message it answers has aged out of the conversation.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sent: the message you replied to is no longer in the thread. Cancel the reply and send it again."
           }
         }
       }

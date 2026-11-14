@@ -191,6 +191,56 @@ final class DynamicTypeRenderingTests: XCTestCase {
         }
     }
 
+    /// What the thread gained: a quotation above a reply, what the agent said on the way, the
+    /// time, and the running turn's clock and trail. Each has to lay out at every size, and the
+    /// trail has to fold rather than list forty tools.
+    func testARepliedToEntryWithMidTurnMessagesAndARunningTrailRendersAtEverySize() {
+        var working = record(.working, reply: nil)
+        working.sentAt = Date(timeIntervalSince1970: 1_800_000_000)
+        working.textEventId = "event-1"
+        working.replyToEventId = "event-0"
+        working.interim = [
+            InterimMessage(
+                id: "event-2",
+                text: "Reading the **provisioning** service before changing it.",
+                truncated: true,
+                at: Date(timeIntervalSince1970: 1_800_000_030)
+            )
+        ]
+
+        assertRenders(
+            TranscriptEntryView(
+                record: working,
+                activity: TurnActivity(submissionId: "s1", activity: .tool, toolName: "Bash"),
+                sendAgain: {},
+                quoted: QuotedMessage(
+                    eventId: "event-0",
+                    author: .agent,
+                    text: "I can turn each row into a card below 720 points. Want a pull request?"
+                ),
+                agentName: "Agent one",
+                turnStartedAt: Date(timeIntervalSince1970: 1_800_000_010),
+                trail: ["Grep", "Read", "Read", "Read", "Edit", "Bash"],
+                onReply: { _ in }
+            ),
+            "a reply with mid-turn messages and a running trail"
+        )
+
+        assertRenders(
+            QuotedMessageView(quoted: QuotedMessage(eventId: "event-gone", author: .agent, text: "")),
+            "a quotation of a message no longer in the thread"
+        )
+    }
+
+    func testTheTrailShowsItsLatestStepsFolded() {
+        XCTAssertEqual(ProgressIndicatorView.steps(for: []), [])
+        XCTAssertEqual(ProgressIndicatorView.steps(for: ["Read", "Read", "Bash"]), ["Read ×2", "Bash"])
+        XCTAssertEqual(
+            ProgressIndicatorView.steps(for: ["A", "B", "C", "D", "E", "F", "F"]),
+            ["…", "B", "C", "D", "E", "F ×2"]
+        )
+    }
+
     func testTheWorkingIndicatorKeepsItsLabelWithMotionReduced() {
         // The label is what carries the meaning; the animation never did.
         for reduceMotion in [false, true] {
