@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0">
+<dict>
+	<!-- The app group, and nothing else. It is how this extension reads the sign-in the app
+	     keeps there: an app group is also a keychain access group, so no separate keychain
+	     entitlement is declared. The widget reads the fleet and writes nothing. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.anvarlab.phleet</string>
+	</array>
+</dict>
+</plist>

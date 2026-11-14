@@ -1425,6 +1425,78 @@
         }
       }
     },
+    "a11y.share.agent" : {
+      "comment" : "Spoken label for an agent in the share sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "a11y.share.cancel" : {
+      "comment" : "Spoken label for the share sheet's cancel button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "a11y.share.images" : {
+      "comment" : "Spoken label for the share sheet's count of images.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Images attached"
+          }
+        }
+      }
+    },
+    "a11y.share.message" : {
+      "comment" : "Spoken label for the share sheet's message field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "a11y.share.send" : {
+      "comment" : "Spoken label for the share sheet's send button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send to the agent"
+          }
+        }
+      }
+    },
+    "a11y.share.state" : {
+      "comment" : "Spoken label for what the share sheet is doing or what went wrong.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
     "a11y.start.close" : {
       "comment" : "Spoken label for the button that closes the start-workflow sheet.",
       "extractionState" : "manual",
@@ -3609,6 +3681,114 @@
         }
       }
     },
+    "glance.agentsDown" : {
+      "comment" : "Widget: precedes the names of agents that need attention.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Down or late:"
+          }
+        }
+      }
+    },
+    "glance.agentsFine" : {
+      "comment" : "Widget: no agent needs attention.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every agent is up"
+          }
+        }
+      }
+    },
+    "glance.down" : {
+      "comment" : "Widget: follows the number of agents that are down, in the one-line form.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "down"
+          }
+        }
+      }
+    },
+    "glance.nothingWaiting" : {
+      "comment" : "Widget: no run is waiting for a person.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing waiting"
+          }
+        }
+      }
+    },
+    "glance.signedOut" : {
+      "comment" : "Widget: there is no sign-in the widget can read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Phleet to sign in"
+          }
+        }
+      }
+    },
+    "glance.unreachable" : {
+      "comment" : "Widget: the fleet could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fleet did not answer"
+          }
+        }
+      }
+    },
+    "glance.waiting" : {
+      "comment" : "Widget: follows the number of runs waiting for a person.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "waiting for you"
+          }
+        }
+      }
+    },
+    "glance.widget.description" : {
+      "comment" : "Description of the widget in the widget gallery.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How many runs are waiting for you, and which agents are down."
+          }
+        }
+      }
+    },
+    "glance.widget.name" : {
+      "comment" : "Name of the widget in the widget gallery.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fleet"
+          }
+        }
+      }
+    },
     "humanInput.answer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5227,6 +5407,150 @@
         }
       }
     },
+    "share.agents.title" : {
+      "comment" : "Share sheet: header above the agents to choose from.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To"
+          }
+        }
+      }
+    },
+    "share.cancel" : {
+      "comment" : "Share sheet: button that closes it without sending.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "share.images" : {
+      "comment" : "Share sheet: follows the number of images that will be sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "images attached"
+          }
+        }
+      }
+    },
+    "share.images.skipped" : {
+      "comment" : "Share sheet: shown when a shared image was left out.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some of what was shared could not be attached: a message carries at most four images, and each has to be one this phone can read."
+          }
+        }
+      }
+    },
+    "share.message.prompt" : {
+      "comment" : "Share sheet: prompt in the message field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Say what you want done with it"
+          }
+        }
+      }
+    },
+    "share.message.title" : {
+      "comment" : "Share sheet: header above the message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "share.noAgents" : {
+      "comment" : "Share sheet: shown when no agent can be chatted with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No agent has chat turned on. It is turned on per agent in the dashboard."
+          }
+        }
+      }
+    },
+    "share.retry" : {
+      "comment" : "Share sheet: button that reads the list of agents again.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try again"
+          }
+        }
+      }
+    },
+    "share.send" : {
+      "comment" : "Share sheet: button that sends the message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        }
+      }
+    },
+    "share.sending" : {
+      "comment" : "Share sheet: shown while the message is being sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending…"
+          }
+        }
+      }
+    },
+    "share.sent.help" : {
+      "comment" : "Share sheet: shown under the confirmation that the message was sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The reply arrives in the app, in that agent’s thread."
+          }
+        }
+      }
+    },
+    "share.title" : {
+      "comment" : "Title of the share sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send to an agent"
+          }
+        }
+      }
+    },
     "shortcut.agent.type" : {
       "comment" : "What Shortcuts calls an agent that can be chatted with.",
       "extractionState" : "manual",
@@ -5307,6 +5631,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "That agent does not take chat right now."
+          }
+        }
+      }
+    },
+    "shortcut.failure.imagesUnsupported" : {
+      "comment" : "Said when images were to be sent and the server takes none.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This fleet has images switched off, so nothing was sent."
           }
         }
       }

@@ -47,7 +47,7 @@ is_exempt() {
 
 in_group2_scope() {
     case "$1" in
-        Phleet/*|PhleetTests/*|PhleetUITests/*|project.yml|Config/*|.github/workflows/*)
+        Phleet/*|PhleetWidgets/*|PhleetShare/*|PhleetTests/*|PhleetUITests/*|project.yml|Config/*|.github/workflows/*)
             return 0
             ;;
     esac

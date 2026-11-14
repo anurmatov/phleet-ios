@@ -15,6 +15,17 @@
 	     entitlements has no access group at all, and every SecItem call answers -34018.
 	     Naming any group other than the default one would require the provisioning profile
 	     to carry it, which is exactly the operator-owned coupling this repository avoids. -->
+	<!-- The group this app shares with its widget and its share sheet. It is also a keychain
+	     access group, which is how those two read the sign-in the app keeps there. Unlike the
+	     group below, this one has to be on the App ID and in the provisioning profile: a
+	     signed build made with a profile that lacks it does not sign at all. A build whose
+	     signature does not carry it keeps the sign-in in the app's own group instead
+	     (`SharedCredentialStore`), and the extensions then find none. -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.anvarlab.phleet</string>
+	</array>
+
 	<key>keychain-access-groups</key>
 	<array>
 		<string>$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)</string>

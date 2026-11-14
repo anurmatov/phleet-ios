@@ -24,6 +24,8 @@ jobs:
       DISTRIBUTION_CERTIFICATE_P12: ${{ secrets.DISTRIBUTION_CERTIFICATE_P12 }}
       DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.DISTRIBUTION_CERTIFICATE_PASSWORD }}
       PROVISIONING_PROFILE: ${{ secrets.PROVISIONING_PROFILE }}
+      PROVISIONING_PROFILE_WIDGETS: ${{ secrets.PROVISIONING_PROFILE_WIDGETS }}
+      PROVISIONING_PROFILE_SHARE: ${{ secrets.PROVISIONING_PROFILE_SHARE }}
       KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
       DEVELOPMENT_TEAM: ${{ vars.DEVELOPMENT_TEAM }}
 
@@ -68,27 +70,41 @@ jobs:
           # A provisioning profile has to be installed under its own UUID for Xcode to find it,
           # and manual signing needs the profile's Name to reference it by. Both live inside the
           # signed profile, so decode it and read them out rather than guessing.
-          PROFILE="$RUNNER_TEMP/profile.mobileprovision"
-          PROFILE_PLIST="$RUNNER_TEMP/profile.plist"
-          printf '%s' "$PROVISIONING_PROFILE" | base64 --decode > "$PROFILE"
-          security cms -D -i "$PROFILE" > "$PROFILE_PLIST"
-
-          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$PROFILE_PLIST")"
-          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$PROFILE_PLIST")"
-          if [ -z "$PROFILE_UUID" ] || [ -z "$PROFILE_NAME" ]; then
-            echo "error: could not read UUID and Name from the provisioning profile" >&2
-            exit 1
-          fi
-
+          #
+          # Three profiles, one for each thing that is signed: the app, its widget and its share
+          # sheet. Each is installed the same way and its name kept under its own variable.
           PROFILE_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
           mkdir -p "$PROFILE_DIR"
-          cp "$PROFILE" "$PROFILE_DIR/$PROFILE_UUID.mobileprovision"
-          rm -f "$PROFILE" "$PROFILE_PLIST"
+          PROFILE_UUIDS=""
 
-          # Not echoed anywhere: the decoded plist carries the profile's entitlements and
-          # certificate, and GITHUB_ENV keeps these out of the log.
-          echo "PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
-          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          install_profile() {
+            local label="$1" encoded="$2" variable="$3"
+            local profile="$RUNNER_TEMP/profile-$label.mobileprovision"
+            local plist="$RUNNER_TEMP/profile-$label.plist"
+            local uuid name
+
+            printf '%s' "$encoded" | base64 --decode > "$profile"
+            security cms -D -i "$profile" > "$plist"
+            uuid="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$plist")"
+            name="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$plist")"
+            if [ -z "$uuid" ] || [ -z "$name" ]; then
+              echo "error: could not read UUID and Name from the $label provisioning profile" >&2
+              exit 1
+            fi
+
+            cp "$profile" "$PROFILE_DIR/$uuid.mobileprovision"
+            rm -f "$profile" "$plist"
+
+            # Not echoed anywhere: the decoded plist carries the profile's entitlements and
+            # certificate, and GITHUB_ENV keeps these out of the log.
+            echo "$variable=$name" >> "$GITHUB_ENV"
+            PROFILE_UUIDS="$PROFILE_UUIDS $uuid"
+          }
+
+          install_profile app "$PROVISIONING_PROFILE" PROFILE_NAME
+          install_profile widgets "$PROVISIONING_PROFILE_WIDGETS" PROFILE_NAME_WIDGETS
+          install_profile share "$PROVISIONING_PROFILE_SHARE" PROFILE_NAME_SHARE
+          echo "PROFILE_UUIDS=$PROFILE_UUIDS" >> "$GITHUB_ENV"
 
           KEY_PATH="$RUNNER_TEMP/AuthKey.p8"
           printf '%s' "$APP_STORE_CONNECT_PRIVATE_KEY" | base64 --decode > "$KEY_PATH"
@@ -116,6 +132,10 @@ jobs:
           	<dict>
           		<key>com.anvarlab.phleet</key>
           		<string>$PROFILE_NAME</string>
+          		<key>com.anvarlab.phleet.widgets</key>
+          		<string>$PROFILE_NAME_WIDGETS</string>
+          		<key>com.anvarlab.phleet.share</key>
+          		<string>$PROFILE_NAME_SHARE</string>
           	</dict>
           	<key>uploadSymbols</key>
           	<true/>
@@ -136,7 +156,9 @@ jobs:
             CODE_SIGN_STYLE=manual \
             DEVELOPMENT_TEAM="$DEVELOPMENT_TEAM" \
             CODE_SIGN_IDENTITY="Apple Distribution" \
-            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            PHLEET_APP_PROFILE="$PROFILE_NAME" \
+            PHLEET_WIDGETS_PROFILE="$PROFILE_NAME_WIDGETS" \
+            PHLEET_SHARE_PROFILE="$PROFILE_NAME_SHARE" \
             CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
             archive
 
@@ -159,9 +181,9 @@ jobs:
           set +e
           [ -n "${RELEASE_KEYCHAIN:-}" ] && security delete-keychain "$RELEASE_KEYCHAIN"
           rm -f "${ASC_KEY_PATH:-}" "$RUNNER_TEMP/distribution.p12"
-          rm -f "$RUNNER_TEMP/profile.mobileprovision" "$RUNNER_TEMP/profile.plist"
-          if [ -n "${PROFILE_UUID:-}" ]; then
-            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
-          fi
+          rm -f "$RUNNER_TEMP"/profile-*.mobileprovision "$RUNNER_TEMP"/profile-*.plist
+          for uuid in ${PROFILE_UUIDS:-}; do
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$uuid.mobileprovision"
+          done
           rm -f ExportOptions.plist
           exit 0

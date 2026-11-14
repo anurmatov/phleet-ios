@@ -18,6 +18,7 @@ struct QuickActionError: Error, CustomLocalizedStringResourceConvertible {
         case .unreachable: return "shortcut.failure.unreachable"
         case .agentUnavailable: return "shortcut.failure.agentUnavailable"
         case .tooLong: return "shortcut.failure.tooLong"
+        case .imagesUnsupported: return "shortcut.failure.imagesUnsupported"
         case .refused: return "shortcut.failure.refused"
         }
     }

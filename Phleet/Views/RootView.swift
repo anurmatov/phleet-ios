@@ -111,6 +111,8 @@ struct RootView: View {
         }
         .onChange(of: waitingCount, initial: true) { _, count in
             appEnvironment.pushSystem.setBadgeCount(count)
+            // The widget reads on the system's schedule; this is the moment the app knows better.
+            appEnvironment.glance.refresh()
         }
         .task(id: appEnvironment.chat.map { ObjectIdentifier($0) }) {
             // Who can be chatted with, read once up front: an agent's screen offers its thread

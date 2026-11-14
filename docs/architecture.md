@@ -24,8 +24,8 @@ credential; see [One sign-in](#one-sign-in). For the thread, the wire contract i
 
 Not in this slice, and not partially present either:
 
-- no widget and no share extension: both need their own targets, an App Group and provisioning
-  profiles the operator creates
+- no decision from the widget, the share sheet or a shortcut: a gate is answered on its own
+  screen
 - no voice, no attachment other than an image, no image from an agent, no multi-agent rooms
 - no steer interface — the route exists, this app does not surface it
 - no local persistence of conversation history: no database, no file store, no user defaults —
@@ -52,6 +52,10 @@ Phleet/
   Conversation/                attach, catch up, buffer, send, render (replies as Markdown)
   Control/                     Fleet and Runs: agents, gates, decisions, runs, schedules, memory
   Shortcuts/                   the two App Intents, and the screenless sign-in they share
+  Glance/                      what the widget shows, as a value
+  Sharing/                     the share sheet's model
+PhleetWidgets/                 the widget extension: a timeline provider and its views
+PhleetShare/                   the share extension: reading what was shared, and one screen
   Configuration/               server profile: model, store seam, resolution
   Support/                     accessibility identifiers, launch arguments, the small
                                preference store, the owner check
@@ -337,6 +341,51 @@ sent and is not tried again under new identifiers.
 No intent answers a gate, starts a workflow or acts on an agent. A shortcut can run from a lock
 screen or a watch, and a decision is sent from a screen that shows what is being decided.
 
+### Two extensions, one sign-in, and no screens' worth of code
+
+The widget and the share sheet are separate programs in separate processes. Each compiles a named
+subset of the app's sources (`project.yml` lists it): the screenless sign-in the shortcuts use,
+the two clients, and the types those name. Neither gets a model that owns a socket, a screen, or
+anything that writes the credential. What each *does* lives in the app's code and is tested
+there — `GlanceContent` is everything the widget says, `ShareModel` everything the sheet does —
+and the extension targets hold only what cannot be anywhere else: the timeline provider, the
+views, the view controller the system instantiates, and the reading of what another app shared.
+
+They sign in with the sign-in the app keeps in the **app group**, which is also a keychain access
+group. `SharedCredentialStore` is the app's side of that:
+
+| Situation | Behaviour |
+|---|---|
+| a sign-in | written to the app group; any copy in the app's own group is removed |
+| an install signed in by an earlier build | found in the app's own group, moved to the app group on the first read, removed from its own once the move has been written |
+| a build whose signature lacks the app group | every call on the app group answers "missing entitlement"; the app keeps its sign-in in its own group exactly as before, and the extensions find none |
+| sign-out | both places are cleared, and a failure is reported only after both were tried |
+
+The third row is deliberate. Signing in must not depend on an entitlement only the extensions
+need, so the app never breaks for lack of it; the extensions say the app has to be opened. An
+extension reads the app group and nothing else, and never writes: it cannot move, rotate or
+delete the sign-in. The item's protection is unchanged — `AfterFirstUnlockThisDeviceOnly`, never
+synchronised, never in a backup. Who can read it has changed: two more programs, signed by the
+same team.
+
+Each read by an extension mints its own fifteen-minute token and keeps it nowhere. The
+orchestrator does not revoke a device's earlier tokens when it mints another, so the widget's
+reads do not sign the app's own session out.
+
+**The widget** asks for a new reading a quarter of an hour after each one; the system decides
+when it really happens, so the widget shows when it was read. The app nudges it at the moments
+it knows better: the waiting count changed, the phone signed in or out. It shows a number only
+when the fleet was read. "Not signed in" and "did not answer" are their own states with their
+own words and symbols, because a zero drawn for either would be read as nothing waiting. The
+widget gallery shows a fixed example and never signs in.
+
+**The share sheet** takes text, one web address and up to four images. An address is kept only
+when it is `http` or `https`: a file address names something on the phone the agent cannot read.
+An image is re-encoded exactly as the thread's own picker does it. It sends once, into the same
+thread the app shows (`ChatThread.externalRef`), says that it sent, and closes; the reply
+arrives in the app. A shared image that could not be read, or was one too many, is counted and
+said rather than dropped.
+
 ### A setup code shows the address and never connects
 
 The dashboard draws a JSON object as a QR code:
@@ -448,9 +497,11 @@ invalidates an older lookup; changing the control-plane session clears every tab
 requests are how one tab links into another — an agent's screen opening its thread, a thread
 opening its agent — so there is one way a screen is reached by name.
 
-How many runs are waiting is shown on the Fleet tab and on the app's icon. The icon's count is
-set by the app from its own reads; the server's notifications carry none, so it is as fresh as
-the app's last read and is cleared at sign-out.
+How many runs are waiting is shown on the Fleet tab and on the app's icon. While the app is in
+use it sets the icon's count from its own reads, and clears it at sign-out. While it is closed
+the count is the server's: a platform that sends `aps.badge` with its notifications, and a
+count on its own when a gate is answered elsewhere, keeps the number right without the app. An
+older platform sends none, and the icon then stays as the app last left it.
 
 The app holds no key. The orchestrator signs and sends; see `docs/push-notifications.md` in the
 platform repository.

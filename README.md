@@ -118,6 +118,19 @@ What Chat does:
 - **reply notifications** — when notifications are on, the orchestrator tells this phone when an
   agent replies while no client is watching that thread; tapping one opens that thread
 
+What the widget and the share sheet do:
+
+- **widget** — on the home screen and the lock screen: how many runs are waiting, the one that
+  has waited longest, which agents are down or late, and when that was read. It reads the fleet
+  itself, about every quarter of an hour as the system allows, and is nudged when the app sees
+  the count change. With no sign-in, or a fleet that did not answer, it says which in words
+  rather than showing a zero
+- **share sheet** — from any app: text, a web address or up to four images, sent to an agent
+  you pick, into the same thread the app shows. One send; the reply arrives in the app
+- **one sign-in, shared** — both read the sign-in the app keeps in its app group, and neither
+  writes it. A phone the app has not been opened on since it learned to share reads as not
+  signed in until it is
+
 What Shortcuts can do:
 
 - **what needs me** — says how many runs are waiting and which agents are down or late
@@ -127,8 +140,9 @@ What Shortcuts can do:
 
 What it still does not do:
 
-- **no widget and no share sheet** — both need their own app targets, an App Group and
-  provisioning profiles the operator creates; neither is in the project yet
+- **no decision from the widget, the share sheet or a shortcut** — each can read or send a
+  message; a gate is answered on its own screen, with the run in front of you
+- **no thread in the share sheet** — it sends and closes; it cannot show the reply
 - **no provisioning of a new agent** — an agent that was never provisioned is handled from the
   web dashboard; one that exists can be reprovisioned here
 - **no rich workflow inputs** — a workflow that needs a list or a nested value is started from
@@ -143,8 +157,8 @@ What it still does not do:
   none yet
 - **no local persistence of conversation history** — the transcript is in memory only; history
   is read back from the server, never from the phone
-- **the icon's count is only as fresh as the app's last read** — the server's notifications
-  carry no count, so the number does not change while the app is closed
+- **the icon's count while the app is closed is the server's** — a platform that sends a count
+  with its notifications keeps the number right; an older one leaves it as the app last set it
 
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
 offline. Nothing here has been exercised against a live server yet — including the sign-in, the
@@ -156,7 +170,10 @@ same way: the app's own steps run against a stand-in for the system, and no test
 device token or receives a real notification. The same holds for what this change adds: the
 photo picker, Face ID and Shortcuts are the system's and are not driven by any test — the code
 behind each runs against a stand-in — and stopping a turn, sending an image, schedules and memory
-search have been run against the scripted server only.
+search have been run against the scripted server only. The widget and the share sheet are built
+by CI and nothing more: no test installs a widget or opens a share sheet, what each shows and
+sends is tested in the app's code that they share, and whether the two extensions can read the
+shared sign-in can only be seen on a phone, in a build signed with the app group.
 
 ## Build and test
 
@@ -180,6 +197,8 @@ a `.pbxproj`; change `project.yml` and regenerate.
 | Path | Contents |
 |---|---|
 | `Phleet/` | app sources, resources, entitlements |
+| `PhleetWidgets/` | the widget extension; it compiles a named subset of `Phleet/` as well |
+| `PhleetShare/` | the share extension; the same subset, plus the sheet's own model |
 | `PhleetTests/` | app-hosted unit tests |
 | `PhleetUITests/` | launch, fleet and conversation smoke tests, driven by an in-app scripted backend |
 | `Config/` | `.xcconfig` build settings; local signing overrides are git-ignored |

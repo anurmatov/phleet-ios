@@ -8,6 +8,15 @@ import Foundation
 // site. The server checks the field ordinally, immediately after deserialization and before any
 // other validation, on every chat route.
 
+/// The one thread a person has with an agent.
+enum ChatThread {
+    /// Client-chosen, and what makes open idempotent across reinstall, signing in again, and
+    /// the dashboard: a conversation is found again by the person, the agent and this reference.
+    /// Everything this app sends — the thread's own screen, a shortcut, the share sheet — uses
+    /// the same one, so it all lands in the same conversation.
+    static let externalRef = "main"
+}
+
 /// `POST /v1/conversations`
 ///
 /// `agent` is required: a conversation is with one agent for life, and the same `externalRef`
