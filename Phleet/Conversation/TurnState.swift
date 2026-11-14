@@ -67,6 +67,43 @@ struct AgentReply: Equatable, Sendable, Identifiable {
     /// Recovered from an earlier turn. It arrives with no visible question attached and reads as
     /// a duplicate unless it is labelled.
     let isRecovered: Bool
+    /// When the server wrote it, when its event said.
+    var at: Date?
+}
+
+/// Something the agent wrote mid-turn, before going on to a tool: part of what it said, shown in
+/// the order it arrived, and never its answer.
+struct InterimMessage: Equatable, Sendable, Identifiable {
+    /// The `eventId` that carried it.
+    let id: String
+    let text: String
+    let truncated: Bool
+    var at: Date?
+}
+
+/// What a reply points at, as it is shown: who wrote the earlier message and how it starts.
+struct QuotedMessage: Equatable, Sendable {
+    enum Author: Equatable, Sendable {
+        case you
+        case agent
+    }
+
+    /// The `eventId` of the message. This is what a reply names to the server.
+    let eventId: String
+    let author: Author
+    /// The message in one line, cut short. Empty when the message is no longer among those this
+    /// device holds: the reply is still shown as one, with nothing to quote.
+    let text: String
+
+    /// How much of a message a quotation shows.
+    static let maxLength = 140
+
+    /// A message in one line, cut to `maxLength` with an ellipsis.
+    static func excerpt(_ text: String) -> String {
+        let line = text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        guard line.count > maxLength else { return line }
+        return String(line.prefix(maxLength)).trimmingCharacters(in: .whitespaces) + "…"
+    }
 }
 
 /// One submission and everything rendered with it.
@@ -94,6 +131,20 @@ struct SubmissionRecord: Equatable, Sendable, Identifiable {
 
     /// The agent's reply, on the one member of a merged group that owns it.
     var reply: AgentReply?
+
+    /// When the server stored the person's message, when its event said. `nil` for a message this
+    /// device has just sent and for one whose `submission.text` was never seen.
+    var sentAt: Date?
+
+    /// The `eventId` of the `submission.text` that carries the words: what a reply to this
+    /// message names. `nil` until that event has been seen.
+    var textEventId: String?
+
+    /// The `eventId` of the earlier message this one answers, when it answers one.
+    var replyToEventId: String?
+
+    /// What the agent wrote mid-turn while answering this, in the order it arrived.
+    var interim: [InterimMessage] = []
 }
 
 /// A line that is not a message: a notice, a rejection, or the history-unavailable separator.
@@ -160,6 +211,17 @@ struct TurnStateMachine: Equatable, Sendable {
     private(set) var records: [String: SubmissionRecord] = [:]
     private(set) var entries: [TranscriptEntry] = []
     private(set) var activity: TurnActivity?
+
+    /// When the running turn started, when the event that started it said. Cleared by its end.
+    private(set) var turnStartedAt: Date?
+
+    /// The tools the running turn has started, oldest first, as far as this device saw them.
+    /// Progress events are not kept by the server for long, so a thread opened late in a turn
+    /// shows a shorter trail. A list of starts, never a checklist: nothing says a tool finished.
+    private(set) var trail: [String] = []
+
+    /// How many tool names the trail keeps: a long turn shows its latest, not all of them.
+    static let maxTrail = 60
 
     /// The last cancel acknowledgement seen. When `hadRunningTask` is `false`, it is the whole
     /// story and no terminal follows.
@@ -231,7 +293,8 @@ struct TurnStateMachine: Equatable, Sendable {
     mutating func registerLocalSubmission(
         id: String,
         text: String,
-        attachments: [AttachmentDescriptor] = []
+        attachments: [AttachmentDescriptor] = [],
+        replyToEventId: String? = nil
     ) {
         if records[id] == nil {
             localEchoIds.insert(id)
@@ -239,6 +302,53 @@ struct TurnStateMachine: Equatable, Sendable {
         ensureRecord(id)
         records[id]?.text = text
         records[id]?.attachments = attachments
+        records[id]?.replyToEventId = replyToEventId
+    }
+
+    /// The message a row answers, found among those this device holds. `nil` when it answers
+    /// nothing. A message that has aged out of the thread, or was never loaded, is reported with
+    /// empty text: the row is still a reply, with nothing to quote.
+    func quoted(for record: SubmissionRecord) -> QuotedMessage? {
+        guard let target = record.replyToEventId else { return nil }
+        return message(eventId: target) ?? QuotedMessage(eventId: target, author: .agent, text: "")
+    }
+
+    /// One message of the thread, by the `eventId` that carried it.
+    func message(eventId: String) -> QuotedMessage? {
+        for id in submissionOrder {
+            guard let record = records[id] else { continue }
+            if record.textEventId == eventId {
+                return QuotedMessage(
+                    eventId: eventId,
+                    author: .you,
+                    text: QuotedMessage.excerpt(record.text ?? "")
+                )
+            }
+            if let reply = record.reply, reply.id == eventId {
+                return QuotedMessage(
+                    eventId: eventId,
+                    author: .agent,
+                    text: QuotedMessage.excerpt(reply.text)
+                )
+            }
+            if let said = record.interim.first(where: { $0.id == eventId }) {
+                return QuotedMessage(
+                    eventId: eventId,
+                    author: .agent,
+                    text: QuotedMessage.excerpt(said.text)
+                )
+            }
+        }
+        for entry in entries {
+            if case .recoveredAnswer(let reply) = entry, reply.id == eventId {
+                return QuotedMessage(
+                    eventId: eventId,
+                    author: .agent,
+                    text: QuotedMessage.excerpt(reply.text)
+                )
+            }
+        }
+        return nil
     }
 
     /// Applies a successful send's receipt to its echo.
@@ -321,6 +431,14 @@ struct TurnStateMachine: Equatable, Sendable {
                 activity: payload.activity,
                 toolName: payload.toolName
             )
+            if payload.activity == .tool, let tool = payload.toolName, !tool.isEmpty {
+                trail.append(tool)
+                if trail.count > Self.maxTrail {
+                    trail.removeFirst(trail.count - Self.maxTrail)
+                }
+            }
+        case .turnMessage(let payload):
+            applyTurnMessage(payload, event: event)
         case .turnNotice(let payload):
             entries.append(
                 .systemLine(SystemLine(id: event.eventId, kind: .notice, text: payload.text))
@@ -334,7 +452,8 @@ struct TurnStateMachine: Equatable, Sendable {
                         completion: .completed,
                         isPartial: false,
                         truncated: payload.truncated ?? false,
-                        isRecovered: true
+                        isRecovered: true,
+                        at: event.emittedDate
                     )
                 )
             )
@@ -386,6 +505,13 @@ struct TurnStateMachine: Equatable, Sendable {
         ensureRecord(id)
         records[id]?.text = text
         records[id]?.attachments = payload.attachments
+        records[id]?.sentAt = event.emittedDate
+        records[id]?.textEventId = event.eventId
+        // What the server stored is what the message answers. A message this device sent keeps
+        // the reference it sent with, which the server confirmed before storing either.
+        if let replyTo = payload.replyToEventId {
+            records[id]?.replyToEventId = replyTo
+        }
 
         guard let seq = event.seq else { return }
         durableIdBySeq[seq] = id
@@ -470,6 +596,31 @@ struct TurnStateMachine: Equatable, Sendable {
         if attachedByHost[id] == nil {
             attachedByHost[id] = []
         }
+        // A new turn has done nothing yet: a tool an earlier one started is not this one's.
+        turnStartedAt = event.emittedDate
+        trail = []
+    }
+
+    /// Puts what the agent wrote mid-turn on the row of the message it is answering.
+    ///
+    /// Not a terminal and not the answer: the row's state is untouched, and the turn is still
+    /// running until its own terminal says otherwise. Text that is empty once trimmed is nothing
+    /// to show. A turn this device never saw start has no row to put it on, and it is counted
+    /// and ignored rather than given an invented one.
+    private mutating func applyTurnMessage(_ payload: TurnMessagePayload, event: ConversationEvent) {
+        guard let id = event.identity.submissionId ?? hostSubmissionId, records[id] != nil,
+              !payload.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            ignoredEventKinds.append(event.kind.rawValue)
+            return
+        }
+        records[id]?.interim.append(
+            InterimMessage(
+                id: event.eventId,
+                text: payload.text,
+                truncated: payload.truncated ?? false,
+                at: event.emittedDate
+            )
+        )
     }
 
     private mutating func applyTerminal(event: ConversationEvent) {
@@ -528,7 +679,8 @@ struct TurnStateMachine: Equatable, Sendable {
                 completion: payload.completion,
                 isPartial: payload.isPartial ?? false,
                 truncated: payload.truncated ?? false,
-                isRecovered: false
+                isRecovered: false,
+                at: event.emittedDate
             )
         }
 
@@ -550,6 +702,21 @@ struct TurnStateMachine: Equatable, Sendable {
             hostSubmissionId = nil
         }
         activity = nil
+        turnStartedAt = nil
+        trail = []
+    }
+
+    /// The trail with runs of one tool folded: `Read, Read, Bash` is `Read ×2`, `Bash`.
+    static func folded(_ trail: [String]) -> [(tool: String, count: Int)] {
+        var out: [(tool: String, count: Int)] = []
+        for tool in trail {
+            if let last = out.last, last.tool == tool {
+                out[out.count - 1].count += 1
+            } else {
+                out.append((tool: tool, count: 1))
+            }
+        }
+        return out
     }
 
     private mutating func ensureRecord(_ id: String) {

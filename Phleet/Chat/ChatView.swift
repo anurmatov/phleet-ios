@@ -50,7 +50,8 @@ struct ChatView: View {
                                 agent: agent,
                                 fleetAgent: fleetAgent,
                                 hasNewActivity: hasNew,
-                                lastActivity: model.lastActivity(agent)
+                                lastActivity: model.lastActivity(agent),
+                                lastMessage: model.lastMessageLine(agent)
                             )
                         }
                         .accessibilityIdentifier(AccessibilityIdentifier.chatAgent.identifier)
@@ -123,6 +124,8 @@ struct ChatAgentRow: View {
     var fleetAgent: FleetAgent?
     var hasNewActivity = false
     var lastActivity: Date?
+    /// The thread's newest message, in one line. `nil` where there is none to show.
+    var lastMessage: String?
 
     @ScaledMetric(relativeTo: .body) private var symbolColumn: CGFloat = 24
 
@@ -145,6 +148,14 @@ struct ChatAgentRow: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(2)
                         .accessibilityIdentifier(AccessibilityIdentifier.chatAgentState.identifier)
+                }
+
+                if let lastMessage {
+                    Text(verbatim: lastMessage)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .accessibilityIdentifier(AccessibilityIdentifier.chatAgentLastMessage.identifier)
                 }
 
                 if hasNewActivity || lastActivity != nil {

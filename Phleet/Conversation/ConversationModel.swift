@@ -61,6 +61,9 @@ final class ConversationModel {
         case idempotencyConflict
         /// `409 agent_unavailable` — chat was turned off for this agent. Nothing was sent.
         case agentUnavailable
+        /// `400 reply_target_not_found` — the message this one answers is no longer in the
+        /// thread, and the server refused the reply whole. Nothing was sent.
+        case replyTargetGone
         /// Anything else. "Not known to have happened", which is not the same as "did not
         /// happen": a retry reuses the same ids.
         case notKnownToHaveHappened
@@ -87,12 +90,22 @@ final class ConversationModel {
         case refused
         /// The upload did not complete. The message was not sent, and the draft is kept.
         case notSent
+        /// A file larger than the server takes. Unlike a photo, a file cannot be made smaller.
+        case fileTooLarge
+        /// The server takes pictures and no other file: it is older than files in chat.
+        case filesUnsupported
     }
 
-    /// An image picked for the message being written: already converted, not yet uploaded.
+    /// Something picked for the message being written, not yet uploaded: a picture, already
+    /// converted to JPEG, or any other file, with its bytes as they are.
     struct OutgoingImage: Equatable, Sendable, Identifiable {
         let id: String
+        /// The bytes that go up. A JPEG for a picture; the file itself otherwise.
         let jpeg: Data
+        /// Not a picture: named in the composer rather than drawn, and sent as a file.
+        var isFile = false
+        /// A label for the server and for whoever saves the file. Never a path.
+        var fileName = "image.jpg"
     }
 
     /// A submission this device sent, kept so a retry can reuse its identifiers.
@@ -103,6 +116,8 @@ final class ConversationModel {
         /// What was uploaded for it. A retry names the same attachments: they are bound to this
         /// submission and to no other.
         var attachments: [SubmissionAttachmentRef] = []
+        /// The `eventId` of the message it answers. A retry answers the same one.
+        var replyToEventId: String?
     }
 
     enum CycleOutcome: Equatable, Sendable {
@@ -196,6 +211,24 @@ final class ConversationModel {
 
     var canAddImage: Bool {
         !attachmentsUnsupported && !isUploading && draftImages.count < Self.maxImagesPerMessage
+    }
+
+    // MARK: - Replying
+
+    /// The message the one being written answers, when it answers one. Kept with the thread, so
+    /// leaving the screen and coming back does not lose what was being answered.
+    private(set) var replyingTo: QuotedMessage?
+
+    /// Starts a reply to a message of this thread.
+    func startReply(to message: QuotedMessage) {
+        replyingTo = message
+        if sendFailure == .replyTargetGone {
+            sendFailure = nil
+        }
+    }
+
+    func cancelReply() {
+        replyingTo = nil
     }
 
     // MARK: - Observable history, for assertions and for logging
@@ -305,6 +338,48 @@ final class ConversationModel {
         return true
     }
 
+    /// The largest file the server takes.
+    nonisolated static let maxFileBytes = 8 * 1024 * 1024
+
+    /// Adds a file that is not a picture to the message being written, as it is.
+    ///
+    /// Nothing is converted and nothing is read: the agent opens it with its own tools. The name
+    /// is kept as a label only, reduced to its last component.
+    @discardableResult
+    func addFile(_ data: Data, named name: String) -> Bool {
+        attachmentFailure = nil
+        guard draftImages.count < Self.maxImagesPerMessage else {
+            attachmentFailure = .tooMany
+            return false
+        }
+        guard !data.isEmpty else {
+            attachmentFailure = .unreadable
+            return false
+        }
+        guard data.count <= Self.maxFileBytes else {
+            attachmentFailure = .fileTooLarge
+            return false
+        }
+        draftImages.append(
+            OutgoingImage(
+                id: newIdentifier(),
+                jpeg: data,
+                isFile: true,
+                fileName: Self.label(forFileNamed: name)
+            )
+        )
+        return true
+    }
+
+    /// A file's name as a label: its last path component, at most 120 characters, and `file`
+    /// when nothing is left.
+    nonisolated static func label(forFileNamed name: String) -> String {
+        let last = name.split(whereSeparator: { $0 == "/" || $0 == "\\" }).last.map(String.init) ?? ""
+        let cleaned = last.filter { !$0.isNewline && $0 != "\u{0}" }
+            .trimmingCharacters(in: .whitespaces)
+        return cleaned.isEmpty ? "file" : String(cleaned.prefix(120))
+    }
+
     func removeImage(id: String) {
         draftImages.removeAll { $0.id == id }
         uploadedAttachmentIds[id] = nil
@@ -341,16 +416,36 @@ final class ConversationModel {
             for image in draftImages {
                 do {
                     let attachmentId = try await upload(image, to: conversationId)
-                    references.append(SubmissionAttachmentRef(attachmentId: attachmentId))
-                    descriptors.append(
-                        AttachmentDescriptor(
+                    references.append(
+                        SubmissionAttachmentRef(
                             attachmentId: attachmentId,
-                            contentType: Self.imageContentType,
-                            byteSize: image.jpeg.count
+                            kind: image.isFile ? Self.fileKind : "image"
                         )
                     )
+                    descriptors.append(
+                        image.isFile
+                            ? AttachmentDescriptor(
+                                attachmentId: attachmentId,
+                                kind: "other",
+                                contentType: Self.fileContentType,
+                                byteSize: image.jpeg.count,
+                                fileName: image.fileName
+                            )
+                            : AttachmentDescriptor(
+                                attachmentId: attachmentId,
+                                contentType: Self.imageContentType,
+                                byteSize: image.jpeg.count
+                            )
+                    )
                 } catch {
-                    let failure = Self.attachmentFailure(for: error)
+                    var failure = Self.attachmentFailure(for: error)
+                    // A server from before files answers a file with the refusal it gives a
+                    // picture type it does not take. Said as what it is, and the draft is kept
+                    // so the pictures in it can still go.
+                    if image.isFile, case .refused(_, let status, _)? = error as? FleetAPIError,
+                       status == 415 {
+                        failure = .filesUnsupported
+                    }
                     if failure == .unsupportedServer {
                         attachmentsUnsupported = true
                         draftImages = []
@@ -368,31 +463,39 @@ final class ConversationModel {
             submissionId: newIdentifier(),
             idempotencyKey: newIdentifier(),
             text: text,
-            attachments: references
+            attachments: references,
+            replyToEventId: replyingTo?.eventId
         )
         pending[submission.submissionId] = submission
         machine.registerLocalSubmission(
             id: submission.submissionId,
             text: text,
-            attachments: descriptors
+            attachments: descriptors,
+            replyToEventId: submission.replyToEventId
         )
+        // The reply is on its way with this message; the next one answers nothing.
+        replyingTo = nil
         await post(submission)
         return submission
     }
 
     private nonisolated static let imageContentType = "image/jpeg"
+    /// What a file is declared as. The server records its own choice and never this one.
+    private nonisolated static let fileContentType = "application/octet-stream"
+    private nonisolated static let fileKind = "file"
 
     /// Reserves a slot, uploads the bytes into it, and keeps them for the row that shows them.
     private func upload(_ image: OutgoingImage, to conversationId: String) async throws -> String {
         if let uploaded = uploadedAttachmentIds[image.id] {
             return uploaded
         }
+        let contentType = image.isFile ? Self.fileContentType : Self.imageContentType
         let body = ReserveAttachmentBody(
-            kind: "image",
-            contentType: Self.imageContentType,
+            kind: image.isFile ? Self.fileKind : "image",
+            contentType: contentType,
             byteSize: image.jpeg.count,
             sha256: ImagePreparation.sha256Hex(image.jpeg),
-            fileName: "image.jpg"
+            fileName: image.fileName
         )
         let reservation = try await tokens.authorized { token in
             try await api.reserveAttachment(
@@ -408,11 +511,14 @@ final class ConversationModel {
             origin: origin,
             uploadToken: reservation.uploadToken,
             attachmentId: reservation.attachmentId,
-            contentType: Self.imageContentType,
+            contentType: contentType,
             data: image.jpeg
         )
         uploadedAttachmentIds[image.id] = reservation.attachmentId
-        images.store(image.jpeg, for: reservation.attachmentId)
+        // Kept for the row that draws it. A file is named there, not drawn, and is not kept.
+        if !image.isFile {
+            images.store(image.jpeg, for: reservation.attachmentId)
+        }
         return reservation.attachmentId
     }
 
@@ -511,7 +617,8 @@ final class ConversationModel {
             submissionId: submission.submissionId,
             idempotencyKey: submission.idempotencyKey,
             text: submission.text,
-            attachments: submission.attachments.isEmpty ? nil : submission.attachments
+            attachments: submission.attachments.isEmpty ? nil : submission.attachments,
+            replyToEventId: submission.replyToEventId
         )
 
         do {
@@ -538,10 +645,15 @@ final class ConversationModel {
             sendFailure = .idempotencyConflict
         } catch FleetAPIError.refused(.agentUnavailable, _, _) {
             sendFailure = .agentUnavailable
+        } catch FleetAPIError.refused(.unknown(Self.replyTargetNotFound), _, _) {
+            // A code this build knows by name only: the server added it with replies.
+            sendFailure = .replyTargetGone
         } catch {
             sendFailure = .notKnownToHaveHappened
         }
     }
+
+    private nonisolated static let replyTargetNotFound = "reply_target_not_found"
 
     // MARK: - Cursor
 

@@ -20,7 +20,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
-	<string>The camera reads the setup code your dashboard shows, which signs this phone in to your fleet.</string>
+	<string>The camera reads the setup code your dashboard shows, which signs this phone in to your fleet, and takes a photo when you choose to send one to an agent.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>When you turn on “Confirm it’s you”, Face ID is asked before a decision or a disruptive action is sent to your fleet.</string>
 	<!-- The app's private keychain access group, expanded by the build exactly as the

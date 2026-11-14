@@ -107,6 +107,24 @@ extension ConversationEvent: Decodable {
         payload = EventPayload(kind: decodedKind, container: payloadContainer)
     }
 
+    /// When the event was written, or `nil` when it does not say or says it in a form this
+    /// build cannot read. A time is for showing; nothing orders or correlates by it.
+    var emittedDate: Date? {
+        guard let emittedAt else { return nil }
+        return ConversationEvent.parse(instant: emittedAt)
+    }
+
+    /// An ISO-8601 instant with an offset, with or without a fraction of a second: the server
+    /// writes both.
+    static func parse(instant: String) -> Date? {
+        let withFraction = ISO8601DateFormatter()
+        withFraction.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = withFraction.date(from: instant) { return date }
+        let plain = ISO8601DateFormatter()
+        plain.formatOptions = [.withInternetDateTime]
+        return plain.date(from: instant)
+    }
+
     /// Decodes one envelope from raw bytes.
     static func decode(from data: Data) throws -> ConversationEvent {
         try JSONDecoder().decode(ConversationEvent.self, from: data)
@@ -137,7 +155,8 @@ extension EventPayload {
             self = .submissionText(
                 SubmissionTextPayload(
                     text: EventPayload.string(container, "text"),
-                    attachments: EventPayload.attachments(container, "attachments")
+                    attachments: EventPayload.attachments(container, "attachments"),
+                    replyToEventId: EventPayload.string(container, "replyToEventId")
                 )
             )
 
@@ -174,6 +193,14 @@ extension EventPayload {
         case .turnRecoveredAnswer:
             self = .turnRecoveredAnswer(
                 TurnRecoveredAnswerPayload(
+                    text: EventPayload.string(container, "text") ?? "",
+                    truncated: EventPayload.bool(container, "truncated")
+                )
+            )
+
+        case .turnMessage:
+            self = .turnMessage(
+                TurnMessagePayload(
                     text: EventPayload.string(container, "text") ?? "",
                     truncated: EventPayload.bool(container, "truncated")
                 )

@@ -27,6 +27,17 @@ struct TranscriptEntryView: View {
     var images: AttachmentImages?
     let sendAgain: () -> Void
 
+    /// The earlier message this one answers, when it answers one.
+    var quoted: QuotedMessage?
+    /// What the agent is called, for naming whose message a reply answers.
+    var agentName: String = ""
+    /// When the running turn started and the tools it has started so far. Shown beside the
+    /// indicator of the row that owns it.
+    var turnStartedAt: Date?
+    var trail: [String] = []
+    /// Starts a reply to one of this row's messages. `nil` where replying is not offered.
+    var onReply: ((QuotedMessage) -> Void)?
+
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -44,12 +55,26 @@ struct TranscriptEntryView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if let quoted {
+                QuotedMessageView(quoted: quoted, agentName: agentName)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+            }
+
             humanBody
 
             stateRow
 
+            ForEach(record.interim) { said in
+                interimView(said)
+            }
+
             if record.state.ownsProgressIndicator {
-                ProgressIndicatorView(activity: activity, reduceMotion: reduceMotion)
+                ProgressIndicatorView(
+                    activity: activity,
+                    reduceMotion: reduceMotion,
+                    startedAt: turnStartedAt,
+                    trail: trail
+                )
             }
 
             if let reply = record.reply {
@@ -117,10 +142,26 @@ struct TranscriptEntryView: View {
     private var stateRow: some View {
         VStack(alignment: .trailing, spacing: 4) {
             HStack(spacing: 6) {
+                if let onReply, let eventId = record.textEventId {
+                    replyButton {
+                        onReply(
+                            QuotedMessage(
+                                eventId: eventId,
+                                author: .you,
+                                text: QuotedMessage.excerpt(record.text ?? "")
+                            )
+                        )
+                    }
+                }
                 Image(systemName: stateSymbol)
                     .imageScale(.small)
                 Text(stateKey)
                     .font(.caption)
+                if let sentAt = record.sentAt {
+                    Text(sentAt, style: .time)
+                        .font(.caption)
+                        .monospacedDigit()
+                }
             }
 
             if record.isAnsweredTogether {
@@ -188,10 +229,78 @@ struct TranscriptEntryView: View {
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
+            messageFooter(at: reply.at, eventId: reply.id, text: reply.text)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(AccessibilityIdentifier.conversationAgentReply.identifier)
+    }
+
+    /// Something the agent wrote mid-turn, before going on to a tool. Set apart from an answer by
+    /// a rule down its leading edge and a quieter colour: it is part of the thread, not the reply.
+    private func interimView(_ said: InterimMessage) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            MarkdownBlocksView(
+                text: said.text,
+                identifier: .conversationInterim,
+                spokenPrefix: String(localized: "conversation.speaker.agent"),
+                copyActionKey: "conversation.copy.reply"
+            )
+            .foregroundStyle(.secondary)
+            if said.truncated {
+                Text("conversation.interim.truncated")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            messageFooter(at: said.at, eventId: said.id, text: said.text)
+        }
+        .padding(.leading, 10)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(.quaternary)
+                .frame(width: 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+    }
+
+    /// Under something the agent wrote: when, and a way to answer it.
+    @ViewBuilder
+    private func messageFooter(at: Date?, eventId: String, text: String) -> some View {
+        if at != nil || (onReply != nil && !text.isEmpty) {
+            HStack(spacing: 10) {
+                if let at {
+                    Text(at, style: .time)
+                        .font(.caption2)
+                        .monospacedDigit()
+                }
+                if let onReply, !text.isEmpty {
+                    replyButton {
+                        onReply(
+                            QuotedMessage(
+                                eventId: eventId,
+                                author: .agent,
+                                text: QuotedMessage.excerpt(text)
+                            )
+                        )
+                    }
+                }
+            }
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    /// A small button, so it does not take the long press a message's text needs for selection.
+    private func replyButton(_ action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "arrowshape.turn.up.left")
+                .imageScale(.small)
+                .frame(minWidth: 28, minHeight: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(AccessibilityIdentifier.conversationReply.identifier)
+        .accessibilityLabel(AccessibilityIdentifier.conversationReply.localizedLabel)
     }
 
     // MARK: - Pasteboard
@@ -286,28 +395,71 @@ struct ProgressIndicatorView: View {
 
     let activity: TurnActivity?
     let reduceMotion: Bool
+    /// When the turn started, for how long it has been running. `nil` when no event said.
+    var startedAt: Date?
+    /// The tools the turn has started so far, oldest first. Starts only: nothing ever says a tool
+    /// finished, so this is a trail and never a checklist.
+    var trail: [String] = []
+
+    /// How many steps of the trail are shown: the latest ones.
+    static let shownSteps = 5
 
     var body: some View {
-        HStack(spacing: 8) {
-            if reduceMotion {
-                // Static and still labelled. The animation was never what carried the meaning.
-                Image(systemName: "hourglass")
-                    .imageScale(.small)
-            } else {
-                ProgressView()
-                    .controlSize(.small)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                if reduceMotion {
+                    // Static and still labelled. The animation was never what carried the meaning.
+                    Image(systemName: "hourglass")
+                        .imageScale(.small)
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Text(progressKey)
+                    .font(.caption)
+                if let toolName = activity?.toolName, !toolName.isEmpty {
+                    Text(verbatim: toolName)
+                        .font(.caption.monospaced())
+                }
+                if let startedAt {
+                    // The system's own running clock: it counts without this view redrawing.
+                    // For eyes only: read aloud every second it would drown everything else.
+                    Text(startedAt, style: .timer)
+                        .font(.caption)
+                        .monospacedDigit()
+                        .accessibilityHidden(true)
+                }
             }
-            Text(progressKey)
-                .font(.caption)
-            if let toolName = activity?.toolName, !toolName.isEmpty {
-                Text(verbatim: toolName)
-                    .font(.caption.monospaced())
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationProgress.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.conversationProgress.localizedLabel)
+
+            let steps = Self.steps(for: trail)
+            if steps.count > 1 {
+                Text(verbatim: steps.joined(separator: " · "))
+                    .font(.caption2.monospaced())
+                    .lineLimit(2)
+                    .accessibilityIdentifier(AccessibilityIdentifier.conversationTrail.identifier)
+                    .accessibilityLabel(
+                        AccessibilityIdentifier.conversationTrail.localizedLabel
+                            + ". " + steps.joined(separator: ", ")
+                    )
             }
         }
         .foregroundStyle(.secondary)
-        .accessibilityElement(children: .combine)
-        .accessibilityIdentifier(AccessibilityIdentifier.conversationProgress.identifier)
-        .accessibilityLabel(AccessibilityIdentifier.conversationProgress.localizedLabel)
+    }
+
+    /// The latest steps of the trail, runs of one tool folded: `Read ×3`, `Bash`. An ellipsis
+    /// first when there were more than are shown.
+    static func steps(for trail: [String]) -> [String] {
+        let folded = TurnStateMachine.folded(trail)
+        var steps = folded.suffix(shownSteps).map { step in
+            step.count > 1 ? "\(step.tool) ×\(step.count)" : step.tool
+        }
+        if folded.count > shownSteps {
+            steps.insert("…", at: 0)
+        }
+        return steps
     }
 
     private var progressKey: LocalizedStringKey {
@@ -345,8 +497,16 @@ struct SentAttachmentView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 10))
             } else {
                 Label {
-                    Text(placeholderKey)
-                        .font(.footnote)
+                    if !attachment.isImage, let name = attachment.fileName, !name.isEmpty {
+                        // A file is named, never drawn: the name is what was sent.
+                        Text(verbatim: name)
+                            .font(.footnote)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } else {
+                        Text(placeholderKey)
+                            .font(.footnote)
+                    }
                 } icon: {
                     Image(systemName: attachment.isImage ? "photo" : "doc")
                 }
@@ -391,5 +551,51 @@ struct SentAttachmentView: View {
         guard longSide > side, longSide > 0 else { return size }
         let ratio = side / longSide
         return CGSize(width: size.width * ratio, height: size.height * ratio)
+    }
+}
+
+/// What a message answers, above it: who wrote the earlier message and how it starts.
+///
+/// A message that is no longer among those this phone holds is still said to be a reply, with
+/// nothing quoted: the thread keeps messages for a while, not for ever.
+struct QuotedMessageView: View {
+
+    let quoted: QuotedMessage
+    var agentName: String = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(verbatim: author)
+                .font(.caption2.weight(.semibold))
+            if quoted.text.isEmpty {
+                Text("conversation.quote.gone")
+                    .font(.caption.italic())
+            } else {
+                Text(verbatim: quoted.text)
+                    .font(.caption)
+                    .lineLimit(2)
+            }
+        }
+        .foregroundStyle(.secondary)
+        .padding(.vertical, 4)
+        .padding(.leading, 8)
+        .overlay(alignment: .leading) {
+            Rectangle()
+                .fill(.tertiary)
+                .frame(width: 2)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(AccessibilityIdentifier.conversationQuote.identifier)
+        .accessibilityLabel(
+            AccessibilityIdentifier.conversationQuote.localizedLabel + ". " + author
+                + (quoted.text.isEmpty ? "" : ". " + quoted.text)
+        )
+    }
+
+    private var author: String {
+        switch quoted.author {
+        case .you: return String(localized: "conversation.speaker.you")
+        case .agent: return agentName.isEmpty ? String(localized: "conversation.speaker.agent") : agentName
+        }
     }
 }

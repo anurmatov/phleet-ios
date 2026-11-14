@@ -100,6 +100,22 @@ final class ChatModel {
         threads[agent.agentName]?.lastActivityAt
     }
 
+    /// The thread's newest message as one line, with the person's own marked as theirs. `nil`
+    /// where the server says nothing of it.
+    func lastMessageLine(_ agent: ChatAgent) -> String? {
+        Self.line(for: threads[agent.agentName]?.lastMessage)
+    }
+
+    /// One line of a thread: whitespace folded, and a message that was files only said to be that.
+    nonisolated static func line(for message: ConversationSummary.LastMessage?) -> String? {
+        guard let message else { return nil }
+        let folded = message.text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let words = folded.isEmpty ? String(localized: "chat.agent.sentFile") : folded
+        return message.isFromUser
+            ? String(localized: "chat.agent.you") + ": " + words
+            : words
+    }
+
     /// Records how far a thread has been shown. Called while its screen is open, so what was
     /// read there is not announced as new on the way back to the list.
     func markSeen(_ agent: ChatAgent, position: Int) {

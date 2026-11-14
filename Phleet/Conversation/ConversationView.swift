@@ -1,6 +1,7 @@
 import PhotosUI
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// The thread: what has happened, and one place to say something.
 ///
@@ -27,6 +28,9 @@ struct ConversationView: View {
 
     @State private var announcedCount = 0
     @State private var pickedItems: [PhotosPickerItem] = []
+    @State private var showsPhotoLibrary = false
+    @State private var showsCamera = false
+    @State private var showsFileImporter = false
 
     @FocusState private var composerFocused: Bool
 
@@ -92,15 +96,28 @@ struct ConversationView: View {
     private var transcript: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 16) {
+                let days = dayHeaders
                 ForEach(model.machine.entries) { entry in
+                    if let day = days[entry.id] {
+                        dayHeader(day)
+                    }
                     switch entry {
                     case .submission(let submissionId):
                         if let record = model.machine.record(submissionId) {
+                            let running = record.state.ownsProgressIndicator
                             TranscriptEntryView(
                                 record: record,
                                 activity: model.machine.activity,
                                 images: model.images,
-                                sendAgain: { Task { await model.sendAgain(after: submissionId) } }
+                                sendAgain: { Task { await model.sendAgain(after: submissionId) } },
+                                quoted: model.machine.quoted(for: record),
+                                agentName: model.agent.displayName,
+                                turnStartedAt: running ? model.machine.turnStartedAt : nil,
+                                trail: running ? model.machine.trail : [],
+                                onReply: { message in
+                                    model.startReply(to: message)
+                                    composerFocused = true
+                                }
                             )
                         }
 
@@ -152,6 +169,48 @@ struct ConversationView: View {
         .simultaneousGesture(TapGesture().onEnded { composerFocused = false })
         .accessibilityIdentifier(AccessibilityIdentifier.conversationTranscript.identifier)
         .accessibilityLabel(AccessibilityIdentifier.conversationTranscript.localizedLabel)
+    }
+
+    /// Where a new day begins in the thread: the first message of each day, by the row it is on.
+    ///
+    /// Only a message's own time counts, and only where it is known: a row with no time (a
+    /// message this phone has just sent, a notice) belongs to the day of the row before it.
+    private var dayHeaders: [String: Date] {
+        var headers: [String: Date] = [:]
+        var current: DateComponents?
+        let calendar = Calendar.current
+        for entry in model.machine.entries {
+            guard case .submission(let submissionId) = entry,
+                  let sentAt = model.machine.record(submissionId)?.sentAt else { continue }
+            let day = calendar.dateComponents([.year, .month, .day], from: sentAt)
+            if day != current {
+                current = day
+                headers[entry.id] = sentAt
+            }
+        }
+        return headers
+    }
+
+    private func dayHeader(_ day: Date) -> some View {
+        Text(Self.dayTitle(for: day))
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.top, 4)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationDay.identifier)
+    }
+
+    /// Today, Yesterday, or the date, as the system writes them in the person's own language.
+    static func dayTitle(for day: Date, relativeTo now: Date = Date(), calendar: Calendar = .current) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        // "Today" and "Yesterday" for those two days; the date for every other.
+        formatter.doesRelativeDateFormatting = calendar.isDate(day, inSameDayAs: now)
+            || calendar.isDate(day, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now) ?? now)
+        return formatter.string(from: day)
     }
 
     @ViewBuilder
@@ -206,7 +265,9 @@ struct ConversationView: View {
 
     private func composer(draft: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            stopRow
+            stopNotice
+
+            replyingRow
 
             if let failure = model.sendFailure {
                 Text(failureKey(failure))
@@ -260,9 +321,10 @@ struct ConversationView: View {
 
     /// Stop, while a turn of this thread is running. One tap: stopping costs the answer that was
     /// on its way and nothing else, and the moment it is wanted is the moment a second tap is
-    /// one too many.
+    /// one too many. It sits beside Send, where the thumb already is, and Send stays: a message
+    /// written while the agent works joins the turn or waits behind it.
     @ViewBuilder
-    private var stopRow: some View {
+    private var stopButton: some View {
         if model.canStop || model.isStopping {
             Button(role: .destructive) {
                 Task { await model.stop() }
@@ -272,14 +334,45 @@ struct ConversationView: View {
                 } icon: {
                     Image(systemName: "stop.circle")
                 }
-                .font(.subheadline)
+                .labelStyle(.iconOnly)
+                .imageScale(.large)
             }
             .buttonStyle(.bordered)
             .disabled(model.isStopping)
             .accessibilityIdentifier(AccessibilityIdentifier.conversationStop.identifier)
             .accessibilityLabel(AccessibilityIdentifier.conversationStop.localizedLabel)
         }
+    }
 
+    /// What the message being written answers, with a way to take that back.
+    @ViewBuilder
+    private var replyingRow: some View {
+        if let replyingTo = model.replyingTo {
+            HStack(alignment: .center, spacing: 8) {
+                Image(systemName: "arrowshape.turn.up.left")
+                    .imageScale(.small)
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
+                QuotedMessageView(quoted: replyingTo, agentName: model.agent.displayName)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    model.cancelReply()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .symbolRenderingMode(.hierarchical)
+                        .imageScale(.large)
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier(AccessibilityIdentifier.conversationReplyCancel.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.conversationReplyCancel.localizedLabel)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationReplyingTo.identifier)
+        }
+    }
+
+    @ViewBuilder
+    private var stopNotice: some View {
         if let failure = model.stopFailure {
             Text(stopFailureKey(failure))
                 .font(.caption)
@@ -307,7 +400,25 @@ struct ConversationView: View {
 
     private func draftImage(_ image: ConversationModel.OutgoingImage) -> some View {
         ZStack(alignment: .topTrailing) {
-            if let picture = UIImage(data: image.jpeg) {
+            if image.isFile {
+                // A file is named, never drawn.
+                VStack(spacing: 4) {
+                    Image(systemName: "doc")
+                    Text(verbatim: image.fileName)
+                        .font(.caption2)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .foregroundStyle(.secondary)
+                .padding(6)
+                .frame(width: draftImageSide * 1.6, height: draftImageSide)
+                .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                .accessibilityElement(children: .ignore)
+                .accessibilityIdentifier(AccessibilityIdentifier.conversationAttachment.identifier)
+                .accessibilityLabel(
+                    AccessibilityIdentifier.conversationAttachment.localizedLabel + ". " + image.fileName
+                )
+            } else if let picture = UIImage(data: image.jpeg) {
                 Image(uiImage: picture)
                     .resizable()
                     .scaledToFill()
@@ -346,6 +457,7 @@ struct ConversationView: View {
                 composerField(draft: draft)
                 HStack(spacing: 12) {
                     imagePicker
+                    stopButton
                     sendButton(draft: draft)
                 }
             }
@@ -353,6 +465,7 @@ struct ConversationView: View {
             HStack(spacing: 8) {
                 imagePicker
                 composerField(draft: draft)
+                stopButton
                 sendButton(draft: draft)
             }
         }
@@ -363,23 +476,89 @@ struct ConversationView: View {
     @ViewBuilder
     private var imagePicker: some View {
         if !model.attachmentsUnsupported {
-            PhotosPicker(
+            // One button, three places a thing to send can come from. Each is the system's own
+            // screen and hands over only what was picked, so nothing here asks for access to
+            // the photo library or to files.
+            Menu {
+                Button {
+                    showsPhotoLibrary = true
+                } label: {
+                    Label("conversation.attach.photos", systemImage: "photo.on.rectangle")
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.conversationAttachPhotos.identifier)
+
+                if CameraPicker.isAvailable {
+                    Button {
+                        showsCamera = true
+                    } label: {
+                        Label("conversation.attach.camera", systemImage: "camera")
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.conversationAttachCamera.identifier)
+                }
+
+                Button {
+                    showsFileImporter = true
+                } label: {
+                    Label("conversation.attach.file", systemImage: "doc")
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.conversationAttachFile.identifier)
+            } label: {
+                Image(systemName: "paperclip")
+                    .imageScale(.large)
+                    .frame(minWidth: 36, minHeight: 36)
+            }
+            .disabled(!model.canAddImage)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.conversationAttach.localizedLabel)
+            .photosPicker(
+                isPresented: $showsPhotoLibrary,
                 selection: $pickedItems,
                 maxSelectionCount: max(
                     1,
                     ConversationModel.maxImagesPerMessage - model.draftImages.count
                 ),
                 matching: .images
-            ) {
-                // The hook is on the label as well as the picker: the picker is the system's
-                // control, and where it puts an identifier given to it is the system's business.
-                Image(systemName: "photo.on.rectangle.angled")
-                    .imageScale(.large)
-                    .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)
+            )
+            .fullScreenCover(isPresented: $showsCamera) {
+                CameraPicker { photo in
+                    showsCamera = false
+                    if let photo {
+                        model.addImage(photo)
+                    }
+                }
+                .ignoresSafeArea()
             }
-            .disabled(!model.canAddImage)
-            .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)
-            .accessibilityLabel(AccessibilityIdentifier.conversationAttach.localizedLabel)
+            .fileImporter(
+                isPresented: $showsFileImporter,
+                allowedContentTypes: [.item],
+                allowsMultipleSelection: true
+            ) { result in
+                addFiles(result)
+            }
+        }
+    }
+
+    /// Takes what the file picker returned. A picture goes the way a picked photo does, so the
+    /// agent is shown it; anything else goes as the file it is.
+    private func addFiles(_ result: Result<[URL], Error>) {
+        guard case .success(let urls) = result else { return }
+        for url in urls {
+            // A picked file is outside this app's own storage: access is asked for, used for
+            // the one read, and given back.
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer {
+                if scoped { url.stopAccessingSecurityScopedResource() }
+            }
+            guard let data = try? Data(contentsOf: url) else {
+                model.addFile(Data(), named: url.lastPathComponent)
+                continue
+            }
+            if UTType(filenameExtension: url.pathExtension)?.conforms(to: .image) == true,
+               UIImage(data: data) != nil {
+                model.addImage(data)
+            } else {
+                model.addFile(data, named: url.lastPathComponent)
+            }
         }
     }
 
@@ -461,6 +640,8 @@ struct ConversationView: View {
         case .unsupportedServer: return "conversation.attachment.failure.unsupported"
         case .refused: return "conversation.attachment.failure.refused"
         case .notSent: return "conversation.attachment.failure.notSent"
+        case .fileTooLarge: return "conversation.attachment.failure.fileTooLarge"
+        case .filesUnsupported: return "conversation.attachment.failure.filesUnsupported"
         }
     }
 
@@ -469,6 +650,7 @@ struct ConversationView: View {
         case .tooLarge: return "conversation.send.failure.tooLarge"
         case .idempotencyConflict: return "conversation.send.failure.idempotencyConflict"
         case .agentUnavailable: return "conversation.send.failure.agentUnavailable"
+        case .replyTargetGone: return "conversation.send.failure.replyTargetGone"
         case .notKnownToHaveHappened: return "conversation.send.failure.notKnown"
         }
     }
@@ -488,6 +670,16 @@ struct ConversationView: View {
             AccessibilityNotification.Announcement(
                 String(localized: announcementResource(for: announcement.kind))
             ).post()
+        }
+        // A tap in the hand when the turn ends, while the thread is on screen: an answer is felt
+        // as well as seen, and a failure feels different from one.
+        if scenePhase == .active, let last = announcements.suffix(newCount - announcedCount).last {
+            let feedback = UINotificationFeedbackGenerator()
+            switch last.kind {
+            case .turnFinal: feedback.notificationOccurred(.success)
+            case .turnError, .turnOutcomeUnknown: feedback.notificationOccurred(.error)
+            default: feedback.notificationOccurred(.warning)
+            }
         }
         announcedCount = newCount
     }

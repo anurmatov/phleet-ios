@@ -14,6 +14,8 @@ enum EventKind: Hashable, Sendable {
     case turnProgress
     case turnNotice
     case turnRecoveredAnswer
+    /// A whole message the agent wrote mid-turn, before going on to a tool. Never the answer.
+    case turnMessage
     case turnFinal
     case turnError
     case turnCanceled
@@ -25,8 +27,9 @@ enum EventKind: Hashable, Sendable {
     /// A kind this build does not know. Ignored without error, never rendered.
     case unknown(String)
 
-    /// The thirteen kinds this build renders: the issue's allowlist, with `submission.text` first
-    /// because it takes the seq before everything its turn produces.
+    /// The kinds this build renders: the issue's allowlist of thirteen, with `submission.text`
+    /// first because it takes the seq before everything its turn produces, and `turn.message`,
+    /// which the server added later.
     static let rendered: [EventKind] = [
         .submissionText,
         .submissionAccepted,
@@ -34,6 +37,7 @@ enum EventKind: Hashable, Sendable {
         .turnProgress,
         .turnNotice,
         .turnRecoveredAnswer,
+        .turnMessage,
         .turnFinal,
         .turnError,
         .turnCanceled,
@@ -51,6 +55,7 @@ enum EventKind: Hashable, Sendable {
         case "turn.progress": self = .turnProgress
         case "turn.notice": self = .turnNotice
         case "turn.recovered_answer": self = .turnRecoveredAnswer
+        case "turn.message": self = .turnMessage
         case "turn.final": self = .turnFinal
         case "turn.error": self = .turnError
         case "turn.canceled": self = .turnCanceled
@@ -70,6 +75,7 @@ enum EventKind: Hashable, Sendable {
         case .turnProgress: return "turn.progress"
         case .turnNotice: return "turn.notice"
         case .turnRecoveredAnswer: return "turn.recovered_answer"
+        case .turnMessage: return "turn.message"
         case .turnFinal: return "turn.final"
         case .turnError: return "turn.error"
         case .turnCanceled: return "turn.canceled"

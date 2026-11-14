@@ -176,5 +176,39 @@ final class ChatListTests: XCTestCase {
         XCTAssertEqual(list.conversations.count, 1)
         XCTAssertEqual(list.conversations.first?.nextSeq, 41)
         XCTAssertNotNil(list.conversations.first?.lastActivityAt)
+        // A server from before the line sends none, and the thread is listed all the same.
+        XCTAssertNil(list.conversations.first?.lastMessage)
+    }
+
+    func testAThreadsNewestMessageDecodesAndALineThatCannotBeReadCostsOnlyTheLine() throws {
+        let json = """
+        {"protocol":"\(ProtocolVersion.current)","conversations":[
+          {"conversationId":"c-1","agent":"builder","externalRef":"main","nextSeq":41,
+           "lastMessage":{"from":"agent","text":"Three issues are open.","truncated":true}},
+          {"conversationId":"c-2","agent":"writer","externalRef":"main","nextSeq":3,
+           "lastMessage":{"from":"user","text":""}},
+          {"conversationId":"c-3","agent":"scribe","externalRef":"main","nextSeq":3,
+           "lastMessage":"not an object"}
+        ]}
+        """
+        let list = try JSONDecoder().decode(ConversationListResponse.self, from: Data(json.utf8))
+
+        XCTAssertEqual(list.conversations.count, 3)
+        XCTAssertEqual(list.conversations[0].lastMessage?.text, "Three issues are open.")
+        XCTAssertEqual(list.conversations[0].lastMessage?.isFromUser, false)
+        XCTAssertEqual(list.conversations[1].lastMessage?.isFromUser, true)
+        XCTAssertNil(list.conversations[2].lastMessage)
+    }
+
+    func testAThreadsLineIsOneLineOfItsNewestMessage() {
+        XCTAssertNil(ChatModel.line(for: nil))
+        XCTAssertEqual(
+            ChatModel.line(for: .init(from: "agent", text: "Three issues\n are   open.")),
+            "Three issues are open."
+        )
+        // The person's own message is marked as theirs, whatever the words for that are.
+        let mine = ChatModel.line(for: .init(from: "user", text: "and closed?"))
+        XCTAssertEqual(mine?.hasSuffix(": and closed?"), true)
+        XCTAssertNotEqual(mine, "and closed?")
     }
 }
