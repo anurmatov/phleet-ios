@@ -23,28 +23,76 @@ final class KeychainCredentialStore: CredentialStore {
     static let defaultService = "com.anvarlab.phleet.sign-in"
     static let defaultAccount = "device"
 
+    /// The app's `Info.plist` key holding its private access group, as the build expanded it:
+    /// `$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`, the same expansion as the
+    /// `keychain-access-groups` entitlement. Read rather than assembled here, so no team prefix
+    /// is ever guessed.
+    static let privateAccessGroupInfoKey = "PhleetPrivateKeychainAccessGroup"
+
+    /// The app's private access group from the running bundle, or `nil` where the key is absent
+    /// — in an extension, which reads the app group and nothing else.
+    static func privateAccessGroup(in bundle: Bundle = .main) -> String? {
+        bundle.object(forInfoDictionaryKey: privateAccessGroupInfoKey) as? String
+    }
+
+    /// The four Security calls a store makes. Always the real ones in the app; a test replaces
+    /// exactly the call it fails and lets every other one reach the real keychain.
+    struct SecurityCalls {
+        var copyMatching: (CFDictionary, UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus =
+            SecItemCopyMatching
+        var add: (CFDictionary, UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus = SecItemAdd
+        var update: (CFDictionary, CFDictionary) -> OSStatus = SecItemUpdate
+        var delete: (CFDictionary) -> OSStatus = SecItemDelete
+    }
+
     private let service: String
     private let account: String
 
-    /// The access group the item lives in, or `nil` for the app's own.
+    /// The one access group every read, update, add and delete names.
     ///
-    /// The app's own group is readable by the app and nothing else. The app group is readable by
-    /// the app and its two extensions — the widget and the share sheet — which is what lets them
-    /// sign in at all. Naming a group in a query confines the query to that group; naming none
-    /// searches every group the caller may read.
+    /// The app's private group is readable by the app and nothing else. The app group is readable
+    /// by the app and its two extensions — the widget and the share sheet — which is what lets
+    /// them sign in at all. Naming a group confines a query to it; naming none searches every
+    /// group the caller may read, and a delete then removes the match from all of them. So there
+    /// is no "none": a store whose group is missing, empty or unexpanded refuses every operation
+    /// with `invalidAccessGroup` before calling Security.
     private let accessGroup: String?
+
+    private let security: SecurityCalls
 
     init(
         service: String = KeychainCredentialStore.defaultService,
         account: String = KeychainCredentialStore.defaultAccount,
-        accessGroup: String? = nil
+        accessGroup: String? = KeychainCredentialStore.privateAccessGroup(),
+        security: SecurityCalls = SecurityCalls()
     ) {
         self.service = service
         self.account = account
         self.accessGroup = accessGroup
+        self.security = security
     }
 
-    /// The query identifying this app's one credential item.
+    /// The group as given, or `nil` when it is missing, empty, holds whitespace, or still holds a
+    /// `$` the build should have replaced.
+    static func validAccessGroup(_ accessGroup: String?) -> String? {
+        guard let accessGroup,
+              !accessGroup.isEmpty,
+              !accessGroup.contains("$"),
+              accessGroup.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
+        else { return nil }
+        return accessGroup
+    }
+
+    private func confinedGroup() throws -> String {
+        guard let group = Self.validAccessGroup(accessGroup) else {
+            throw CredentialStoreError.invalidAccessGroup
+        }
+        return group
+    }
+
+    /// The query identifying this app's one credential item. With no group it is the unscoped
+    /// query earlier builds made, which `KeychainLegacyCredentialStore` still uses for their items;
+    /// a store instance always passes its group.
     static func baseQuery(
         service: String,
         account: String,
@@ -79,12 +127,13 @@ final class KeychainCredentialStore: CredentialStore {
     }
 
     func load() throws -> DeviceCredential? {
-        var query = Self.baseQuery(service: service, account: account, accessGroup: accessGroup)
+        let group = try confinedGroup()
+        var query = Self.baseQuery(service: service, account: account, accessGroup: group)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
         var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
+        let status = security.copyMatching(query as CFDictionary, &item)
 
         switch status {
         case errSecSuccess:
@@ -108,6 +157,7 @@ final class KeychainCredentialStore: CredentialStore {
     }
 
     func save(_ credential: DeviceCredential) throws {
+        let group = try confinedGroup()
         let payload: Data
         do {
             payload = try JSONEncoder().encode(credential)
@@ -115,31 +165,42 @@ final class KeychainCredentialStore: CredentialStore {
             throw CredentialStoreError.malformedPayload
         }
 
-        // Delete-then-add rather than update, so a rotated secret replaces the item wholesale
-        // and cannot leave a half-updated one behind.
-        let deleteStatus = SecItemDelete(
-            Self.baseQuery(service: service, account: account, accessGroup: accessGroup)
-                as CFDictionary
-        )
-        guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
-            throw CredentialStoreError.writeFailed(status: deleteStatus)
+        // Update in place, and add only when there is nothing to update. Never delete first: a
+        // replacement that then fails would leave no credential at all. The update carries the
+        // whole payload, so a rotated secret still replaces the item wholesale.
+        let query = Self.baseQuery(service: service, account: account, accessGroup: group)
+        let changes: [String: Any] = [
+            kSecValueData as String: payload,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
+        ]
+        let updateStatus = security.update(query as CFDictionary, changes as CFDictionary)
+        switch updateStatus {
+        case errSecSuccess:
+            return
+        case errSecItemNotFound:
+            break
+        default:
+            throw CredentialStoreError.writeFailed(status: updateStatus)
         }
 
         let attributes = Self.writeAttributes(
             service: service,
             account: account,
             payload: payload,
-            accessGroup: accessGroup
+            accessGroup: group
         )
-        let addStatus = SecItemAdd(attributes as CFDictionary, nil)
+        // A duplicate here is reported, not retried by deleting: something appeared between the
+        // update and the add, and it is not this store's to remove.
+        let addStatus = security.add(attributes as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             throw CredentialStoreError.writeFailed(status: addStatus)
         }
     }
 
     func delete() throws {
-        let status = SecItemDelete(
-            Self.baseQuery(service: service, account: account, accessGroup: accessGroup)
+        let group = try confinedGroup()
+        let status = security.delete(
+            Self.baseQuery(service: service, account: account, accessGroup: group)
                 as CFDictionary
         )
         guard status == errSecSuccess || status == errSecItemNotFound else {

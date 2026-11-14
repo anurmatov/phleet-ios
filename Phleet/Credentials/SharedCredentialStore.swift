@@ -13,9 +13,12 @@ enum AppGroup {
 /// extensions read there, each from its own process. The **own** one is the app's private
 /// access group, where every build before this one kept the sign-in.
 ///
-/// - A sign-in found only in the app's own group is copied to the shared one and then removed
-///   from its own, so an install that was signed in before this build stays signed in and ends
-///   with one copy, not two.
+/// - A sign-in found only in the app's own group is copied to the shared one, read back from it,
+///   and removed from its own only when the copy reads back equal, so an install that was signed
+///   in before this build stays signed in and ends with one copy, not two. A copy that fails or
+///   reads back wrong leaves the original where it was, for the next launch to try again.
+/// - Both places name their group on every call. The cleanup of the app's own copy is confined
+///   to its own group, so it can never match — and remove — the shared copy just written.
 /// - A build whose signature does not carry the app group cannot use the shared place at all:
 ///   every call there answers "missing entitlement". The app then keeps its sign-in where it
 ///   always was. Signing in must never depend on an entitlement only the extensions need; they
@@ -33,11 +36,25 @@ final class SharedCredentialStore: CredentialStore {
         self.own = own
     }
 
-    /// The real pair: the app group, then the app's own group.
-    static func keychain() -> SharedCredentialStore {
+    /// The real pair: the app group, then the app's own group, each named explicitly.
+    ///
+    /// `service` and `account` exist so a test can run this exact composition against its own
+    /// synthetic item; the app always uses the defaults.
+    static func keychain(
+        service: String = KeychainCredentialStore.defaultService,
+        account: String = KeychainCredentialStore.defaultAccount
+    ) -> SharedCredentialStore {
         SharedCredentialStore(
-            shared: KeychainCredentialStore(accessGroup: AppGroup.identifier),
-            own: KeychainCredentialStore()
+            shared: KeychainCredentialStore(
+                service: service,
+                account: account,
+                accessGroup: AppGroup.identifier
+            ),
+            own: KeychainCredentialStore(
+                service: service,
+                account: account,
+                accessGroup: KeychainCredentialStore.privateAccessGroup()
+            )
         )
     }
 
@@ -51,11 +68,15 @@ final class SharedCredentialStore: CredentialStore {
         }
 
         guard let credential = try own.load() else { return nil }
-        // Moved rather than copied. If the move cannot be finished the sign-in is still good
-        // where it was found, and the next launch tries again.
-        if (try? shared.save(credential)) != nil {
-            try? own.delete()
+        // Moved rather than copied, and only once the copy is known good. If the move cannot be
+        // finished the sign-in is still good where it was found, and the next launch tries again.
+        do {
+            try shared.save(credential)
+            try verifyShared(credential)
+        } catch {
+            return credential
         }
+        try? own.delete()
         return credential
     }
 
@@ -66,9 +87,19 @@ final class SharedCredentialStore: CredentialStore {
             try own.save(credential)
             return
         }
-        // Best effort: an older copy left in the app's own group is never read again once the
-        // shared one exists, but a rotated secret should not leave its predecessor lying there.
+        try verifyShared(credential)
+        // Best effort, and only after the shared copy read back equal: an older copy left in the
+        // app's own group is never read again once the shared one exists, but a rotated secret
+        // should not leave its predecessor lying there.
         try? own.delete()
+    }
+
+    /// Reads the shared copy back. Anything but the complete credential just written is a
+    /// failure, and a failure here means the app's own copy is not touched.
+    private func verifyShared(_ credential: DeviceCredential) throws {
+        guard try shared.load() == credential else {
+            throw CredentialStoreError.malformedPayload
+        }
     }
 
     func delete() throws {
@@ -95,7 +126,7 @@ final class SharedCredentialStore: CredentialStore {
         switch error as? CredentialStoreError {
         case .unavailable(let status)?, .writeFailed(let status)?:
             return status == errSecMissingEntitlement
-        case .malformedPayload?, nil:
+        case .malformedPayload?, .invalidAccessGroup?, nil:
             return false
         }
     }

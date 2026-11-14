@@ -232,6 +232,23 @@ it would add a second secret at rest to save one round trip per fifteen minutes.
 measured on a monotonic clock, so a backward wall-clock jump cannot extend a token's apparent
 life. The enrollment code is sent once and never stored.
 
+Every read, update, add and delete names its access group. The app group is a fixed identifier;
+the app's private group is read from the app's `Info.plist` key `PhleetPrivateKeychainAccessGroup`,
+which the build expands exactly as it expands the `keychain-access-groups` entitlement
+(`$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)`), so no team prefix is ever assembled in
+code. A query that names no group searches every group the app may read, and a delete removes the
+match from all of them — the app group's copy included. A store whose group is missing, empty or
+unexpanded therefore refuses with `invalidAccessGroup` before any Security call.
+
+| Step | Behaviour |
+|---|---|
+| a write | update the item in place; add only when there was nothing to update. Never delete first. Any other failure is reported with its status and nothing is removed; a duplicate on add is reported, not retried |
+| a sign-in | written to the app group, read back, and only when it reads back equal is the private copy removed. A readback that fails is reported as it failed; one that finds nothing or something else is `malformedPayload` |
+| an earlier build's sign-in | found in the private group, copied to the app group and read back; the private copy is removed only after an equal readback. A copy that fails leaves the original in place and returns it, for the next launch to try again |
+| removing the private copy | best effort, after verification only. If it fails, both copies stay and the app group's is the one read |
+| no app group in the signature | everything stays in the private group, as before |
+| sign-out | both scoped deletions are tried before either failure is reported |
+
 The item is stored under a name no earlier build used. Earlier builds kept two items — a chat
 credential for a sign-in the chat service no longer has, and a Fleet connection holding the
 fleet-wide operator token — and `KeychainLegacyCredentialStore` deletes both at launch, keeping

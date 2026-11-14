@@ -1,3 +1,4 @@
+import Security
 import XCTest
 @testable import Phleet
 
@@ -84,6 +85,148 @@ final class KeychainCredentialStoreTests: XCTestCase {
             loaded.clientInstanceId,
             "instance-1",
             "the same device keeps its cursor bookkeeping across a rotation"
+        )
+    }
+
+    // MARK: - The private group, named on every call
+
+    /// The default store's group comes from the app's `Info.plist`, as the build expanded it —
+    /// the same expansion as the `keychain-access-groups` entitlement, never an assembled prefix.
+    func testTheDefaultGroupIsTheBuildExpandedPrivateGroup() {
+        let group = KeychainCredentialStore.privateAccessGroup()
+        XCTAssertNotNil(
+            KeychainCredentialStore.validAccessGroup(group),
+            "Info.plist must carry \(KeychainCredentialStore.privateAccessGroupInfoKey), expanded"
+        )
+        XCTAssertEqual(
+            group?.hasSuffix(Bundle.main.bundleIdentifier ?? "-"),
+            true,
+            "the private group ends in the app's own bundle identifier"
+        )
+    }
+
+    func testEveryCallOfTheDefaultStoreNamesThePrivateGroup() throws {
+        let probe = SecurityProbe()
+        let scoped = KeychainCredentialStore(service: service, account: "device", security: probe.security)
+
+        try scoped.save(credential)
+        try scoped.save(credential.rotatingSecret(to: "secret-2"))
+        _ = try scoped.load()
+        try scoped.delete()
+
+        XCTAssertEqual(
+            probe.calls.map(\.operation),
+            [.update, .add, .update, .copyMatching, .delete],
+            "a first save adds after finding nothing to update; a second one updates"
+        )
+        XCTAssertEqual(
+            Set(probe.calls.map(\.accessGroup)),
+            [KeychainCredentialStore.privateAccessGroup()]
+        )
+    }
+
+    /// A group that is missing, empty or still holds a build variable is refused before Security
+    /// sees a query. A query without a group would reach every group this app may read.
+    func testAStoreWithNoUsableGroupRefusesBeforeAnySecurityCall() {
+        let unusable: [String?] = [
+            nil,
+            "",
+            " ",
+            "$(AppIdentifierPrefix)com.anvarlab.phleet",
+            "$(AppIdentifierPrefix)$(PRODUCT_BUNDLE_IDENTIFIER)"
+        ]
+        for group in unusable {
+            let probe = SecurityProbe()
+            let refusing = KeychainCredentialStore(
+                service: service,
+                account: "device",
+                accessGroup: group,
+                security: probe.security
+            )
+            let label = String(describing: group)
+
+            XCTAssertThrowsError(try refusing.load(), label) { error in
+                XCTAssertEqual(error as? CredentialStoreError, .invalidAccessGroup, label)
+            }
+            XCTAssertThrowsError(try refusing.save(credential), label) { error in
+                XCTAssertEqual(error as? CredentialStoreError, .invalidAccessGroup, label)
+            }
+            XCTAssertThrowsError(try refusing.delete(), label) { error in
+                XCTAssertEqual(error as? CredentialStoreError, .invalidAccessGroup, label)
+            }
+            XCTAssertEqual(probe.calls, [], label)
+        }
+    }
+
+    // MARK: - Replacement never deletes first
+
+    func testAFailedReplacementLeavesTheStoredItemAndDeletesNothing() throws {
+        try store.save(credential)
+        let probe = SecurityProbe()
+        probe.failure = { operation, _ in
+            operation == .update ? errSecInteractionNotAllowed : nil
+        }
+        let failing = KeychainCredentialStore(service: service, account: "device", security: probe.security)
+
+        XCTAssertThrowsError(try failing.save(credential.rotatingSecret(to: "secret-2"))) { error in
+            XCTAssertEqual(
+                error as? CredentialStoreError,
+                .writeFailed(status: errSecInteractionNotAllowed),
+                "the original status, not a made-up one"
+            )
+        }
+
+        XCTAssertEqual(probe.calls.map(\.operation), [.update], "no delete, and no add after it")
+        XCTAssertEqual(try store.load(), credential)
+    }
+
+    func testADuplicateOnAddIsReportedAndNotRetriedByDeleting() throws {
+        try store.save(credential)
+        let probe = SecurityProbe()
+        // The update finds nothing, as if the item appeared between the two calls; the add then
+        // meets it.
+        probe.failure = { operation, _ in
+            operation == .update ? errSecItemNotFound : nil
+        }
+        let racing = KeychainCredentialStore(service: service, account: "device", security: probe.security)
+
+        XCTAssertThrowsError(try racing.save(credential.rotatingSecret(to: "secret-2"))) { error in
+            XCTAssertEqual(error as? CredentialStoreError, .writeFailed(status: errSecDuplicateItem))
+        }
+
+        XCTAssertEqual(probe.calls.map(\.operation), [.update, .add])
+        XCTAssertEqual(try store.load(), credential)
+    }
+
+    /// What the keychain actually holds after a write and a replacement, not what a dictionary
+    /// says it was asked for.
+    func testTheStoredItemKeepsItsProtectionThroughAReplacement() throws {
+        try store.save(credential)
+        try store.save(credential.rotatingSecret(to: "secret-2"))
+
+        var query = KeychainCredentialStore.baseQuery(
+            service: service,
+            account: "device",
+            accessGroup: KeychainCredentialStore.privateAccessGroup()
+        )
+        query[kSecReturnAttributes as String] = true
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        var item: CFTypeRef?
+        XCTAssertEqual(SecItemCopyMatching(query as CFDictionary, &item), errSecSuccess)
+        let attributes = try XCTUnwrap(item as? [String: Any])
+
+        XCTAssertEqual(
+            attributes[kSecAttrAccessible as String] as? String,
+            kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly as String
+        )
+        XCTAssertEqual(
+            attributes[kSecAttrSynchronizable as String] as? Bool ?? false,
+            false,
+            "never synchronised"
+        )
+        XCTAssertEqual(
+            attributes[kSecAttrAccessGroup as String] as? String,
+            KeychainCredentialStore.privateAccessGroup()
         )
     }
 

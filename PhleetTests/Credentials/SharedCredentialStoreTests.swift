@@ -2,31 +2,50 @@ import Security
 import XCTest
 @testable import Phleet
 
+/// The calls made on a pair of scripted stores, in the order they were made.
+private final class Journal {
+    var entries: [String] = []
+}
+
 /// A store that answers what a test tells it to, standing in for one keychain access group.
 private final class ScriptedStore: CredentialStore {
     var credential: DeviceCredential?
     /// Thrown by every call, when set: the system refusing this access group.
     var refusal: CredentialStoreError?
+    /// What a read answers once something has been saved, when set: a readback that fails,
+    /// finds nothing, or finds something other than what was written.
+    var readback: Result<DeviceCredential?, CredentialStoreError>?
+    /// Thrown by `delete()` alone, when set.
+    var deleteRefusal: CredentialStoreError?
     private(set) var saves = 0
     private(set) var deletes = 0
+    private let name: String
+    private let journal: Journal?
 
-    init(credential: DeviceCredential? = nil) {
+    init(credential: DeviceCredential? = nil, name: String = "", journal: Journal? = nil) {
         self.credential = credential
+        self.name = name
+        self.journal = journal
     }
 
     func load() throws -> DeviceCredential? {
+        journal?.entries.append(name + ".load")
         if let refusal { throw refusal }
+        if saves > 0, let readback { return try readback.get() }
         return credential
     }
 
     func save(_ credential: DeviceCredential) throws {
+        journal?.entries.append(name + ".save")
         if let refusal { throw refusal }
         self.credential = credential
         saves += 1
     }
 
     func delete() throws {
+        journal?.entries.append(name + ".delete")
         if let refusal { throw refusal }
+        if let deleteRefusal { throw deleteRefusal }
         credential = nil
         deletes += 1
     }
@@ -36,6 +55,13 @@ private final class ScriptedStore: CredentialStore {
 final class SharedCredentialStoreTests: XCTestCase {
 
     private let missingEntitlement = CredentialStoreError.unavailable(status: errSecMissingEntitlement)
+
+    /// The three ways a readback can disagree with what was written, and what a save reports.
+    private let readbackFaults: [(Result<DeviceCredential?, CredentialStoreError>, CredentialStoreError)] = [
+        (.failure(.unavailable(status: errSecInteractionNotAllowed)), .unavailable(status: errSecInteractionNotAllowed)),
+        (.success(nil), .malformedPayload),
+        (.success(DeviceCredential.fixture.rotatingSecret(to: "secret-other")), .malformedPayload)
+    ]
 
     func testASignInIsWrittenToTheSharedPlaceAndReadBackFromIt() throws {
         let shared = ScriptedStore()
@@ -62,6 +88,72 @@ final class SharedCredentialStoreTests: XCTestCase {
         // The second read finds it where it now lives and moves nothing.
         XCTAssertEqual(try store.load(), .fixture)
         XCTAssertEqual(shared.saves, 1)
+    }
+
+    func testASaveIsReadBackBeforeTheOwnCopyIsRemoved() throws {
+        let journal = Journal()
+        let shared = ScriptedStore(name: "shared", journal: journal)
+        let own = ScriptedStore(credential: .fixture, name: "own", journal: journal)
+
+        try SharedCredentialStore(shared: shared, own: own).save(.fixture.withPushDeviceId("push-1"))
+
+        XCTAssertEqual(journal.entries, ["shared.save", "shared.load", "own.delete"])
+    }
+
+    func testAMoveIsReadBackBeforeTheOwnCopyIsRemoved() throws {
+        let journal = Journal()
+        let shared = ScriptedStore(name: "shared", journal: journal)
+        let own = ScriptedStore(credential: .fixture, name: "own", journal: journal)
+
+        XCTAssertEqual(try SharedCredentialStore(shared: shared, own: own).load(), .fixture)
+
+        XCTAssertEqual(
+            journal.entries,
+            ["shared.load", "own.load", "shared.save", "shared.load", "own.delete"]
+        )
+    }
+
+    func testASaveWhoseReadbackDisagreesIsReportedAndTheOwnCopyIsKept() {
+        for (readback, expected) in readbackFaults {
+            let shared = ScriptedStore()
+            shared.readback = readback
+            let own = ScriptedStore(credential: .fixture)
+            let store = SharedCredentialStore(shared: shared, own: own)
+
+            XCTAssertThrowsError(try store.save(.fixture.withPushDeviceId("push-1"))) { error in
+                XCTAssertEqual(error as? CredentialStoreError, expected)
+            }
+            XCTAssertEqual(own.credential, .fixture, "not removed before the copy is known good")
+            XCTAssertEqual(own.deletes, 0)
+        }
+    }
+
+    func testAMoveWhoseReadbackDisagreesReturnsAndKeepsTheOriginal() throws {
+        for (readback, _) in readbackFaults {
+            let shared = ScriptedStore()
+            shared.readback = readback
+            let own = ScriptedStore(credential: .fixture)
+
+            XCTAssertEqual(try SharedCredentialStore(shared: shared, own: own).load(), .fixture)
+            XCTAssertEqual(own.credential, .fixture)
+            XCTAssertEqual(own.deletes, 0)
+        }
+    }
+
+    func testACleanupThatFailsAfterAVerifiedCopyIsNotReportedAndKeepsBoth() throws {
+        let shared = ScriptedStore()
+        let own = ScriptedStore(credential: .fixture)
+        own.deleteRefusal = .writeFailed(status: errSecInteractionNotAllowed)
+        let store = SharedCredentialStore(shared: shared, own: own)
+
+        XCTAssertEqual(try store.load(), .fixture)
+        XCTAssertEqual(shared.credential, .fixture)
+        XCTAssertEqual(own.credential, .fixture, "the duplicate stays when its deletion fails")
+
+        let rotated = DeviceCredential.fixture.rotatingSecret(to: "secret-2")
+        XCTAssertNoThrow(try store.save(rotated))
+        XCTAssertEqual(shared.credential, rotated)
+        XCTAssertEqual(try store.load(), rotated, "the shared copy is the one read")
     }
 
     func testABuildWithoutTheAppGroupKeepsItsSignInWhereItAlwaysWas() throws {
@@ -141,6 +233,10 @@ final class SharedCredentialStoreTests: XCTestCase {
             )
         )
         XCTAssertFalse(SharedCredentialStore.isMissingEntitlement(CredentialStoreError.malformedPayload))
+        XCTAssertFalse(
+            SharedCredentialStore.isMissingEntitlement(CredentialStoreError.invalidAccessGroup),
+            "a store with no usable group is a fault to report, not a reason to fall back"
+        )
     }
 
     func testTheSharedItemIsConfinedToTheAppGroupAndKeepsItsProtection() {
