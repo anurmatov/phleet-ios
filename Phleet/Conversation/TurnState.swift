@@ -82,6 +82,10 @@ struct SubmissionRecord: Equatable, Sendable, Identifiable {
     /// `""` is a message sent with no text, and the two stay distinct.
     var text: String?
 
+    /// What was sent with the words: images, described by the server or, for a message this
+    /// device has just sent, by the upload that preceded it.
+    var attachments: [AttachmentDescriptor] = []
+
     var state: SubmissionState = .sending
 
     /// Part of a group one turn answered together. Carried by every member of the group, so the
@@ -100,6 +104,9 @@ struct SystemLine: Equatable, Sendable, Identifiable {
         /// History expired beneath the cursor. Never dropped silently — silent loss is the one
         /// failure the person cannot detect.
         case replayGap
+        /// A stop was asked for and nothing was running. The acknowledgement is the whole story:
+        /// no terminal follows it, so without this line a stop would simply vanish.
+        case nothingToStop
     }
 
     let id: String
@@ -154,10 +161,13 @@ struct TurnStateMachine: Equatable, Sendable {
     private(set) var entries: [TranscriptEntry] = []
     private(set) var activity: TurnActivity?
 
-    /// The last cancel acknowledgement seen. This slice ships no cancel UI, so one can only
-    /// originate elsewhere — and when `hadRunningTask` is `false`, it is the whole story and no
-    /// terminal follows.
+    /// The last cancel acknowledgement seen. When `hadRunningTask` is `false`, it is the whole
+    /// story and no terminal follows.
     private(set) var lastControlAck: ControlAckPayload?
+
+    /// How many acknowledgements have been applied. A stop asked for from here is over when this
+    /// moves on or the running turn ends, whichever comes first.
+    private(set) var controlAckCount = 0
 
     /// Kinds this build does not render, counted rather than dropped invisibly.
     private(set) var ignoredEventKinds: [String] = []
@@ -207,17 +217,28 @@ struct TurnStateMachine: Equatable, Sendable {
         submissionOrder.filter { records[$0]?.state.isUnresolved == true }
     }
 
+    /// Whether a turn of this conversation is running: a submission that owns one, or one folded
+    /// into it. What a stop would stop.
+    var hasRunningTurn: Bool {
+        records.values.contains { $0.state.isUnresolved }
+    }
+
     func record(_ submissionId: String) -> SubmissionRecord? { records[submissionId] }
 
     var orderedRecords: [SubmissionRecord] { submissionOrder.compactMap { records[$0] } }
 
     /// Records a message this device just sent, before any event about it arrives.
-    mutating func registerLocalSubmission(id: String, text: String) {
+    mutating func registerLocalSubmission(
+        id: String,
+        text: String,
+        attachments: [AttachmentDescriptor] = []
+    ) {
         if records[id] == nil {
             localEchoIds.insert(id)
         }
         ensureRecord(id)
         records[id]?.text = text
+        records[id]?.attachments = attachments
     }
 
     /// Applies a successful send's receipt to its echo.
@@ -324,6 +345,12 @@ struct TurnStateMachine: Equatable, Sendable {
             // terminal answers `hadRunningTask: false`, and inventing a second terminal for it
             // is how a resolved turn reopens.
             lastControlAck = payload
+            controlAckCount += 1
+            if payload.hadRunningTask == false {
+                entries.append(
+                    .systemLine(SystemLine(id: event.eventId, kind: .nothingToStop, text: ""))
+                )
+            }
         case .protocolRejected(let payload):
             entries.append(
                 .systemLine(SystemLine(id: event.eventId, kind: .rejected, text: payload.code))
@@ -358,6 +385,7 @@ struct TurnStateMachine: Equatable, Sendable {
         }
         ensureRecord(id)
         records[id]?.text = text
+        records[id]?.attachments = payload.attachments
 
         guard let seq = event.seq else { return }
         durableIdBySeq[seq] = id
@@ -387,6 +415,17 @@ struct TurnStateMachine: Equatable, Sendable {
         event: ConversationEvent
     ) {
         guard let id = event.identity.submissionId else {
+            ignoredEventKinds.append(event.kind.rawValue)
+            return
+        }
+
+        // A stop is a submission of its own. It carries no words, the agent closes it as
+        // `dropped` once it has acted, and nothing else ever names it — so a `dropped` for a
+        // submission nothing has been seen of is a stop's own receipt, not a message that was
+        // not run. Drawing a row for it would put a button press into the transcript, as a
+        // message whose text is unavailable. A message that really was dropped has its
+        // `submission.text` at a lower seq, so its row is already here.
+        if payload.disposition == .dropped, records[id] == nil {
             ignoredEventKinds.append(event.kind.rawValue)
             return
         }

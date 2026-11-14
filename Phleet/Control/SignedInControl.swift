@@ -119,6 +119,69 @@ final class SignedInControlAPI: ControlAPIClient {
         }
     }
 
+    func terminateRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws {
+        try await signedIn(connection) {
+            try await base.terminateRun(
+                $0,
+                namespace: namespace,
+                workflowId: workflowId,
+                runId: runId
+            )
+        }
+    }
+
+    func restartRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> RestartedRun {
+        try await signedIn(connection) {
+            try await base.restartRun(
+                $0,
+                namespace: namespace,
+                workflowId: workflowId,
+                runId: runId
+            )
+        }
+    }
+
+    func schedules(_ connection: ControlConnection) async throws -> [FleetSchedule] {
+        try await signedIn(connection) { try await base.schedules($0) }
+    }
+
+    func performScheduleAction(
+        _ connection: ControlConnection,
+        namespace: String,
+        scheduleId: String,
+        action: ScheduleAction
+    ) async throws {
+        try await signedIn(connection) {
+            try await base.performScheduleAction(
+                $0,
+                namespace: namespace,
+                scheduleId: scheduleId,
+                action: action
+            )
+        }
+    }
+
+    func searchMemory(
+        _ connection: ControlConnection,
+        query: String
+    ) async throws -> [MemorySearchResult] {
+        try await signedIn(connection) { try await base.searchMemory($0, query: query) }
+    }
+
+    func memory(_ connection: ControlConnection, id: String) async throws -> MemoryDocument {
+        try await signedIn(connection) { try await base.memory($0, id: id) }
+    }
+
     func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType] {
         try await signedIn(connection) { try await base.workflowTypes($0) }
     }

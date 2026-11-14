@@ -14,6 +14,11 @@ struct AgentDetailView: View {
 
     let model: ControlPlaneModel
     let agentName: String
+    /// Who can be chatted with, and what opens a thread. The link is offered only while this
+    /// agent is on that list: a link that leads to a refusal is worse than none. Read here, in
+    /// the screen's own body, so the link appears when the list arrives after the screen did.
+    var chat: ChatModel?
+    var openChat: (() -> Void)?
 
     var body: some View {
         Group {
@@ -76,6 +81,22 @@ struct AgentDetailView: View {
                 }
             } header: {
                 Text("agentDetail.task.title")
+            }
+
+            if let openChat, chat?.agent(named: agent.agentName) != nil {
+                Section {
+                    Button {
+                        openChat()
+                    } label: {
+                        Label {
+                            Text("agentDetail.chat")
+                        } icon: {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                        }
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.agentDetailChat.identifier)
+                    .accessibilityLabel(AccessibilityIdentifier.agentDetailChat.localizedLabel)
+                }
             }
 
             AgentActionsSection(model: model, agent: agent)

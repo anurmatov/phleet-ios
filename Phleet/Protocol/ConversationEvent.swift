@@ -131,10 +131,14 @@ extension EventPayload {
     fileprivate init(kind: EventKind, container: PayloadContainer?) {
         switch kind {
         case .submissionText:
-            // Only `text` is read. Anything else on the payload — attachment descriptors among
-            // them — is ignored, and a `text` that is absent or not a string stays `nil`.
+            // `text` and the attachment descriptors are read; anything else on the payload is
+            // ignored. A `text` that is absent or not a string stays `nil`, and a descriptor
+            // that cannot be read costs that one descriptor, never the words beside it.
             self = .submissionText(
-                SubmissionTextPayload(text: EventPayload.string(container, "text"))
+                SubmissionTextPayload(
+                    text: EventPayload.string(container, "text"),
+                    attachments: EventPayload.attachments(container, "attachments")
+                )
             )
 
         case .submissionAccepted:
@@ -258,6 +262,15 @@ extension EventPayload {
     private static func int(_ container: PayloadContainer?, _ name: String) -> Int? {
         guard let container, let key = PayloadKey(stringValue: name) else { return nil }
         return try? container.decodeIfPresent(Int.self, forKey: key)
+    }
+
+    private static func attachments(
+        _ container: PayloadContainer?,
+        _ name: String
+    ) -> [AttachmentDescriptor] {
+        guard let container, let key = PayloadKey(stringValue: name) else { return [] }
+        let list = try? container.decodeIfPresent(LossyList<AttachmentDescriptor>.self, forKey: key)
+        return list?.items ?? []
     }
 
     private static func strings(_ container: PayloadContainer?, _ name: String) -> [String] {

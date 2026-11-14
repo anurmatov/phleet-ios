@@ -61,6 +61,18 @@
         }
       }
     },
+    "a11y.agentDetail.chat" : {
+      "comment" : "Spoken label for the button that opens an agent's chat thread.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat with this agent"
+          }
+        }
+      }
+    },
     "a11y.agentDetail.fact" : {
       "comment" : "Spoken label for one detail about an agent.",
       "extractionState" : "manual",
@@ -169,6 +181,18 @@
         }
       }
     },
+    "a11y.chat.agentState" : {
+      "comment" : "Spoken label for how an agent in the chat list is doing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent state"
+          }
+        }
+      }
+    },
     "a11y.chat.noAgents" : {
       "comment" : "Spoken label shown when no agent has chat turned on.",
       "extractionState" : "manual",
@@ -201,6 +225,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Address"
+          }
+        }
+      }
+    },
+    "a11y.connection.confirmOwner" : {
+      "comment" : "Spoken label for the button that turns the confirm-it's-you setting on or off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm it’s you"
           }
         }
       }
@@ -265,6 +301,18 @@
         }
       }
     },
+    "a11y.conversation.agentInfo" : {
+      "comment" : "Spoken label for the button that opens the agent's own screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About this agent"
+          }
+        }
+      }
+    },
     "a11y.conversation.agentReply" : {
       "comment" : "Spoken label for the agent's reply.",
       "extractionState" : "manual",
@@ -273,6 +321,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Agent reply"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attach" : {
+      "comment" : "Spoken label for the button that picks images to send.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add images"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attachment" : {
+      "comment" : "Spoken label for an image picked for the message being written.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image to send"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attachmentNotice" : {
+      "comment" : "Spoken label for a notice about an image.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image notice"
+          }
+        }
+      }
+    },
+    "a11y.conversation.attachmentRemove" : {
+      "comment" : "Spoken label for the button that removes a picked image.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove image"
           }
         }
       }
@@ -326,13 +422,13 @@
       }
     },
     "a11y.conversation.mediaUnsupported" : {
-      "comment" : "Spoken label for the composer's note that images cannot be sent yet.",
+      "comment" : "Spoken label for the notice that the server takes no images.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Images are not supported yet"
+            "value" : "Images are switched off on this server"
           }
         }
       }
@@ -469,6 +565,42 @@
         }
       }
     },
+    "a11y.conversation.sentImage" : {
+      "comment" : "Spoken label for an image the person sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "a11y.conversation.stop" : {
+      "comment" : "Spoken label for the button that stops the running turn.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop the agent"
+          }
+        }
+      }
+    },
+    "a11y.conversation.stopNotice" : {
+      "comment" : "Spoken label for a notice about a stop.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop notice"
+          }
+        }
+      }
+    },
     "a11y.conversation.systemLine" : {
       "comment" : "Spoken label for a system line in the transcript.",
       "extractionState" : "manual",
@@ -573,6 +705,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Last updated"
+          }
+        }
+      }
+    },
+    "a11y.gate.activityUnavailable" : {
+      "comment" : "Spoken label for the notice that a run's history could not be read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History unavailable"
           }
         }
       }
@@ -701,6 +845,78 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Refresh exact request"
+          }
+        }
+      }
+    },
+    "a11y.memory.documentBody" : {
+      "comment" : "Spoken label for the text of a memory.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory text"
+          }
+        }
+      }
+    },
+    "a11y.memory.documentFailed" : {
+      "comment" : "Spoken label for the notice that a memory failed to load.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory could not be read"
+          }
+        }
+      }
+    },
+    "a11y.memory.empty" : {
+      "comment" : "Spoken label for an empty memory search.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing found"
+          }
+        }
+      }
+    },
+    "a11y.memory.open" : {
+      "comment" : "Spoken label for the button that opens memory search.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search memory"
+          }
+        }
+      }
+    },
+    "a11y.memory.prompt" : {
+      "comment" : "Spoken label for the memory screen's explanation.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search the fleet’s memory"
+          }
+        }
+      }
+    },
+    "a11y.memory.result" : {
+      "comment" : "Spoken label for a memory search result.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory"
           }
         }
       }
@@ -837,6 +1053,54 @@
         }
       }
     },
+    "a11y.run.restart" : {
+      "comment" : "Spoken label for the button that starts a new run like a closed one.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run again"
+          }
+        }
+      }
+    },
+    "a11y.run.restartConfirm" : {
+      "comment" : "Spoken label for the button that confirms starting a new run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a new run"
+          }
+        }
+      }
+    },
+    "a11y.run.restartKeep" : {
+      "comment" : "Spoken label for the button that backs out of starting a new run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not now"
+          }
+        }
+      }
+    },
+    "a11y.run.restartState" : {
+      "comment" : "Spoken label for what happened to a run-again request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run again state"
+          }
+        }
+      }
+    },
     "a11y.run.status" : {
       "comment" : "Spoken label for a run's state.",
       "extractionState" : "manual",
@@ -845,6 +1109,66 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Status"
+          }
+        }
+      }
+    },
+    "a11y.run.terminate" : {
+      "comment" : "Spoken label for the button that terminates a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminate run"
+          }
+        }
+      }
+    },
+    "a11y.run.terminateConfirm" : {
+      "comment" : "Spoken label for the button that confirms terminating a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminate this run"
+          }
+        }
+      }
+    },
+    "a11y.run.terminateKeep" : {
+      "comment" : "Spoken label for the button that backs out of terminating a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep it running"
+          }
+        }
+      }
+    },
+    "a11y.run.terminateState" : {
+      "comment" : "Spoken label for what happened to a terminate request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminate state"
+          }
+        }
+      }
+    },
+    "a11y.run.webLink" : {
+      "comment" : "Spoken label for the link from a run to its pull request or issue.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open on GitHub"
           }
         }
       }
@@ -869,6 +1193,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Start a workflow"
+          }
+        }
+      }
+    },
+    "a11y.runs.window" : {
+      "comment" : "Spoken label for the picker of how far back closed runs are listed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed runs from"
           }
         }
       }
@@ -909,6 +1245,114 @@
         }
       }
     },
+    "a11y.schedule.action" : {
+      "comment" : "Spoken label for a schedule action button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action"
+          }
+        }
+      }
+    },
+    "a11y.schedule.actionCancel" : {
+      "comment" : "Spoken label for the button that goes back to choosing a schedule action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back"
+          }
+        }
+      }
+    },
+    "a11y.schedule.actionConfirm" : {
+      "comment" : "Spoken label for the button that confirms a schedule action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm"
+          }
+        }
+      }
+    },
+    "a11y.schedule.actionState" : {
+      "comment" : "Spoken label for what happened to the last schedule action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Action state"
+          }
+        }
+      }
+    },
+    "a11y.schedule.gone" : {
+      "comment" : "Spoken label for the notice that a schedule is gone.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedule no longer listed"
+          }
+        }
+      }
+    },
+    "a11y.schedule.state" : {
+      "comment" : "Spoken label for whether a schedule is paused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedule state"
+          }
+        }
+      }
+    },
+    "a11y.schedules.empty" : {
+      "comment" : "Spoken label for the empty schedules list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No schedules"
+          }
+        }
+      }
+    },
+    "a11y.schedules.open" : {
+      "comment" : "Spoken label for the link to the schedules.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedules"
+          }
+        }
+      }
+    },
+    "a11y.schedules.schedule" : {
+      "comment" : "Spoken label for a schedule row.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedule"
+          }
+        }
+      }
+    },
     "a11y.setup.connect" : {
       "comment" : "Spoken label for the button that signs this phone in.",
       "extractionState" : "manual",
@@ -941,6 +1385,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sign-in notice"
+          }
+        }
+      }
+    },
+    "a11y.setup.paste" : {
+      "comment" : "Spoken label for the button that pastes a setup code.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste a setup code"
           }
         }
       }
@@ -1233,6 +1689,30 @@
         }
       }
     },
+    "agentAction.reprovision" : {
+      "comment" : "Agent action: recreate the agent's container from its stored configuration.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprovision"
+          }
+        }
+      }
+    },
+    "agentAction.reprovision.help" : {
+      "comment" : "Explains what reprovisioning an agent does.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprovisioning recreates the agent’s container from its saved settings, which is what a changed model or instruction waits for. Whatever it is doing is interrupted, and it can take a minute to come back."
+          }
+        }
+      }
+    },
     "agentAction.restart" : {
       "comment" : "Action: restart an agent.",
       "extractionState" : "manual",
@@ -1337,6 +1817,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Background tasks"
+          }
+        }
+      }
+    },
+    "agentDetail.chat" : {
+      "comment" : "Button on an agent's screen that opens its chat thread.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chat with this agent"
           }
         }
       }
@@ -1569,6 +2061,18 @@
         }
       }
     },
+    "chat.agent.new" : {
+      "comment" : "Shown in the chat list beside an agent whose thread has moved on since it was last opened.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New activity"
+          }
+        }
+      }
+    },
     "chat.agents.footer" : {
       "comment" : "Footer under the list of agents to chat with.",
       "extractionState" : "manual",
@@ -1637,6 +2141,138 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Chat"
+          }
+        }
+      }
+    },
+    "confirmOwner.help" : {
+      "comment" : "Explains the confirm-it's-you setting.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When on, sending a decision, acting on an agent or a schedule, and cancelling or terminating a run each ask for Face ID, Touch ID or your passcode first. It guards this phone; the server is not told."
+          }
+        }
+      }
+    },
+    "confirmOwner.reason.action" : {
+      "comment" : "Reason shown by the system prompt before an agent or schedule action is sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm it’s you to send this action."
+          }
+        }
+      }
+    },
+    "confirmOwner.reason.decision" : {
+      "comment" : "Reason shown by the system prompt before a gate decision is sent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm it’s you to send this decision."
+          }
+        }
+      }
+    },
+    "confirmOwner.reason.run" : {
+      "comment" : "Reason shown by the system prompt before a run is cancelled or terminated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm it’s you to stop this run."
+          }
+        }
+      }
+    },
+    "confirmOwner.reason.setting" : {
+      "comment" : "Reason shown by the system prompt before the confirm-it's-you setting changes.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm it’s you to change this setting."
+          }
+        }
+      }
+    },
+    "confirmOwner.state.off" : {
+      "comment" : "State of the confirm-it's-you setting: off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "confirmOwner.state.on" : {
+      "comment" : "State of the confirm-it's-you setting: on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On"
+          }
+        }
+      }
+    },
+    "confirmOwner.title" : {
+      "comment" : "Title of the setting that asks for Face ID, Touch ID or the passcode before a decision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm it’s you"
+          }
+        }
+      }
+    },
+    "confirmOwner.turnOff" : {
+      "comment" : "Button that turns the confirm-it's-you setting off.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn off"
+          }
+        }
+      }
+    },
+    "confirmOwner.turnOn" : {
+      "comment" : "Button that turns the confirm-it's-you setting on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on"
+          }
+        }
+      }
+    },
+    "confirmOwner.unavailable" : {
+      "comment" : "Explains why the confirm-it's-you setting cannot be turned on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This phone has no passcode, so there is nothing to confirm with. Set one in Settings to use this."
           }
         }
       }
@@ -1829,6 +2465,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "The outcome of that message could not be confirmed."
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.notSent" : {
+      "comment" : "Shown when an image upload did not complete.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The image did not upload, so the message was not sent. Send to try again."
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.refused" : {
+      "comment" : "Shown when the server refused an image upload.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server refused the image, so the message was not sent."
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.tooMany" : {
+      "comment" : "Shown when more images were picked than a message may carry.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A message carries at most four images."
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.unreadable" : {
+      "comment" : "Shown when a picked image cannot be used.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That could not be read as an image, or is too large to send."
+          }
+        }
+      }
+    },
+    "conversation.attachment.failure.unsupported" : {
+      "comment" : "Shown when the server has no attachment support.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This server has images switched off, so the message was not sent. Send it as text."
+          }
+        }
+      }
+    },
+    "conversation.attachment.file" : {
+      "comment" : "Shown in place of a sent attachment this app cannot draw.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachment"
+          }
+        }
+      }
+    },
+    "conversation.attachment.image" : {
+      "comment" : "Shown in place of a sent image while its picture is being read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "conversation.attachment.unavailable" : {
+      "comment" : "Shown in place of a sent image whose bytes cannot be read any more.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image no longer available"
           }
         }
       }
@@ -2026,13 +2758,13 @@
       }
     },
     "conversation.media.unsupported" : {
-      "comment" : "Composer note stating the current limitation: this build sends text only.",
+      "comment" : "Shown under the composer when the server takes no image attachments.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Text only for now — images can’t be sent or shown yet."
+            "value" : "This server has images switched off, so messages here are text only."
           }
         }
       }
@@ -2445,6 +3177,54 @@
         }
       }
     },
+    "conversation.stop" : {
+      "comment" : "Button that stops the agent's running turn.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        }
+      }
+    },
+    "conversation.stop.failure.notSent" : {
+      "comment" : "Shown when a stop request did not complete.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop was not sent: the server did not answer. The agent is still working."
+          }
+        }
+      }
+    },
+    "conversation.stop.nothing" : {
+      "comment" : "Shown in a thread when a stop found no running turn.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was running to stop."
+          }
+        }
+      }
+    },
+    "conversation.stop.stopping" : {
+      "comment" : "Shown on the stop button while a stop is on its way.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopping…"
+          }
+        }
+      }
+    },
     "fleet.agents.empty" : {
       "comment" : "Shown when the orchestrator lists no agents.",
       "extractionState" : "manual",
@@ -2489,6 +3269,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Needs you"
+          }
+        }
+      }
+    },
+    "fleet.search.empty" : {
+      "comment" : "Shown in a section of the fleet screen when the search matches nothing in it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing here matches."
+          }
+        }
+      }
+    },
+    "fleet.search.prompt" : {
+      "comment" : "Prompt in the search field of the fleet screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent, task, repository"
           }
         }
       }
@@ -2573,6 +3377,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Updated"
+          }
+        }
+      }
+    },
+    "gate.activity.help" : {
+      "comment" : "Footer under the recent activity on a gate screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The latest from this run, newest first. The full history is under Runs."
+          }
+        }
+      }
+    },
+    "gate.activity.title" : {
+      "comment" : "Header above the last things that happened in a run waiting at a gate.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What led here"
+          }
+        }
+      }
+    },
+    "gate.activity.unavailable" : {
+      "comment" : "Shown on a gate screen when the run's history cannot be loaded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This run’s history could not be read. The decision does not depend on it."
           }
         }
       }
@@ -2919,6 +3759,126 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cannot load this exact request. Refresh before answering."
+          }
+        }
+      }
+    },
+    "markdown.code" : {
+      "comment" : "Spoken before a block of code in an agent's reply.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code"
+          }
+        }
+      }
+    },
+    "memory.agent" : {
+      "comment" : "Label before the agent that wrote a memory.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Written by"
+          }
+        }
+      }
+    },
+    "memory.document.failed" : {
+      "comment" : "Shown when one memory could not be loaded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This memory could not be read. Pull down to try again."
+          }
+        }
+      }
+    },
+    "memory.empty" : {
+      "comment" : "Shown when a memory search found nothing.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing found."
+          }
+        }
+      }
+    },
+    "memory.project" : {
+      "comment" : "Label before a memory's project.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Project"
+          }
+        }
+      }
+    },
+    "memory.prompt" : {
+      "comment" : "Shown on the memory screen before anything was searched.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Search what the fleet has written down. It finds by meaning, so a question works as well as a keyword."
+          }
+        }
+      }
+    },
+    "memory.search.prompt" : {
+      "comment" : "Prompt in the memory search field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What are you looking for?"
+          }
+        }
+      }
+    },
+    "memory.tags" : {
+      "comment" : "Label before a memory's tags.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tags"
+          }
+        }
+      }
+    },
+    "memory.title" : {
+      "comment" : "Title of the memory search screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory"
+          }
+        }
+      }
+    },
+    "memory.type" : {
+      "comment" : "Label before a memory's type.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type"
           }
         }
       }
@@ -3283,6 +4243,30 @@
         }
       }
     },
+    "run.open.issue" : {
+      "comment" : "Link from a run to its issue.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the issue on GitHub"
+          }
+        }
+      }
+    },
+    "run.open.pullRequest" : {
+      "comment" : "Link from a run to its pull request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the pull request on GitHub"
+          }
+        }
+      }
+    },
     "run.outcome.canceled" : {
       "comment" : "Run state: cancelled.",
       "extractionState" : "manual",
@@ -3367,6 +4351,66 @@
         }
       }
     },
+    "run.restart" : {
+      "comment" : "Button that starts a new run like a closed one.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Run again"
+          }
+        }
+      }
+    },
+    "run.restart.confirm" : {
+      "comment" : "Button that confirms starting a new run like a closed one.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a new run"
+          }
+        }
+      }
+    },
+    "run.restart.help" : {
+      "comment" : "Explains what running a closed run again does.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts a new run of the same workflow with the input this one was started with. This run stays as it is."
+          }
+        }
+      }
+    },
+    "run.restart.keep" : {
+      "comment" : "Button that backs out of starting a new run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not now"
+          }
+        }
+      }
+    },
+    "run.restart.started" : {
+      "comment" : "Shown above the identifier of a newly started run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new run was started:"
+          }
+        }
+      }
+    },
     "run.started" : {
       "comment" : "Label for when a run started.",
       "extractionState" : "manual",
@@ -3375,6 +4419,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Started"
+          }
+        }
+      }
+    },
+    "run.terminate" : {
+      "comment" : "Button that stops a run at once.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminate run"
+          }
+        }
+      }
+    },
+    "run.terminate.confirm" : {
+      "comment" : "Button that confirms terminating a run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminate this run"
+          }
+        }
+      }
+    },
+    "run.terminate.help" : {
+      "comment" : "Explains what terminating a run does.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminating stops the workflow at once, without letting it wind down or clean up. Use it when a cancel has not been enough."
+          }
+        }
+      }
+    },
+    "run.terminate.requested" : {
+      "comment" : "Shown after a run was terminated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terminated. The run was stopped without winding down."
           }
         }
       }
@@ -3451,6 +4543,30 @@
         }
       }
     },
+    "runs.search.empty" : {
+      "comment" : "Shown in a section of the runs list when the search matches nothing in it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing here matches."
+          }
+        }
+      }
+    },
+    "runs.search.prompt" : {
+      "comment" : "Prompt in the search field of the runs list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repository, number, workflow"
+          }
+        }
+      }
+    },
     "runs.stopped.empty" : {
       "comment" : "Shown when no run failed or was cancelled recently.",
       "extractionState" : "manual",
@@ -3483,6 +4599,54 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Runs"
+          }
+        }
+      }
+    },
+    "runs.window.day" : {
+      "comment" : "Choice: list runs closed in the last 24 hours.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last day"
+          }
+        }
+      }
+    },
+    "runs.window.help" : {
+      "comment" : "Footer under the closed-runs window picker.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Three days is as far back as the server reads."
+          }
+        }
+      }
+    },
+    "runs.window.threeDays" : {
+      "comment" : "Choice: list runs closed in the last 72 hours.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The last 3 days"
+          }
+        }
+      }
+    },
+    "runs.window.title" : {
+      "comment" : "Label of the picker for how far back closed runs are listed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Closed runs from"
           }
         }
       }
@@ -3555,6 +4719,186 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scanning is not available"
+          }
+        }
+      }
+    },
+    "schedule.action.help" : {
+      "comment" : "Explains the schedule actions.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starting a run now does not change when the schedule next runs. A paused schedule starts nothing until it is resumed."
+          }
+        }
+      }
+    },
+    "schedule.cron" : {
+      "comment" : "Label before a schedule's cron expression.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When"
+          }
+        }
+      }
+    },
+    "schedule.gone.description" : {
+      "comment" : "Description shown when an open schedule is no longer listed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server no longer lists this schedule."
+          }
+        }
+      }
+    },
+    "schedule.gone.title" : {
+      "comment" : "Title shown when an open schedule is no longer listed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No longer listed"
+          }
+        }
+      }
+    },
+    "schedule.namespace" : {
+      "comment" : "Label before a schedule's namespace.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Namespace"
+          }
+        }
+      }
+    },
+    "schedule.paused" : {
+      "comment" : "Word shown in a schedule row when the schedule is paused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
+          }
+        }
+      }
+    },
+    "schedule.state.active" : {
+      "comment" : "State of a schedule that is not paused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running on schedule"
+          }
+        }
+      }
+    },
+    "schedule.state.paused" : {
+      "comment" : "State of a schedule that is paused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paused"
+          }
+        }
+      }
+    },
+    "schedule.workflowType" : {
+      "comment" : "Label before the workflow a schedule starts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Starts"
+          }
+        }
+      }
+    },
+    "scheduleAction.pause" : {
+      "comment" : "Schedule action: stop it starting runs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
+          }
+        }
+      }
+    },
+    "scheduleAction.trigger" : {
+      "comment" : "Schedule action: start one run immediately.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start a run now"
+          }
+        }
+      }
+    },
+    "scheduleAction.unpause" : {
+      "comment" : "Schedule action: let a paused schedule start runs again.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resume"
+          }
+        }
+      }
+    },
+    "schedules.empty" : {
+      "comment" : "Shown when the fleet has no schedules.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No schedules."
+          }
+        }
+      }
+    },
+    "schedules.help" : {
+      "comment" : "Footer under the schedules list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedules are created and edited on the web dashboard."
+          }
+        }
+      }
+    },
+    "schedules.title" : {
+      "comment" : "Title of the schedules screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schedules"
           }
         }
       }
@@ -3799,6 +5143,18 @@
         }
       }
     },
+    "setup.paste.help" : {
+      "comment" : "Explains pasting a setup code instead of scanning it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No camera to hand? Copy the setup code as text and paste it here. It is checked the same way, and nothing is sent until you connect."
+          }
+        }
+      }
+    },
     "setup.scan" : {
       "comment" : "Button that opens the camera to scan the dashboard's setup code.",
       "extractionState" : "manual",
@@ -3867,6 +5223,210 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "On the dashboard, open Credentials → Devices → Connect a phone, and scan the code it shows. One code signs this phone in for Fleet, Runs and Chat."
+          }
+        }
+      }
+    },
+    "shortcut.agent.type" : {
+      "comment" : "What Shortcuts calls an agent that can be chatted with.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "shortcut.ask.agent" : {
+      "comment" : "Name of the ask-an-agent shortcut's agent parameter.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "shortcut.ask.description" : {
+      "comment" : "Description of the ask-an-agent shortcut.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sends one message to an agent’s chat thread. The reply arrives in the app."
+          }
+        }
+      }
+    },
+    "shortcut.ask.message" : {
+      "comment" : "Name of the ask-an-agent shortcut's message parameter.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message"
+          }
+        }
+      }
+    },
+    "shortcut.ask.sent" : {
+      "comment" : "Spoken by the ask-an-agent shortcut before the agent's name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent to"
+          }
+        }
+      }
+    },
+    "shortcut.ask.title" : {
+      "comment" : "Title of the shortcut that sends a message to an agent.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask an agent"
+          }
+        }
+      }
+    },
+    "shortcut.failure.agentUnavailable" : {
+      "comment" : "Said by a shortcut when the agent does not accept chat.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That agent does not take chat right now."
+          }
+        }
+      }
+    },
+    "shortcut.failure.refused" : {
+      "comment" : "Said by a shortcut when the server refused.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fleet refused the message."
+          }
+        }
+      }
+    },
+    "shortcut.failure.signedOut" : {
+      "comment" : "Said by a shortcut when there is no usable sign-in.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This phone is not signed in to a fleet. Open Phleet and scan a setup code."
+          }
+        }
+      }
+    },
+    "shortcut.failure.tooLong" : {
+      "comment" : "Said by a shortcut when the message is over the size limit.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That message is longer than the fleet takes in one go."
+          }
+        }
+      }
+    },
+    "shortcut.failure.unreachable" : {
+      "comment" : "Said by a shortcut when the server could not be reached.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fleet did not answer. Nothing is known to have been sent."
+          }
+        }
+      }
+    },
+    "shortcut.status.agentsDown" : {
+      "comment" : "Spoken by the fleet status shortcut before the agents that need attention.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Down or late:"
+          }
+        }
+      }
+    },
+    "shortcut.status.agentsFine" : {
+      "comment" : "Spoken by the fleet status shortcut when no agent needs attention.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every agent is up."
+          }
+        }
+      }
+    },
+    "shortcut.status.description" : {
+      "comment" : "Description of the fleet status shortcut.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Says how many runs are waiting for you and which agents are down."
+          }
+        }
+      }
+    },
+    "shortcut.status.nothingWaiting" : {
+      "comment" : "Spoken by the fleet status shortcut when no run is waiting.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is waiting for you."
+          }
+        }
+      }
+    },
+    "shortcut.status.title" : {
+      "comment" : "Title of the shortcut that says what is waiting in the fleet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What needs me"
+          }
+        }
+      }
+    },
+    "shortcut.status.waiting" : {
+      "comment" : "Spoken by the fleet status shortcut before the number of waiting runs and what they are.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for you:"
           }
         }
       }

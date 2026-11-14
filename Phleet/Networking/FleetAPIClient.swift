@@ -97,4 +97,46 @@ protocol FleetAPIClient {
         conversationId: String,
         body: CursorBody
     ) async throws -> CursorAcceptedResponse
+
+    /// `GET /v1/conversations` — the caller's own conversations, most recently active first.
+    func conversations(
+        origin: URL,
+        accessToken: String
+    ) async throws -> ConversationListResponse
+
+    /// `POST /v1/conversations/{id}:cancel` — asks the agent to stop. The answer says the request
+    /// was taken; what it did arrives as events.
+    func cancel(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: CancelBody
+    ) async throws -> CancelAcceptedResponse
+
+    /// `POST /v1/conversations/{id}/attachments` — reserves a slot for one image.
+    func reserveAttachment(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: ReserveAttachmentBody
+    ) async throws -> ReserveAttachmentResponse
+
+    /// `PUT /v1/attachments/{attachmentId}/content` — uploads the bytes.
+    ///
+    /// Takes the reservation's `uploadToken`, **not** the access token: the route never looks at
+    /// a sign-in, and a sign-in presented to it is refused.
+    func uploadAttachment(
+        origin: URL,
+        uploadToken: String,
+        attachmentId: String,
+        contentType: String,
+        data: Data
+    ) async throws -> SealedAttachmentResponse
+
+    /// `GET /v1/attachments/{attachmentId}/content` — the bytes, with the phone's own sign-in.
+    func attachmentContent(
+        origin: URL,
+        accessToken: String,
+        attachmentId: String
+    ) async throws -> Data
 }

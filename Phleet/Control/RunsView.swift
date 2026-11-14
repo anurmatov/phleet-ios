@@ -9,8 +9,11 @@ struct RunsView: View {
 
     let fleet: ControlPlaneModel
     let runs: RunsModel
+    /// The fleet's schedules, or `nil` where there is no link to offer.
+    var schedules: SchedulesModel?
 
     @State private var isStarting = false
+    @State private var query = ""
 
     var body: some View {
         List {
@@ -23,10 +26,18 @@ struct RunsView: View {
             section("runs.running.title", empty: "runs.running.empty", runs: fleet.runningRuns)
             section("runs.stopped.title", empty: "runs.stopped.empty", runs: runs.stopped)
             section("runs.finished.title", empty: "runs.finished.empty", runs: runs.finished)
+
+            windowSection
         }
         .navigationTitle(Text("runs.title"))
+        .searchable(text: $query, prompt: Text("runs.search.prompt"))
         .navigationDestination(for: WorkflowRun.self) { run in
             RunDetailView(fleet: fleet, runs: runs, snapshot: run)
+        }
+        .navigationDestination(for: SchedulesRoute.self) { _ in
+            if let schedules {
+                SchedulesView(model: schedules, fleet: fleet)
+            }
         }
         .navigationDestination(for: PendingGate.self) { gate in
             GateDecisionView(model: fleet, gate: gate)
@@ -36,6 +47,15 @@ struct RunsView: View {
             await runs.refreshClosed()
         }
         .toolbar {
+            if schedules != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(value: SchedulesRoute()) {
+                        Image(systemName: "calendar.badge.clock")
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.schedulesOpen.identifier)
+                    .accessibilityLabel(AccessibilityIdentifier.schedulesOpen.localizedLabel)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     runs.resetStart()
@@ -61,14 +81,47 @@ struct RunsView: View {
         }
     }
 
+    /// How far back closed runs are read. A longer window is a heavier read for the
+    /// orchestrator's workflow engine, so the last day stays the default.
+    private var windowSection: some View {
+        Section {
+            Picker(selection: windowBinding) {
+                ForEach(RunsModel.windowChoices, id: \.self) { hours in
+                    Text(Self.windowKey(hours: hours)).tag(hours)
+                }
+            } label: {
+                Text("runs.window.title")
+            }
+            .accessibilityIdentifier(AccessibilityIdentifier.runsWindow.identifier)
+        } footer: {
+            Text("runs.window.help")
+        }
+    }
+
+    private var windowBinding: Binding<Int> {
+        let runs = self.runs
+        return Binding(
+            get: { runs.windowHours },
+            set: { hours in Task { await runs.setWindow(hours: hours) } }
+        )
+    }
+
+    // Typed explicitly so each is looked up in the catalog rather than shown as its own key.
+    private static func windowKey(hours: Int) -> LocalizedStringKey {
+        hours <= 24 ? "runs.window.day" : "runs.window.threeDays"
+    }
+
     private func section(
         _ titleKey: LocalizedStringKey,
         empty emptyKey: LocalizedStringKey,
-        runs listed: [WorkflowRun]
+        runs all: [WorkflowRun]
     ) -> some View {
-        Section {
+        let listed = all.filter { ListSearch.matches($0, query: query) }
+        return Section {
             if listed.isEmpty {
-                Text(emptyKey)
+                // Nothing here at all, or nothing here that matches what was typed: two
+                // different facts, said differently.
+                Text(all.isEmpty ? emptyKey : "runs.search.empty")
                     .font(.body)
                     .foregroundStyle(.secondary)
             } else {
@@ -85,6 +138,9 @@ struct RunsView: View {
         }
     }
 }
+
+/// Where the schedules link leads.
+struct SchedulesRoute: Hashable {}
 
 /// One run, in a line: how it stands, and what it is about.
 struct RunRow: View {

@@ -10,6 +10,10 @@ extension OpenConversationResponse: ProtocolVersionedResponse {}
 extension CatchUpResponse: ProtocolVersionedResponse {}
 extension SubmissionAcceptedResponse: ProtocolVersionedResponse {}
 extension CursorAcceptedResponse: ProtocolVersionedResponse {}
+extension ConversationListResponse: ProtocolVersionedResponse {}
+extension CancelAcceptedResponse: ProtocolVersionedResponse {}
+extension ReserveAttachmentResponse: ProtocolVersionedResponse {}
+extension SealedAttachmentResponse: ProtocolVersionedResponse {}
 
 /// The `URLSession` implementation of the chat routes.
 ///
@@ -117,6 +121,108 @@ final class URLSessionFleetAPIClient: FleetAPIClient {
         )
     }
 
+    func conversations(origin: URL, accessToken: String) async throws -> ConversationListResponse {
+        let request = Self.request(
+            url: try Self.routeURL(origin: origin, path: "/v1/conversations"),
+            method: "GET",
+            accessToken: accessToken,
+            serviceToken: serviceToken
+        )
+        return try await perform(request)
+    }
+
+    func cancel(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: CancelBody
+    ) async throws -> CancelAcceptedResponse {
+        try await post(
+            origin: origin,
+            // `:cancel` is a literal suffix on the identifier's own segment, not a segment.
+            path: "/v1/conversations/" + escaped(conversationId) + ":cancel",
+            accessToken: accessToken,
+            body: body
+        )
+    }
+
+    func reserveAttachment(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: ReserveAttachmentBody
+    ) async throws -> ReserveAttachmentResponse {
+        try await post(
+            origin: origin,
+            path: "/v1/conversations/" + escaped(conversationId) + "/attachments",
+            accessToken: accessToken,
+            body: body
+        )
+    }
+
+    func uploadAttachment(
+        origin: URL,
+        uploadToken: String,
+        attachmentId: String,
+        contentType: String,
+        data: Data
+    ) async throws -> SealedAttachmentResponse {
+        // The address is built here from the identifier, never taken from the reservation's
+        // answer: the bytes and the token go to the server this phone is signed in to, whatever
+        // that answer said. The token rides where a sign-in would, and no sign-in is sent.
+        var request = Self.request(
+            url: try Self.routeURL(origin: origin, path: Self.attachmentPath(attachmentId)),
+            method: "PUT",
+            accessToken: uploadToken,
+            serviceToken: serviceToken
+        )
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+
+        let body: Data
+        let response: URLResponse
+        do {
+            (body, response) = try await session.upload(for: request, from: data)
+        } catch {
+            throw FleetAPIError.transport(String(describing: type(of: error)))
+        }
+        return try decoded(body, response)
+    }
+
+    func attachmentContent(
+        origin: URL,
+        accessToken: String,
+        attachmentId: String
+    ) async throws -> Data {
+        let request = Self.request(
+            url: try Self.routeURL(origin: origin, path: Self.attachmentPath(attachmentId)),
+            method: "GET",
+            accessToken: accessToken,
+            serviceToken: serviceToken
+        )
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw FleetAPIError.transport(String(describing: type(of: error)))
+        }
+        guard let http = response as? HTTPURLResponse else {
+            throw FleetAPIError.transport("non-HTTP response")
+        }
+        guard (200..<300).contains(http.statusCode) else {
+            throw failure(status: http.statusCode, headers: http, data: data)
+        }
+        // Raw bytes: there is no body to carry a protocol field, and nothing here decodes them.
+        return data
+    }
+
+    /// The one address an attachment's bytes move through, in either direction.
+    static func attachmentPath(_ attachmentId: String) -> String {
+        let escaped = attachmentId.addingPercentEncoding(withAllowedCharacters: identifierCharacters)
+            ?? attachmentId
+        return "/v1/attachments/" + escaped + "/content"
+    }
+
     // MARK: - Plumbing
 
     private func post<Body: Encodable, Response: Decodable & ProtocolVersionedResponse>(
@@ -176,6 +282,13 @@ final class URLSessionFleetAPIClient: FleetAPIClient {
             throw FleetAPIError.transport(String(describing: type(of: error)))
         }
 
+        return try decoded(data, response)
+    }
+
+    private func decoded<Response: Decodable & ProtocolVersionedResponse>(
+        _ data: Data,
+        _ response: URLResponse
+    ) throws -> Response {
         guard let http = response as? HTTPURLResponse else {
             throw FleetAPIError.transport("non-HTTP response")
         }

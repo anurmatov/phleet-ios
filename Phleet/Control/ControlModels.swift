@@ -425,6 +425,9 @@ enum AgentAction: String, CaseIterable, Sendable {
     case restart
     case stop
     case start
+    /// Recreate the agent's container from its stored configuration. What a changed model,
+    /// instruction or harness setting waits for.
+    case reprovision
 }
 
 /// One entry in a run's history, as the orchestrator summarises it.
@@ -663,6 +666,188 @@ enum StartWorkflow {
             namespace: type.namespace,
             taskQueue: type.taskQueue,
             input: input
+        )
+    }
+}
+
+// MARK: - Restarting a run
+
+/// What `POST /api/workflows/{namespace}/restart/{workflowId}` started.
+struct RestartedRun: Equatable, Sendable, Decodable {
+    let newWorkflowId: String
+    let newRunId: String?
+}
+
+// MARK: - Schedules
+
+/// What can be done to a schedule from here.
+///
+/// The raw value is the path segment the orchestrator's route takes.
+enum ScheduleAction: String, CaseIterable, Sendable {
+    case pause
+    case unpause
+    /// Start one run now, outside the schedule's own timing.
+    case trigger
+}
+
+/// One schedule, as `GET /api/schedules` lists it.
+///
+/// A schedule is addressed by its namespace and identifier, so those two are required. Everything
+/// else is read leniently, like an agent's fields.
+struct FleetSchedule: Hashable, Sendable, Identifiable {
+    let scheduleId: String
+    let namespace: String
+    let workflowType: String?
+    let cronExpression: String?
+    let isPaused: Bool
+    let note: String?
+
+    var id: String { namespace + "\u{1F}" + scheduleId }
+
+    init(
+        scheduleId: String,
+        namespace: String,
+        workflowType: String? = nil,
+        cronExpression: String? = nil,
+        isPaused: Bool = false,
+        note: String? = nil
+    ) {
+        self.scheduleId = scheduleId
+        self.namespace = namespace
+        self.workflowType = workflowType
+        self.cronExpression = cronExpression
+        self.isPaused = isPaused
+        self.note = note
+    }
+}
+
+extension FleetSchedule: Decodable {
+
+    private enum CodingKeys: String, CodingKey {
+        case scheduleId, namespace, workflowType, cronExpression, paused, memo
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let scheduleId = try container.decode(String.self, forKey: .scheduleId)
+        let namespace = try container.decode(String.self, forKey: .namespace)
+        guard !scheduleId.isEmpty, !namespace.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .scheduleId,
+                in: container,
+                debugDescription: "a schedule needs an identifier and a namespace"
+            )
+        }
+        self.init(
+            scheduleId: scheduleId,
+            namespace: namespace,
+            workflowType: container.lenient(String.self, .workflowType),
+            cronExpression: container.lenient(String.self, .cronExpression),
+            isPaused: container.lenient(Bool.self, .paused) ?? false,
+            note: container.lenient(String.self, .memo)
+        )
+    }
+}
+
+// MARK: - Memory
+
+/// One hit of `GET /api/memory/search`.
+struct MemorySearchResult: Hashable, Sendable, Identifiable {
+    let id: String
+    let title: String
+    let project: String?
+    let type: String?
+    let tags: [String]
+    let snippet: String?
+
+    init(
+        id: String,
+        title: String,
+        project: String? = nil,
+        type: String? = nil,
+        tags: [String] = [],
+        snippet: String? = nil
+    ) {
+        self.id = id
+        self.title = title
+        self.project = project
+        self.type = type
+        self.tags = tags
+        self.snippet = snippet
+    }
+}
+
+extension MemorySearchResult: Decodable {
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, project, type, tags, snippet
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let id = try container.decode(String.self, forKey: .id)
+        let title = container.lenient(String.self, .title)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        self.init(
+            id: id,
+            // A memory with no title is still one that can be opened, under its identifier.
+            title: title.isEmpty ? id : title,
+            project: container.lenient(String.self, .project),
+            type: container.lenient(String.self, .type),
+            tags: container.lenient([String].self, .tags) ?? [],
+            snippet: container.lenient(String.self, .snippet)
+        )
+    }
+}
+
+/// One memory in full, as `GET /api/memory/{id}` returns it.
+struct MemoryDocument: Equatable, Sendable {
+    let id: String
+    let title: String
+    let content: String
+    let project: String?
+    let type: String?
+    let agent: String?
+    let tags: [String]
+
+    init(
+        id: String,
+        title: String,
+        content: String,
+        project: String? = nil,
+        type: String? = nil,
+        agent: String? = nil,
+        tags: [String] = []
+    ) {
+        self.id = id
+        self.title = title
+        self.content = content
+        self.project = project
+        self.type = type
+        self.agent = agent
+        self.tags = tags
+    }
+}
+
+extension MemoryDocument: Decodable {
+
+    private enum CodingKeys: String, CodingKey {
+        case id, title, content, project, type, agent, tags
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let id = try container.decode(String.self, forKey: .id)
+        let title = container.lenient(String.self, .title)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        self.init(
+            id: id,
+            title: title.isEmpty ? id : title,
+            content: try container.decode(String.self, forKey: .content),
+            project: container.lenient(String.self, .project),
+            type: container.lenient(String.self, .type),
+            agent: container.lenient(String.self, .agent),
+            tags: container.lenient([String].self, .tags) ?? []
         )
     }
 }

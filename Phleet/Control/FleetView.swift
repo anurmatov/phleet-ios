@@ -16,10 +16,13 @@ struct FleetView: View {
     let model: ControlPlaneModel
     let credential: DeviceCredential
     let push: PushNotificationsModel?
+    /// The fleet's memory, or `nil` where there is no search to offer.
+    var memory: MemoryModel?
 
     @Environment(AppEnvironment.self) private var appEnvironment
     @Environment(\.scenePhase) private var scenePhase
     @State private var isShowingConnection = false
+    @State private var query = ""
 
     var body: some View {
         List {
@@ -31,8 +34,19 @@ struct FleetView: View {
         .navigationDestination(for: PendingGate.self) { gate in
             GateDecisionView(model: model, gate: gate)
         }
+        .searchable(text: $query, prompt: Text("fleet.search.prompt"))
         .navigationDestination(for: AgentRoute.self) { route in
-            AgentDetailView(model: model, agentName: route.agentName)
+            AgentDetailView(
+                model: model,
+                agentName: route.agentName,
+                chat: appEnvironment.chat,
+                openChat: chatOpener(for: route.agentName)
+            )
+        }
+        .navigationDestination(for: MemorySearchRoute.self) { _ in
+            if let memory {
+                MemorySearchView(model: memory)
+            }
         }
         .navigationDestination(for: AgentLogRoute.self) { route in
             AgentLogView(agentName: route.agentName)
@@ -41,6 +55,15 @@ struct FleetView: View {
             await model.refresh()
         }
         .toolbar {
+            if memory != nil {
+                ToolbarItem(placement: .topBarLeading) {
+                    NavigationLink(value: MemorySearchRoute()) {
+                        Image(systemName: "books.vertical")
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.memoryOpen.identifier)
+                    .accessibilityLabel(AccessibilityIdentifier.memoryOpen.localizedLabel)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     isShowingConnection = true
@@ -54,8 +77,12 @@ struct FleetView: View {
         .sheet(isPresented: $isShowingConnection) {
             // Handed on explicitly: the sheet signs out through it, and a presented sheet is
             // not a place to rely on the environment arriving by inheritance.
-            ControlConnectionView(credential: credential, push: push)
-                .environment(appEnvironment)
+            ControlConnectionView(
+                credential: credential,
+                push: push,
+                ownerConfirmation: appEnvironment.ownerConfirmation
+            )
+            .environment(appEnvironment)
         }
         .onAppear {
             model.start()
@@ -90,11 +117,19 @@ struct FleetView: View {
         }
     }
 
+    /// Asks the root to open this agent's thread on the Chat tab. Whether to offer it is the
+    /// agent screen's to decide, from the list of who can be chatted with.
+    private func chatOpener(for agentName: String) -> () -> Void {
+        let environment = appEnvironment
+        return { environment.requestedDestination = .thread(agentName: agentName) }
+    }
+
     private var gatesSection: some View {
         Section {
-            let gates = model.gates
+            let all = model.gates
+            let gates = all.filter { ListSearch.matches($0, query: query) }
             if gates.isEmpty {
-                Text("fleet.needsYou.empty")
+                Text(all.isEmpty ? "fleet.needsYou.empty" : "fleet.search.empty")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier(AccessibilityIdentifier.fleetNoGates.identifier)
@@ -114,9 +149,10 @@ struct FleetView: View {
 
     private var agentsSection: some View {
         Section {
-            let agents = model.agents
+            let all = model.agents
+            let agents = all.filter { ListSearch.matches($0, query: query) }
             if agents.isEmpty {
-                Text("fleet.agents.empty")
+                Text(all.isEmpty ? "fleet.agents.empty" : "fleet.search.empty")
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .accessibilityIdentifier(AccessibilityIdentifier.fleetNoAgents.identifier)

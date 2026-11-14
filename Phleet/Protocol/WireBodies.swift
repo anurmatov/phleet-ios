@@ -29,10 +29,21 @@ struct OpenConversationBody: Equatable, Sendable, Encodable {
     }
 }
 
+/// One attachment a submission carries: an identifier the reserve route issued, already sealed.
+struct SubmissionAttachmentRef: Equatable, Sendable, Encodable {
+    let attachmentId: String
+    let kind: String
+
+    init(attachmentId: String, kind: String = "image") {
+        self.attachmentId = attachmentId
+        self.kind = kind
+    }
+}
+
 /// `POST /v1/conversations/{id}/submissions`
 ///
-/// `attachments` is deliberately absent rather than sent empty: a non-empty array is
-/// `400 unsupported_attachments`, and this slice has nothing to attach.
+/// `attachments` is absent rather than sent empty for a message that is only words: the server
+/// reads the two the same, and a text-only body then stays byte for byte what it always was.
 struct SubmissionBody: Equatable, Sendable, Encodable {
     /// `create` or `steer`. This slice only ever sends `create`; `steer` exists so the type does
     /// not have to change when the steer route is surfaced.
@@ -46,6 +57,8 @@ struct SubmissionBody: Equatable, Sendable, Encodable {
     let submissionId: String
     let idempotencyKey: String
     let text: String
+    /// `nil` for a message with nothing attached, which leaves the key out of the body.
+    var attachments: [SubmissionAttachmentRef]?
 
     private enum CodingKeys: String, CodingKey {
         case protocolVersion = "protocol"
@@ -53,6 +66,48 @@ struct SubmissionBody: Equatable, Sendable, Encodable {
         case submissionId
         case idempotencyKey
         case text
+        case attachments
+    }
+}
+
+/// `POST /v1/conversations/{id}:cancel`
+struct CancelBody: Equatable, Sendable, Encodable {
+    /// `current` stops the turn that is running. `all` also drops what is queued behind it.
+    enum Scope: String, Equatable, Sendable, Encodable {
+        case current
+        case all
+    }
+
+    let protocolVersion = ProtocolVersion.current
+    let scope: Scope
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol"
+        case scope
+    }
+}
+
+/// `POST /v1/conversations/{id}/attachments` — reserves a slot before any byte moves.
+///
+/// Every field is a claim about bytes the server has not seen yet. It records the size and the
+/// digest, and refuses the upload if what arrives does not match them.
+struct ReserveAttachmentBody: Equatable, Sendable, Encodable {
+    let protocolVersion = ProtocolVersion.current
+    let kind: String
+    let contentType: String
+    let byteSize: Int
+    /// 64 lowercase hex characters.
+    let sha256: String
+    /// A label. Never a path.
+    let fileName: String
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol"
+        case kind
+        case contentType
+        case byteSize
+        case sha256
+        case fileName
     }
 }
 
@@ -306,5 +361,133 @@ struct CursorAcceptedResponse: Equatable, Sendable, Decodable {
 
     init(protocolVersion: String? = nil) {
         self.protocolVersion = protocolVersion
+    }
+}
+
+/// `POST /v1/conversations/{id}:cancel` answered: the request was taken, and nothing more. Whether
+/// anything was running arrives later as a `control.ack` event.
+struct CancelAcceptedResponse: Equatable, Sendable, Decodable {
+    let protocolVersion: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol"
+    }
+
+    init(protocolVersion: String? = nil) {
+        self.protocolVersion = protocolVersion
+    }
+}
+
+/// A reserved attachment slot.
+///
+/// `uploadToken` exists only in this answer: the server keeps its digest and nothing else. It is
+/// used once, for the upload, and never stored. The answer also names an upload address; this
+/// client builds that address itself from `attachmentId`, so nothing the answer says can send
+/// the bytes or the token anywhere but the server it came from.
+struct ReserveAttachmentResponse: Equatable, Sendable, Decodable {
+    let protocolVersion: String?
+    let attachmentId: String
+    let uploadToken: String
+    let maxBytes: Int?
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol"
+        case attachmentId
+        case uploadToken
+        case maxBytes
+    }
+
+    init(
+        attachmentId: String,
+        uploadToken: String,
+        maxBytes: Int? = nil,
+        protocolVersion: String? = nil
+    ) {
+        self.protocolVersion = protocolVersion
+        self.attachmentId = attachmentId
+        self.uploadToken = uploadToken
+        self.maxBytes = maxBytes
+    }
+}
+
+/// `PUT /v1/attachments/{attachmentId}/content` answered: the bytes matched what was reserved,
+/// and the attachment can now be named by a submission.
+struct SealedAttachmentResponse: Equatable, Sendable, Decodable {
+    let protocolVersion: String?
+    let attachmentId: String
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol"
+        case attachmentId
+    }
+
+    init(attachmentId: String, protocolVersion: String? = nil) {
+        self.protocolVersion = protocolVersion
+        self.attachmentId = attachmentId
+    }
+}
+
+/// One of the caller's conversations, as `GET /v1/conversations` lists it.
+struct ConversationSummary: Equatable, Sendable, Decodable {
+    let conversationId: String
+    let agent: String
+    let externalRef: String
+    /// The position the next event will take. One less is the newest there is.
+    let nextSeq: Int
+    let lastActivityAt: Date?
+
+    private enum CodingKeys: String, CodingKey {
+        case conversationId, agent, externalRef, nextSeq, lastActivityAt
+    }
+
+    init(
+        conversationId: String,
+        agent: String,
+        externalRef: String,
+        nextSeq: Int,
+        lastActivityAt: Date? = nil
+    ) {
+        self.conversationId = conversationId
+        self.agent = agent
+        self.externalRef = externalRef
+        self.nextSeq = nextSeq
+        self.lastActivityAt = lastActivityAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            conversationId: try container.decode(String.self, forKey: .conversationId),
+            agent: try container.decode(String.self, forKey: .agent),
+            externalRef: try container.decode(String.self, forKey: .externalRef),
+            nextSeq: (try? container.decodeIfPresent(Int.self, forKey: .nextSeq)) ?? 0,
+            lastActivityAt: (try? container.decodeIfPresent(String.self, forKey: .lastActivityAt))
+                .flatMap(ControlTimestamp.parse)
+        )
+    }
+}
+
+/// `GET /v1/conversations`: the caller's own conversations, most recently active first.
+struct ConversationListResponse: Equatable, Sendable, Decodable {
+    let protocolVersion: String?
+    let conversations: [ConversationSummary]
+
+    private enum CodingKeys: String, CodingKey {
+        case protocolVersion = "protocol"
+        case conversations
+    }
+
+    init(conversations: [ConversationSummary], protocolVersion: String? = nil) {
+        self.protocolVersion = protocolVersion
+        self.conversations = conversations
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        protocolVersion = try container.decodeIfPresent(String.self, forKey: .protocolVersion)
+        conversations = (try? container.decodeIfPresent(
+            LossyList<ConversationSummary>.self,
+            forKey: .conversations
+        ))?.items ?? []
     }
 }

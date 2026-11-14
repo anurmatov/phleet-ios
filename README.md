@@ -39,6 +39,9 @@ What signing in does:
 - **sign out** — from the connection sheet: the orchestrator is told to forget this phone for
   notifications and to revoke it, then the credential is deleted. A phone revoked from the
   dashboard returns to setup and says why
+- **without a camera** — the same setup code can be pasted as text, with the system's paste
+  button; it is read exactly as a scanned one is, and connecting is still a separate tap. The
+  dashboard has to offer the code as text for this to be of use, which it does not yet
 - **older codes and older installs** — a code from a dashboard that predates one sign-in (it
   carried the operator token) is refused by name. The Keychain items an earlier build kept,
   including that operator token, are deleted at launch; whether notifications were on carries
@@ -55,16 +58,30 @@ What Fleet does:
 - **answer safety** — Value and optional Comment are preserved unchanged (2000 UTF-16 units each);
   input is data only, never authority to execute work; missing/invalid history, loading and stale
   requests cannot send, and an uncertain send refreshes the same run without replay
+- **what led to a gate** — under the decision, the latest from that exact run: what an agent
+  produced, what failed, what was signalled; and a link to the pull request or issue on GitHub
+  when the run names its repository as `owner/name`. A gate whose history cannot be read still
+  offers its decision
+- **how many are waiting** — on the Fleet tab and on the app's icon, kept while the app is in use
 - **agents** — every agent, the ones that are down or late first, with its current task
-- **agent actions** — restart, stop, start, or cancel the task in hand; which are offered follows
-  the agent's state, each takes two taps, and the agent's own state afterwards is the evidence
+- **agent actions** — restart, stop, start, reprovision, or cancel the task in hand; which are
+  offered follows the agent's state, each takes two taps, and the agent's own state afterwards is
+  the evidence. An agent with chat on links to its thread
 - **logs** — the tail of an agent's container log, followed while the screen is open
-- **runs** — in progress, stopped without finishing, and finished in the last day; a run's
-  history; cancel, addressed to that run rather than to its workflow name
+- **runs** — in progress, stopped without finishing, and finished in the last day or the last
+  three; a run's history; cancel and terminate, addressed to that run rather than to its workflow
+  name; and run again, which starts a new run like a closed one
+- **schedules** — what each starts and when; pause, resume, and start a run now
 - **start a workflow** — pick a type and fill in its text, number and switch inputs
+- **search** — the agent and run lists narrow as you type; memory search looks up what the fleet
+  has written down, by meaning, and opens a memory to read
 - **notifications** — turned on from the connection sheet; the orchestrator then tells this phone
-  when a gate is waiting, a workflow failed or an agent went down, and tapping one opens the tab
-  that shows it. Every reason they are not on is said in words
+  when a gate is waiting, a workflow failed or an agent went down, and tapping one opens that
+  gate, run, agent or thread when a fresh read still finds it, and its tab otherwise. Every
+  reason they are not on is said in words
+- **confirm it's you** — an optional switch: with it on, a decision, an agent or schedule action,
+  and cancelling or terminating a run ask for Face ID, Touch ID or the passcode first. It guards
+  this phone's interface; the server is not told
 - **freshness** — HTTPS reads on a timer are the source of truth; the orchestrator's live socket
   only makes changes arrive sooner, so a socket that cannot pass a proxy costs nothing but speed
 - **no redirects** — a request is never followed to another host, so a proxy's sign-in redirect
@@ -87,35 +104,47 @@ What Chat does:
   nothing earlier is backfilled
 - **chat turned off** — an agent whose chat was turned off says so, names where it is turned back
   on, and offers to try again
-- **Markdown** — an agent's reply renders emphasis, code spans, fenced code blocks and web links;
-  everything else stays as the characters the agent wrote, nothing is read as HTML, and a link
-  that is not `http` or `https` opens nothing. Your own messages stay plain text
+- **who is there** — each agent in the list shows how the fleet says it is doing, when its
+  thread was last active, and a mark when the thread has moved on since this phone last showed it
+- **stop** — while a turn of the thread is running, one tap asks the agent to stop it. What
+  happened arrives as events: the turn ends as stopped, or a line says nothing was running
+- **images** — up to four per message, picked with the system's photo picker, converted to JPEG
+  and uploaded before the message that names them. A server with images switched off says so,
+  and the picker is withdrawn. Sent images are read back from the server like the words
+- **Markdown** — an agent's reply renders emphasis, code spans, fenced code blocks, headings,
+  lists, quotes, tables and web links; nothing is read as HTML, and a link that is not `http` or
+  `https` opens nothing. Your own messages stay plain text
 - **drafts** — what you typed to one agent stays with that agent, and survives signing out
 - **reply notifications** — when notifications are on, the orchestrator tells this phone when an
-  agent replies while no client is watching that thread; tapping one opens the Chat tab
+  agent replies while no client is watching that thread; tapping one opens that thread
+
+What Shortcuts can do:
+
+- **what needs me** — says how many runs are waiting and which agents are down or late
+- **ask an agent** — sends one message into an agent's thread; the reply arrives in the app
+- **nothing else** — no shortcut answers a gate, starts a workflow or acts on an agent. Those are
+  sent from a screen that shows what is being decided
 
 What it still does not do:
 
-- **no setup without a camera** — the dashboard shows the setup code only as a QR code, so a
-  phone that cannot scan cannot be set up
-- **no provisioning** — an agent that was never provisioned, or needs reprovisioning, is handled
-  from the web dashboard
-- **no terminate or restart of a run** — a run can be cancelled, which asks it to stop; forcing
-  one to stop and restarting one are not offered
+- **no widget and no share sheet** — both need their own app targets, an App Group and
+  provisioning profiles the operator creates; neither is in the project yet
+- **no provisioning of a new agent** — an agent that was never provisioned is handled from the
+  web dashboard; one that exists can be reprovisioned here
 - **no rich workflow inputs** — a workflow that needs a list or a nested value is started from
   the dashboard
-- **no editing** — instructions, project contexts, workflow definitions, credentials and secret
-  bindings stay on the web dashboard; chat is turned on per agent there too
-- **limited notification destinations** — a human-input tap with complete run identity refreshes
-  Fleet and opens only the matching pending request; missing or stale identities stay on the list,
-  and other notifications still open the Fleet, Runs or Chat tab, not the particular gate, run or
-  thread
+- **no editing** — instructions, project contexts, workflow definitions, schedules, memories,
+  credentials and secret bindings stay on the web dashboard; chat is turned on per agent there too
 - **human-input compatibility** — requires the shipped human-input backend contract and exact-run
   history support; older or unknown request formats remain unavailable rather than guessed
-- **no voice, attachments, approvals, or multi-agent rooms**
-- **no steer or cancel interface** — the routes exist; this app does not surface them
+- **no voice, no files other than images, no multi-agent rooms**
+- **no steer interface** — the route exists; this app does not surface it
+- **no opening a sent image full screen**, and no images from an agent: the protocol carries
+  none yet
 - **no local persistence of conversation history** — the transcript is in memory only; history
   is read back from the server, never from the phone
+- **the icon's count is only as fresh as the app's last read** — the server's notifications
+  carry no count, so the number does not change while the app is closed
 
 Every test is hermetic: nothing in the suite opens a socket, and it passes with the runner
 offline. Nothing here has been exercised against a live server yet — including the sign-in, the
@@ -124,7 +153,10 @@ captured from a running one, and whether its sockets (live state, agent logs, ch
 with service-token headers is untested. The camera scanner cannot run on a simulator, so CI covers
 reading a setup code and what it may do, not the camera itself. Notifications are covered the
 same way: the app's own steps run against a stand-in for the system, and no test asks Apple for a
-device token or receives a real notification.
+device token or receives a real notification. The same holds for what this change adds: the
+photo picker, Face ID and Shortcuts are the system's and are not driven by any test — the code
+behind each runs against a stand-in — and stopping a turn, sending an image, schedules and memory
+search have been run against the scripted server only.
 
 ## Build and test
 

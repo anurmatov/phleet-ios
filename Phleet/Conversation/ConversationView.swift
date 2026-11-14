@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import UIKit
 
@@ -17,9 +18,19 @@ struct ConversationView: View {
 
     let model: ConversationModel
 
+    /// Told how far the thread has been shown, while it is on screen, so the list it was opened
+    /// from does not announce what was just read as new.
+    var onSeen: ((Int) -> Void)?
+
+    /// Opens this agent's own screen. `nil` where the fleet does not list it.
+    var openAgent: (() -> Void)?
+
     @State private var announcedCount = 0
+    @State private var pickedItems: [PhotosPickerItem] = []
 
     @FocusState private var composerFocused: Bool
+
+    @ScaledMetric(relativeTo: .body) private var draftImageSide: CGFloat = 56
 
     var body: some View {
         VStack(spacing: 0) {
@@ -33,11 +44,30 @@ struct ConversationView: View {
         }
         .navigationTitle(Text(verbatim: model.agent.displayName))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let openAgent {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        openAgent()
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.conversationAgentInfo.identifier)
+                    .accessibilityLabel(AccessibilityIdentifier.conversationAgentInfo.localizedLabel)
+                }
+            }
+        }
         .task {
             await model.run()
         }
         .onChange(of: model.machine.pendingAnnouncements.count) { _, newValue in
             announce(upTo: newValue)
+        }
+        .onChange(of: model.lastAppliedSeq, initial: true) { _, position in
+            onSeen?(position)
+        }
+        .onChange(of: pickedItems) { _, items in
+            addPicked(items)
         }
         .onChange(of: scenePhase) { _, newPhase in
             // One coalesced write on the way out, so a cursor is not left behind by a session
@@ -69,6 +99,7 @@ struct ConversationView: View {
                             TranscriptEntryView(
                                 record: record,
                                 activity: model.machine.activity,
+                                images: model.images,
                                 sendAgain: { Task { await model.sendAgain(after: submissionId) } }
                             )
                         }
@@ -83,25 +114,15 @@ struct ConversationView: View {
                             Text("conversation.recovered")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
-                            // Its own element, for the same reason as every other body: text
+                            // Its own elements, for the same reason as every other body: text
                             // merged into an opaque parent cannot be long-pressed, so it cannot
                             // be selected. An agent's words, so rendered as Markdown.
-                            let rendered = ReplyMarkdown.render(reply.text)
-                            Text(rendered)
-                                .font(.body)
-                                .textSelection(.enabled)
-                                .accessibilityIdentifier(
-                                    AccessibilityIdentifier.conversationReplyBody.identifier
-                                )
-                                .accessibilityLabel(
-                                    String(localized: "conversation.recovered") + ". "
-                                        + String(rendered.characters)
-                                )
-                                .accessibilityAction(named: Text("conversation.copy.reply")) {
-                                    if let text = TranscriptCopy.copyable(reply.text) {
-                                        UIPasteboard.general.string = text
-                                    }
-                                }
+                            MarkdownBlocksView(
+                                text: reply.text,
+                                identifier: .conversationReplyBody,
+                                spokenPrefix: String(localized: "conversation.recovered"),
+                                copyActionKey: "conversation.copy.reply"
+                            )
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityElement(children: .contain)
@@ -133,7 +154,27 @@ struct ConversationView: View {
         .accessibilityLabel(AccessibilityIdentifier.conversationTranscript.localizedLabel)
     }
 
+    @ViewBuilder
     private func systemLineView(_ line: SystemLine) -> some View {
+        if line.kind == .nothingToStop {
+            // This app's own words for an acknowledgement that carries none: a stop was asked
+            // for, and there was nothing running to stop.
+            HStack(spacing: 8) {
+                Image(systemName: "stop.circle")
+                    .imageScale(.small)
+                Text("conversation.stop.nothing")
+                    .font(.footnote)
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationStopNotice.identifier)
+        } else {
+            notedLine(line)
+        }
+    }
+
+    private func notedLine(_ line: SystemLine) -> some View {
         let isGap = line.kind == .replayGap
         return HStack(spacing: 8) {
             Image(systemName: isGap ? "clock.arrow.circlepath" : "info.circle")
@@ -165,6 +206,8 @@ struct ConversationView: View {
 
     private func composer(draft: Binding<String>) -> some View {
         VStack(alignment: .leading, spacing: 8) {
+            stopRow
+
             if let failure = model.sendFailure {
                 Text(failureKey(failure))
                     .font(.caption)
@@ -183,24 +226,116 @@ struct ConversationView: View {
                     )
             }
 
+            draftImagesRow
+
+            if let failure = model.attachmentFailure {
+                Text(attachmentFailureKey(failure))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier(
+                        AccessibilityIdentifier.conversationAttachmentNotice.identifier
+                    )
+            }
+
             composerControls(draft: draft)
 
-            // Said plainly rather than implied by the absence of a button. Images need an event
-            // kind, size limits and storage that the protocol does not have yet, so there is
-            // nothing here to attach them with — and someone looking for the paperclip should
-            // find out why instead of concluding the app is broken.
-            Text("conversation.media.unsupported")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier(
-                    AccessibilityIdentifier.conversationMediaUnsupported.identifier
-                )
-                .accessibilityLabel(
-                    AccessibilityIdentifier.conversationMediaUnsupported.localizedLabel
-                )
+            if model.attachmentsUnsupported {
+                // Said plainly rather than implied by a button that went away: this server has
+                // images switched off, and someone looking for the picker should find out why
+                // instead of concluding the app is broken.
+                Text("conversation.media.unsupported")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .accessibilityIdentifier(
+                        AccessibilityIdentifier.conversationMediaUnsupported.identifier
+                    )
+                    .accessibilityLabel(
+                        AccessibilityIdentifier.conversationMediaUnsupported.localizedLabel
+                    )
+            }
         }
         .padding()
         .background(.thinMaterial)
+    }
+
+    /// Stop, while a turn of this thread is running. One tap: stopping costs the answer that was
+    /// on its way and nothing else, and the moment it is wanted is the moment a second tap is
+    /// one too many.
+    @ViewBuilder
+    private var stopRow: some View {
+        if model.canStop || model.isStopping {
+            Button(role: .destructive) {
+                Task { await model.stop() }
+            } label: {
+                Label {
+                    Text(model.isStopping ? "conversation.stop.stopping" : "conversation.stop")
+                } icon: {
+                    Image(systemName: "stop.circle")
+                }
+                .font(.subheadline)
+            }
+            .buttonStyle(.bordered)
+            .disabled(model.isStopping)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationStop.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.conversationStop.localizedLabel)
+        }
+
+        if let failure = model.stopFailure {
+            Text(stopFailureKey(failure))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .accessibilityIdentifier(AccessibilityIdentifier.conversationStopNotice.identifier)
+        }
+    }
+
+    /// The images picked for this message, each with a way to take it back out.
+    @ViewBuilder
+    private var draftImagesRow: some View {
+        if !model.draftImages.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(model.draftImages) { image in
+                        draftImage(image)
+                    }
+                    if model.isUploading {
+                        ProgressView()
+                    }
+                }
+            }
+        }
+    }
+
+    private func draftImage(_ image: ConversationModel.OutgoingImage) -> some View {
+        ZStack(alignment: .topTrailing) {
+            if let picture = UIImage(data: image.jpeg) {
+                Image(uiImage: picture)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: draftImageSide, height: draftImageSide)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .accessibilityIdentifier(
+                        AccessibilityIdentifier.conversationAttachment.identifier
+                    )
+                    .accessibilityLabel(
+                        AccessibilityIdentifier.conversationAttachment.localizedLabel
+                    )
+            }
+
+            Button {
+                model.removeImage(id: image.id)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .symbolRenderingMode(.palette)
+                    .foregroundStyle(.white, .black.opacity(0.6))
+            }
+            .disabled(model.isUploading)
+            .accessibilityIdentifier(
+                AccessibilityIdentifier.conversationAttachmentRemove.identifier
+            )
+            .accessibilityLabel(
+                AccessibilityIdentifier.conversationAttachmentRemove.localizedLabel
+            )
+        }
     }
 
     /// Reflows vertically at accessibility sizes rather than truncating.
@@ -209,12 +344,56 @@ struct ConversationView: View {
         if dynamicTypeSize.isAccessibilitySize {
             VStack(alignment: .leading, spacing: 8) {
                 composerField(draft: draft)
-                sendButton(draft: draft)
+                HStack(spacing: 12) {
+                    imagePicker
+                    sendButton(draft: draft)
+                }
             }
         } else {
             HStack(spacing: 8) {
+                imagePicker
                 composerField(draft: draft)
                 sendButton(draft: draft)
+            }
+        }
+    }
+
+    /// The system's photo picker. It runs outside this app and hands over only what was picked,
+    /// so nothing here asks for access to the photo library.
+    @ViewBuilder
+    private var imagePicker: some View {
+        if !model.attachmentsUnsupported {
+            PhotosPicker(
+                selection: $pickedItems,
+                maxSelectionCount: max(
+                    1,
+                    ConversationModel.maxImagesPerMessage - model.draftImages.count
+                ),
+                matching: .images
+            ) {
+                // The hook is on the label as well as the picker: the picker is the system's
+                // control, and where it puts an identifier given to it is the system's business.
+                Image(systemName: "photo.on.rectangle.angled")
+                    .imageScale(.large)
+                    .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)
+            }
+            .disabled(!model.canAddImage)
+            .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.conversationAttach.localizedLabel)
+        }
+    }
+
+    /// Takes what the picker returned, one image at a time, and clears the selection so the same
+    /// photo can be picked again later.
+    private func addPicked(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+        pickedItems = []
+        Task {
+            for item in items {
+                // No bytes is the same failure as bytes that are not an image: empty data is
+                // refused by the same check, with the same words.
+                let data = (try? await item.loadTransferable(type: Data.self)) ?? Data()
+                model.addImage(data)
             }
         }
     }
@@ -240,19 +419,49 @@ struct ConversationView: View {
             if wasFocused {
                 composerFocused = true
             }
-            Task { await model.send(text) }
+            Task {
+                let sent = await model.send(text)
+                // An image that did not go up sent nothing. The words go back in the field,
+                // beside the images that are still there, unless something was typed meanwhile.
+                if sent == nil, model.attachmentFailure != nil, draft.wrappedValue.isEmpty {
+                    draft.wrappedValue = text
+                }
+            }
         } label: {
             Text("conversation.send")
                 .font(.headline)
         }
         .buttonStyle(.borderedProminent)
-        .disabled(
-            draft.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || !model.isWithinInboundLimit(draft.wrappedValue)
-        )
+        .disabled(!canSend(draft.wrappedValue))
         .accessibilityIdentifier(AccessibilityIdentifier.conversationSend.identifier)
         .accessibilityLabel(AccessibilityIdentifier.conversationSend.localizedLabel)
         .accessibilityHint(Text("conversation.send.hint"))
+    }
+
+    /// Words, or at least one image, within the size limit, and no upload already under way.
+    private func canSend(_ text: String) -> Bool {
+        let hasWords = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        guard hasWords || !model.draftImages.isEmpty else { return false }
+        return model.isWithinInboundLimit(text) && !model.isUploading
+    }
+
+    private func stopFailureKey(_ failure: ConversationModel.StopFailure) -> LocalizedStringKey {
+        switch failure {
+        case .agentUnavailable: return "conversation.send.failure.agentUnavailable"
+        case .notSent: return "conversation.stop.failure.notSent"
+        }
+    }
+
+    private func attachmentFailureKey(
+        _ failure: ConversationModel.AttachmentFailure
+    ) -> LocalizedStringKey {
+        switch failure {
+        case .unreadable: return "conversation.attachment.failure.unreadable"
+        case .tooMany: return "conversation.attachment.failure.tooMany"
+        case .unsupportedServer: return "conversation.attachment.failure.unsupported"
+        case .refused: return "conversation.attachment.failure.refused"
+        case .notSent: return "conversation.attachment.failure.notSent"
+        }
     }
 
     private func failureKey(_ failure: ConversationModel.SendFailure) -> LocalizedStringKey {

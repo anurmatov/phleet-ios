@@ -184,6 +184,62 @@ enum ProgressActivity: Hashable, Sendable {
 /// and counted rather than rendered as an empty message.
 struct SubmissionTextPayload: Equatable, Sendable {
     let text: String?
+    /// What was sent with the words. Empty for a message that was only words, which is what a
+    /// payload without the key means.
+    var attachments: [AttachmentDescriptor] = []
+}
+
+/// One file sent with a message, as the server describes it. The bytes are not here: they are
+/// read from `GET /v1/attachments/{attachmentId}/content` with the phone's own sign-in.
+struct AttachmentDescriptor: Hashable, Sendable, Identifiable, Decodable {
+    let attachmentId: String
+    /// `image` is the only kind there is. Kept as the server spelled it, so a kind this build
+    /// has never heard of is shown as a file it cannot draw rather than guessed at.
+    let kind: String
+    let contentType: String?
+    let byteSize: Int?
+    let fileName: String?
+
+    var id: String { attachmentId }
+
+    var isImage: Bool { kind == "image" }
+
+    init(
+        attachmentId: String,
+        kind: String = "image",
+        contentType: String? = nil,
+        byteSize: Int? = nil,
+        fileName: String? = nil
+    ) {
+        self.attachmentId = attachmentId
+        self.kind = kind
+        self.contentType = contentType
+        self.byteSize = byteSize
+        self.fileName = fileName
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case attachmentId, kind, contentType, byteSize, fileName
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let attachmentId = try container.decode(String.self, forKey: .attachmentId)
+        guard !attachmentId.isEmpty else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .attachmentId,
+                in: container,
+                debugDescription: "an attachment needs an identifier"
+            )
+        }
+        self.init(
+            attachmentId: attachmentId,
+            kind: (try? container.decodeIfPresent(String.self, forKey: .kind)) ?? "",
+            contentType: try? container.decodeIfPresent(String.self, forKey: .contentType),
+            byteSize: try? container.decodeIfPresent(Int.self, forKey: .byteSize),
+            fileName: try? container.decodeIfPresent(String.self, forKey: .fileName)
+        )
+    }
 }
 
 struct SubmissionAcceptedPayload: Equatable, Sendable {

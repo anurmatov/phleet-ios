@@ -11,6 +11,8 @@ struct ControlConnectionView: View {
     let credential: DeviceCredential
     /// Notifications for this sign-in, or `nil` when there is nothing to offer.
     let push: PushNotificationsModel?
+    /// The second look before a decision, or `nil` where there is no switch to offer.
+    var ownerConfirmation: OwnerConfirmation?
 
     @Environment(AppEnvironment.self) private var appEnvironment
     @Environment(\.dismiss) private var dismiss
@@ -38,6 +40,10 @@ struct ControlConnectionView: View {
 
                 if let push {
                     PushNotificationsSection(model: push)
+                }
+
+                if let ownerConfirmation {
+                    OwnerConfirmationSection(model: ownerConfirmation)
                 }
 
                 signOutSection
@@ -111,5 +117,46 @@ struct ControlConnectionView: View {
     // Typed explicitly so it is looked up in the catalog rather than shown as its own key.
     private var proxyKey: LocalizedStringKey {
         credential.serviceToken == nil ? "connection.proxy.none" : "connection.proxy.serviceToken"
+    }
+}
+
+/// The switch for the second look before a decision or a disruptive action.
+///
+/// A plain button rather than a toggle: flipping it asks the phone to confirm its owner, which
+/// can be declined, and a toggle that springs back reads as a fault.
+struct OwnerConfirmationSection: View {
+
+    let model: OwnerConfirmation
+
+    @State private var isChanging = false
+
+    var body: some View {
+        Section {
+            LabeledContent {
+                Text(model.isRequired ? "confirmOwner.state.on" : "confirmOwner.state.off")
+            } label: {
+                Text("confirmOwner.title")
+            }
+
+            if model.isAvailable {
+                Button {
+                    let wanted = !model.isRequired
+                    isChanging = true
+                    Task {
+                        await model.setRequired(
+                            wanted,
+                            reason: String(localized: "confirmOwner.reason.setting")
+                        )
+                        isChanging = false
+                    }
+                } label: {
+                    Text(model.isRequired ? "confirmOwner.turnOff" : "confirmOwner.turnOn")
+                }
+                .disabled(isChanging)
+                .accessibilityIdentifier(AccessibilityIdentifier.connectionConfirmOwner.identifier)
+            }
+        } footer: {
+            Text(model.isAvailable ? "confirmOwner.help" : "confirmOwner.unavailable")
+        }
     }
 }

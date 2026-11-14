@@ -32,6 +32,10 @@ enum LaunchArguments {
     /// older than the server retains, one sent empty, and the separator for what was pruned.
     static let restoredHistory = "-phleet-restored-history"
 
+    /// Makes the scripted backend leave a turn running until it is stopped, so the stop control
+    /// has a running turn to act on. Without it every scripted turn is answered at once.
+    static let slowTurn = "-phleet-slow-turn"
+
     /// Makes the scripted backend's stand-in for the camera "scan" a code that is not a setup
     /// code, so the smoke test can watch the form refuse it. Without this argument the stand-in
     /// scans a valid one.

@@ -77,6 +77,44 @@ protocol ControlAPIClient {
         runId: String
     ) async throws
 
+    /// `POST /api/workflows/{namespace}/terminate/{workflowId}?runId=` — stops the run at once,
+    /// without giving the workflow a chance to wind down.
+    func terminateRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws
+
+    /// `POST /api/workflows/{namespace}/restart/{workflowId}?runId=` — starts a new run of the
+    /// same type with the input that run was started with.
+    func restartRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> RestartedRun
+
+    /// `GET /api/schedules`
+    func schedules(_ connection: ControlConnection) async throws -> [FleetSchedule]
+
+    /// `POST /api/schedules/{namespace}/{pause|unpause|trigger}/{scheduleId}`
+    func performScheduleAction(
+        _ connection: ControlConnection,
+        namespace: String,
+        scheduleId: String,
+        action: ScheduleAction
+    ) async throws
+
+    /// `GET /api/memory/search?q=`
+    func searchMemory(
+        _ connection: ControlConnection,
+        query: String
+    ) async throws -> [MemorySearchResult]
+
+    /// `GET /api/memory/{id}`
+    func memory(_ connection: ControlConnection, id: String) async throws -> MemoryDocument
+
     /// `GET /api/workflow-types`
     func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType]
 
@@ -181,7 +219,7 @@ enum ControlRequest {
     }
 
     /// Builds a route URL. A query never carries a secret: the only values that ride in one
-    /// are a run identifier and a number of hours.
+    /// are a run identifier, a number of hours and the words of a memory search.
     static func url(
         origin: URL,
         percentEncodedPath: String,
@@ -235,6 +273,30 @@ enum ControlRequest {
 
     static func cancelRunPath(namespace: String, workflowId: String) -> String {
         "/api/workflows/" + escaped(namespace) + "/cancel/" + escaped(workflowId)
+    }
+
+    static func terminateRunPath(namespace: String, workflowId: String) -> String {
+        "/api/workflows/" + escaped(namespace) + "/terminate/" + escaped(workflowId)
+    }
+
+    static func restartRunPath(namespace: String, workflowId: String) -> String {
+        "/api/workflows/" + escaped(namespace) + "/restart/" + escaped(workflowId)
+    }
+
+    static let schedulesPath = "/api/schedules"
+
+    static func scheduleActionPath(
+        namespace: String,
+        scheduleId: String,
+        action: ScheduleAction
+    ) -> String {
+        "/api/schedules/" + escaped(namespace) + "/" + action.rawValue + "/" + escaped(scheduleId)
+    }
+
+    static let memorySearchPath = "/api/memory/search"
+
+    static func memoryPath(id: String) -> String {
+        "/api/memory/" + escaped(id)
     }
 
     static func agentLogsPath(agentName: String) -> String {

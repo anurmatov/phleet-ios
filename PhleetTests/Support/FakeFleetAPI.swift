@@ -20,6 +20,11 @@ final class FakeFleetAPI: FleetAPIClient {
             text: String
         )
         case cursor(conversationId: String, deliveredSeq: Int, readSeq: Int?)
+        case conversations
+        case cancel(conversationId: String, scope: CancelBody.Scope)
+        case reserveAttachment(conversationId: String, byteSize: Int, sha256: String)
+        case uploadAttachment(attachmentId: String, uploadToken: String, byteCount: Int)
+        case attachmentContent(attachmentId: String)
     }
 
     private(set) var calls: [Call] = []
@@ -91,6 +96,34 @@ final class FakeFleetAPI: FleetAPIClient {
     var cursorResults: [Result<CursorAcceptedResponse, Error>] = [
         .success(CursorAcceptedResponse(protocolVersion: ProtocolVersion.current))
     ]
+
+    var conversationsResults: [Result<ConversationListResponse, Error>] = [
+        .success(ConversationListResponse(
+            conversations: [],
+            protocolVersion: ProtocolVersion.current
+        ))
+    ]
+    var cancelResults: [Result<CancelAcceptedResponse, Error>] = [
+        .success(CancelAcceptedResponse(protocolVersion: ProtocolVersion.current))
+    ]
+    var reserveResults: [Result<ReserveAttachmentResponse, Error>] = [
+        .success(ReserveAttachmentResponse(
+            attachmentId: "attachment-1",
+            uploadToken: "upload-token-1",
+            maxBytes: 8_388_608,
+            protocolVersion: ProtocolVersion.current
+        ))
+    ]
+    var uploadResults: [Result<SealedAttachmentResponse, Error>] = [
+        .success(SealedAttachmentResponse(
+            attachmentId: "attachment-1",
+            protocolVersion: ProtocolVersion.current
+        ))
+    ]
+    var contentResults: [Result<Data, Error>] = [.success(Data())]
+
+    /// The attachments each submission named, in order, alongside `submissions`.
+    private(set) var submittedAttachments: [[SubmissionAttachmentRef]] = []
 
     // MARK: - Convenience readers
 
@@ -209,8 +242,81 @@ final class FakeFleetAPI: FleetAPIClient {
                     text: body.text
                 )
             )
+            submittedAttachments.append(body.attachments ?? [])
             accessTokensPresented.append(accessToken)
             return try Self.next(&submitResults)
+        }
+    }
+
+    func conversations(origin: URL, accessToken: String) async throws -> ConversationListResponse {
+        try lock.withLock {
+            calls.append(.conversations)
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&conversationsResults)
+        }
+    }
+
+    func cancel(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: CancelBody
+    ) async throws -> CancelAcceptedResponse {
+        try lock.withLock {
+            calls.append(.cancel(conversationId: conversationId, scope: body.scope))
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&cancelResults)
+        }
+    }
+
+    func reserveAttachment(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: ReserveAttachmentBody
+    ) async throws -> ReserveAttachmentResponse {
+        try lock.withLock {
+            calls.append(
+                .reserveAttachment(
+                    conversationId: conversationId,
+                    byteSize: body.byteSize,
+                    sha256: body.sha256
+                )
+            )
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&reserveResults)
+        }
+    }
+
+    func uploadAttachment(
+        origin: URL,
+        uploadToken: String,
+        attachmentId: String,
+        contentType: String,
+        data: Data
+    ) async throws -> SealedAttachmentResponse {
+        try lock.withLock {
+            // Not recorded among the access tokens: this route is never given one.
+            calls.append(
+                .uploadAttachment(
+                    attachmentId: attachmentId,
+                    uploadToken: uploadToken,
+                    byteCount: data.count
+                )
+            )
+            return try Self.next(&uploadResults)
+        }
+    }
+
+    func attachmentContent(
+        origin: URL,
+        accessToken: String,
+        attachmentId: String
+    ) async throws -> Data {
+        try lock.withLock {
+            calls.append(.attachmentContent(attachmentId: attachmentId))
+            accessTokensPresented.append(accessToken)
+            return try Self.next(&contentResults)
         }
     }
 

@@ -132,6 +132,164 @@ final class ControlActionsSmokeTests: XCTestCase {
         )
     }
 
+    func testTerminateARunAndRunAClosedOneAgain() throws {
+        let app = launchConnected()
+        AppTabs.selectRuns(in: app)
+
+        // Terminate: the last resort under cancel, with the same two taps.
+        let running = labelled("scripted/project · PR #42", in: app)
+        XCTAssertTrue(running.waitForExistence(timeout: 30), "the run in progress is not listed")
+        running.tap()
+
+        let terminate = element(in: app, .runTerminate)
+        scrollTo(terminate, in: app)
+        XCTAssertTrue(terminate.waitForExistence(timeout: 30), "a running run offered no terminate")
+        terminate.tap()
+        let confirm = element(in: app, .runTerminateConfirm)
+        XCTAssertTrue(confirm.waitForExistence(timeout: 10), "terminate did not ask for confirmation")
+        confirm.tap()
+
+        // The scripted run closes at once, so the screen stops offering to end it.
+        let gone = expectation(
+            for: NSPredicate(format: "exists == false"),
+            evaluatedWith: element(in: app, .runTerminateConfirm)
+        )
+        wait(for: [gone], timeout: 30)
+        XCTAssertFalse(element(in: app, .runTerminate).exists, "a terminated run still offers terminate")
+        XCTAssertFalse(element(in: app, .runCancel).exists, "a terminated run still offers cancel")
+
+        app.navigationBars.buttons.firstMatch.tap()
+
+        // Run again: a closed run starts a new one like it, and stays as it was.
+        let failed = labelled("scripted/project · PR #41", in: app)
+        XCTAssertTrue(failed.waitForExistence(timeout: 30), "the failed run is not listed")
+        failed.tap()
+
+        let again = element(in: app, .runRestart)
+        scrollTo(again, in: app)
+        XCTAssertTrue(again.waitForExistence(timeout: 30), "a closed run offered no run again")
+        XCTAssertFalse(element(in: app, .runCancel).exists, "a closed run offers cancel")
+        again.tap()
+        let start = element(in: app, .runRestartConfirm)
+        XCTAssertTrue(start.waitForExistence(timeout: 10), "run again did not ask for confirmation")
+        start.tap()
+
+        XCTAssertTrue(
+            element(in: app, .runRestartState).waitForExistence(timeout: 30),
+            "nothing reported the new run"
+        )
+
+        let restarted = XCTAttachment(screenshot: app.screenshot())
+        restarted.name = "Run again"
+        restarted.lifetime = .keepAlways
+        add(restarted)
+
+        app.navigationBars.buttons.firstMatch.tap()
+        XCTAssertTrue(
+            labelled("scripted-restarted-1", in: app).waitForExistence(timeout: 30),
+            "the new run is not on the running list"
+        )
+    }
+
+    func testPauseAScheduleFromTheRunsTab() throws {
+        let app = launchConnected()
+        AppTabs.selectRuns(in: app)
+
+        let open = element(in: app, .schedulesOpen)
+        XCTAssertTrue(open.waitForExistence(timeout: 30), "the schedules are not reachable from Runs")
+        open.tap()
+
+        let schedule = element(in: app, .schedulesSchedule)
+        XCTAssertTrue(schedule.waitForExistence(timeout: 30), "the schedule is not listed")
+        schedule.tap()
+
+        let running = app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.scheduleState.identifier)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Running on schedule"))
+            .firstMatch
+        XCTAssertTrue(running.waitForExistence(timeout: 30), "the schedule did not say it is running")
+
+        // Two taps: choose, then confirm.
+        let pause = app.buttons["Pause"]
+        XCTAssertTrue(pause.waitForExistence(timeout: 10), "a running schedule offered no pause")
+        pause.tap()
+        let confirm = element(in: app, .scheduleActionConfirm)
+        XCTAssertTrue(confirm.waitForExistence(timeout: 10), "pausing did not ask for confirmation")
+        confirm.tap()
+
+        // What the server says after the action is the evidence, not the tap.
+        let paused = app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.scheduleState.identifier)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Paused"))
+            .firstMatch
+        XCTAssertTrue(paused.waitForExistence(timeout: 30), "the paused schedule never said so")
+        XCTAssertTrue(app.buttons["Resume"].waitForExistence(timeout: 10), "a paused schedule offered no resume")
+
+        let screen = XCTAttachment(screenshot: app.screenshot())
+        screen.name = "Schedule paused"
+        screen.lifetime = .keepAlways
+        add(screen)
+    }
+
+    func testAnAgentsScreenOpensItsThread() throws {
+        let app = launchConnected()
+
+        let builder = labelled("Scripted builder. Working", in: app)
+        XCTAssertTrue(builder.waitForExistence(timeout: 30), "the working agent is not listed")
+        builder.tap()
+
+        // Offered because chat is on for this agent; the link crosses to the Chat tab.
+        let chat = element(in: app, .agentDetailChat)
+        XCTAssertTrue(chat.waitForExistence(timeout: 30), "an agent with chat on offered no thread")
+        chat.tap()
+
+        XCTAssertTrue(
+            element(in: app, .conversationComposer).waitForExistence(timeout: 30),
+            "the agent's thread never opened"
+        )
+    }
+
+    func testSearchTheFleetsMemoryAndReadAResult() throws {
+        let app = launchConnected()
+
+        let open = element(in: app, .memoryOpen)
+        XCTAssertTrue(open.waitForExistence(timeout: 30), "memory search is not reachable from Fleet")
+        open.tap()
+
+        XCTAssertTrue(
+            element(in: app, .memoryPrompt).waitForExistence(timeout: 30),
+            "the memory screen never said what it searches"
+        )
+
+        // Sent on return, not on every keystroke.
+        // By its prompt, so the Fleet screen's own search field underneath is never the one.
+        let field = app.searchFields
+            .matching(
+                NSPredicate(
+                    format: "placeholderValue == %@ OR label == %@",
+                    "What are you looking for?",
+                    "What are you looking for?"
+                )
+            )
+            .firstMatch
+        XCTAssertTrue(field.waitForExistence(timeout: 30), "the memory screen has no search field")
+        field.focusAndType("deploying\n")
+
+        let result = element(in: app, .memoryResult)
+        XCTAssertTrue(result.waitForExistence(timeout: 30), "the search found nothing")
+        result.tap()
+
+        XCTAssertTrue(
+            labelled("Scripted memory content.", in: app).waitForExistence(timeout: 30),
+            "the memory's text never appeared"
+        )
+
+        let screen = XCTAttachment(screenshot: app.screenshot())
+        screen.name = "Memory"
+        screen.lifetime = .keepAlways
+        add(screen)
+    }
+
     func testHumanInputChoiceKeepsOrderAndNeedsExplicitConfirmation() throws {
         let app = launchConnected(humanMode: LaunchArguments.humanInputChoice)
         try openHumanInput(app, mode: "choice")

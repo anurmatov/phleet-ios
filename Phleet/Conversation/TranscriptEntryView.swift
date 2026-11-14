@@ -22,6 +22,9 @@ struct TranscriptEntryView: View {
 
     let record: SubmissionRecord
     let activity: TurnActivity?
+    /// Where the bytes of this thread's images are read from. `nil` where there is nowhere, and
+    /// an image is then named rather than drawn.
+    var images: AttachmentImages?
     let sendAgain: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -63,7 +66,20 @@ struct TranscriptEntryView: View {
     /// different fact from one whose text is unavailable, and is said differently.
     @ViewBuilder
     private var humanBody: some View {
-        if let text = record.text, !text.isEmpty {
+        if !record.attachments.isEmpty {
+            VStack(alignment: .trailing, spacing: 6) {
+                ForEach(record.attachments) { attachment in
+                    SentAttachmentView(attachment: attachment, images: images)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+
+        if let text = record.text, text.isEmpty, !record.attachments.isEmpty {
+            // Images sent with no words: the images are the message, and "Empty message" under
+            // them would be wrong.
+            EmptyView()
+        } else if let text = record.text, !text.isEmpty {
             selectableBody(
                 text,
                 speaker: "conversation.speaker.you",
@@ -137,22 +153,18 @@ struct TranscriptEntryView: View {
             .accessibilityAction(named: Text(copyActionKey)) { putOnPasteboard(text) }
     }
 
-    /// An agent's reply, rendered as Markdown (`ReplyMarkdown`): emphasis, code and links, never
-    /// HTML. The person's own messages stay plain text, exactly as typed.
+    /// An agent's reply, rendered as Markdown (`ReplyMarkdown`): text, lists, code and tables,
+    /// never HTML. The person's own messages stay plain text, exactly as typed.
     ///
     /// What is spoken and what the copy action takes is the rendered text, without the Markdown
     /// punctuation — the same characters a long press and Select All would copy.
     private func replyBody(_ text: String) -> some View {
-        let rendered = ReplyMarkdown.render(text)
-        let plain = String(rendered.characters)
-        return Text(rendered)
-            .font(.body)
-            .textSelection(.enabled)
-            .accessibilityIdentifier(AccessibilityIdentifier.conversationReplyBody.identifier)
-            .accessibilityLabel(String(localized: "conversation.speaker.agent") + ". " + plain)
-            .accessibilityAction(named: Text("conversation.copy.reply")) {
-                putOnPasteboard(plain)
-            }
+        MarkdownBlocksView(
+            text: text,
+            identifier: .conversationReplyBody,
+            spokenPrefix: String(localized: "conversation.speaker.agent"),
+            copyActionKey: "conversation.copy.reply"
+        )
     }
 
     private func replyView(_ reply: AgentReply) -> some View {
@@ -302,5 +314,82 @@ struct ProgressIndicatorView: View {
         activity?.activity == .tool
             ? "conversation.progress.tool"
             : "conversation.progress.working"
+    }
+}
+
+/// One image the person sent, drawn from its bytes once they have been read.
+///
+/// The bytes come from the server with the phone's own sign-in, or from the upload when this
+/// phone sent it. Until they arrive, and when they cannot be had — the server keeps an image for
+/// a while, not for ever — the row says so in words where the picture would be.
+struct SentAttachmentView: View {
+
+    let attachment: AttachmentDescriptor
+    let images: AttachmentImages?
+
+    @State private var picture: UIImage?
+    @ScaledMetric(relativeTo: .body) private var maxSide: CGFloat = 220
+    @Environment(\.displayScale) private var displayScale
+
+    private var state: AttachmentImages.State? {
+        images?.state(for: attachment.attachmentId)
+    }
+
+    var body: some View {
+        Group {
+            if let picture {
+                Image(uiImage: picture)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: maxSide, maxHeight: maxSide)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+            } else {
+                Label {
+                    Text(placeholderKey)
+                        .font(.footnote)
+                } icon: {
+                    Image(systemName: attachment.isImage ? "photo" : "doc")
+                }
+                .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityIdentifier(AccessibilityIdentifier.conversationSentImage.identifier)
+        .accessibilityLabel(
+            String(localized: "conversation.speaker.you") + ". "
+                + AccessibilityIdentifier.conversationSentImage.localizedLabel
+        )
+        .task(id: attachment.attachmentId) {
+            guard attachment.isImage, let images else { return }
+            await images.load(attachment.attachmentId)
+            decode()
+        }
+        .onChange(of: state) { _, _ in
+            decode()
+        }
+    }
+
+    private var placeholderKey: LocalizedStringKey {
+        guard attachment.isImage else { return "conversation.attachment.file" }
+        switch state {
+        case .failed?: return "conversation.attachment.unavailable"
+        case .loading?, .loaded?, nil: return "conversation.attachment.image"
+        }
+    }
+
+    /// Decoded once, to the size it is shown at, rather than on every pass over the row.
+    private func decode() {
+        guard picture == nil, let data = images?.data(for: attachment.attachmentId),
+              let full = UIImage(data: data)
+        else { return }
+        let side = maxSide * max(displayScale, 1)
+        picture = full.preparingThumbnail(of: Self.fitting(full.size, within: side)) ?? full
+    }
+
+    static func fitting(_ size: CGSize, within side: CGFloat) -> CGSize {
+        let longSide = max(size.width, size.height)
+        guard longSide > side, longSide > 0 else { return size }
+        let ratio = side / longSide
+        return CGSize(width: size.width * ratio, height: size.height * ratio)
     }
 }

@@ -47,10 +47,19 @@ final class ConversationSmokeTests: XCTestCase {
         let reply = element(in: app, .conversationAgentReply)
         XCTAssertTrue(reply.waitForExistence(timeout: 30), "the terminal never rendered")
 
-        // Said out loud rather than left to an absent paperclip.
+        // The scripted server takes images, so the picker is offered and nothing says otherwise.
         XCTAssertTrue(
+            element(in: app, .conversationAttach).exists,
+            "the composer offers no way to add an image"
+        )
+        XCTAssertFalse(
             element(in: app, .conversationMediaUnsupported).exists,
-            "the composer never stated that images are unsupported"
+            "images were said to be off on a server that takes them"
+        )
+        // Nothing is running once the turn has its terminal, so there is nothing to stop.
+        XCTAssertFalse(
+            element(in: app, .conversationStop).exists,
+            "a stop is offered with no turn running"
         )
 
         let screenshot = XCTAttachment(screenshot: app.screenshot())
@@ -65,6 +74,50 @@ final class ConversationSmokeTests: XCTestCase {
     /// That last case is the one worth having. Restoring focus unconditionally after a send
     /// would re-open a keyboard someone had just dismissed, which is the tap-outside fix
     /// undoing itself one tap later.
+    func testARunningTurnCanBeStoppedAndTheStopLeavesNoMessageBehind() throws {
+        // The scripted agent keeps this turn running until it is stopped.
+        let app = launchAndOpenTheThread(extraArguments: [LaunchArguments.slowTurn])
+
+        element(in: app, .conversationComposer).focusAndType("hello")
+        element(in: app, .conversationSend).tap()
+
+        let stop = element(in: app, .conversationStop)
+        XCTAssertTrue(stop.waitForExistence(timeout: 30), "a running turn offered no stop")
+
+        let running = XCTAttachment(screenshot: app.screenshot())
+        running.name = "Turn running"
+        running.lifetime = .keepAlways
+        add(running)
+
+        stop.tap()
+
+        // The turn's own terminal is what ends it: the stop goes away and the turn says so.
+        let gone = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: stop)
+        wait(for: [gone], timeout: 30)
+        let canceled = app.descendants(matching: .any)
+            .matching(NSPredicate(format: "label CONTAINS %@", "Canceled"))
+            .firstMatch
+        XCTAssertTrue(canceled.waitForExistence(timeout: 30), "the stopped turn never said so")
+
+        // A stop is a submission of its own on the server. It must not show up as a message.
+        XCTAssertFalse(
+            element(in: app, .conversationMessageUnavailable).exists,
+            "the stop appeared in the transcript as a message with no text"
+        )
+        XCTAssertEqual(
+            app.descendants(matching: .any)
+                .matching(identifier: AccessibilityIdentifier.conversationMessageBody.identifier)
+                .count,
+            1,
+            "one message was sent, so one message is shown"
+        )
+
+        let stopped = XCTAttachment(screenshot: app.screenshot())
+        stopped.name = "Turn stopped"
+        stopped.lifetime = .keepAlways
+        add(stopped)
+    }
+
     func testTheKeyboardFollowsTheLastIntentAcrossASend() throws {
         let app = launchAndOpenTheThread()
 

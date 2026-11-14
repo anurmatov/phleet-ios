@@ -69,6 +69,8 @@ struct SetupView: View {
 
             scanButton(model)
 
+            pasteButton(model)
+
             if let code = model.code {
                 scanned(code)
                 connectButton(model)
@@ -112,6 +114,31 @@ struct SetupView: View {
         } else {
             button.buttonStyle(.bordered)
         }
+    }
+
+    /// The same setup code as text, for a phone that cannot point its camera at it: the code
+    /// read by another device, or copied from the dashboard. It is read exactly as a scanned one
+    /// is — shown, checked, and connected to only on a separate tap.
+    ///
+    /// The system's own paste button, so the clipboard is read because the person tapped it and
+    /// no permission prompt interrupts.
+    private func pasteButton(_ model: SetupModel) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            PasteButton(payloadType: String.self) { strings in
+                guard let text = strings.first else { return }
+                Task { @MainActor in
+                    model.apply(scanned: text)
+                }
+            }
+            .disabled(model.isConnecting)
+            .accessibilityIdentifier(AccessibilityIdentifier.setupPaste.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.setupPaste.localizedLabel)
+
+            Text("setup.paste.help")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// What the code says, for a person to check before anything is sent to it.

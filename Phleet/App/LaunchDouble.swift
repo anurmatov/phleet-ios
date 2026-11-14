@@ -36,13 +36,20 @@ struct LaunchDouble {
     /// Stands in for the notification system: permission is granted and a token arrives.
     let pushSystem: PushSystem
 
+    /// Remembers for this launch only, so one test's switches are not the next test's.
+    let preferences: PreferenceStore
+
+    /// Stands in for Face ID, which a simulator has no face for: the owner always confirms.
+    let ownerCheck: OwnerCheck
+
     @MainActor
     static func make(from arguments: [String]) -> LaunchDouble? {
         guard arguments.contains(LaunchArguments.scriptedBackend) else { return nil }
 
         let backend = ScriptedBackend(
             tallTranscript: arguments.contains(LaunchArguments.tallTranscript),
-            restoredHistory: arguments.contains(LaunchArguments.restoredHistory)
+            restoredHistory: arguments.contains(LaunchArguments.restoredHistory),
+            slowTurn: arguments.contains(LaunchArguments.slowTurn)
         )
         let humanMode: String? = arguments.contains(LaunchArguments.humanInputChoice) ? "choice"
             : arguments.contains(LaunchArguments.humanInputText) ? "text"
@@ -66,7 +73,9 @@ struct LaunchDouble {
             controlStream: controlBackend,
             controlLogStream: controlBackend,
             scannedSetupCode: scanned,
-            pushSystem: ScriptedPushSystem()
+            pushSystem: ScriptedPushSystem(),
+            preferences: InMemoryPreferenceStore(),
+            ownerCheck: ScriptedOwnerCheck()
         )
     }
 }
@@ -95,9 +104,22 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
     /// Answer catch-up with `restoredEvents`, read as history the way a fresh install reads it.
     private let restoredHistory: Bool
 
-    init(tallTranscript: Bool = false, restoredHistory: Bool = false) {
+    /// Leave a turn running until it is stopped, so the stop control has something to stop.
+    /// Without this a scripted turn is answered at once and is never running when looked at.
+    private let slowTurn: Bool
+
+    /// The submission whose turn is being held open, under `slowTurn`.
+    private var heldSubmissionId: String?
+    private var cancels = 0
+
+    /// Attachment bytes by identifier, as uploaded.
+    private var attachmentBytes: [String: Data] = [:]
+    private var reserved = 0
+
+    init(tallTranscript: Bool = false, restoredHistory: Bool = false, slowTurn: Bool = false) {
         self.tallTranscript = tallTranscript
         self.restoredHistory = restoredHistory
+        self.slowTurn = slowTurn
     }
 
     /// Restored history, between the retained floor (`12`) and the first live seq (`41`).
@@ -278,6 +300,14 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         accepted += 1
         emitTurn(
             text: body.text,
+            attachments: (body.attachments ?? []).map {
+                AttachmentDescriptor(
+                    attachmentId: $0.attachmentId,
+                    kind: $0.kind,
+                    contentType: "image/jpeg",
+                    byteSize: attachmentBytes[$0.attachmentId]?.count
+                )
+            },
             durableSubmissionId: "scripted-durable-\(accepted)",
             acceptedSeq: acceptedSeq
         )
@@ -295,6 +325,125 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
         body: CursorBody
     ) async throws -> CursorAcceptedResponse {
         CursorAcceptedResponse(protocolVersion: ProtocolVersion.current)
+    }
+
+    func conversations(origin: URL, accessToken: String) async throws -> ConversationListResponse {
+        ConversationListResponse(
+            conversations: [
+                ConversationSummary(
+                    conversationId: conversationId,
+                    agent: "scripted-builder",
+                    externalRef: ConversationModel.externalRef,
+                    nextSeq: seq + 1,
+                    lastActivityAt: nil
+                )
+            ],
+            protocolVersion: ProtocolVersion.current
+        )
+    }
+
+    /// As the real server does it: the cancel is a submission of its own, which the agent closes
+    /// as `dropped` after acknowledging. A turn that was running ends as cancelled by the person.
+    func cancel(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: CancelBody
+    ) async throws -> CancelAcceptedResponse {
+        cancels += 1
+        let stopped = heldSubmissionId
+        heldSubmissionId = nil
+
+        continuation?.yield(
+            .event(
+                ConversationEvent(
+                    eventId: "scripted-ack-\(cancels)",
+                    seq: nextSeq(),
+                    kind: .controlAck,
+                    identity: EventIdentity(conversationId: conversationId, submissionId: nil),
+                    payload: .controlAck(
+                        ControlAckPayload(
+                            target: "cancel",
+                            accepted: true,
+                            hadRunningTask: stopped != nil
+                        )
+                    )
+                )
+            )
+        )
+        if let stopped {
+            continuation?.yield(
+                .event(
+                    ConversationEvent(
+                        eventId: "scripted-canceled-" + stopped,
+                        seq: nextSeq(),
+                        kind: .turnCanceled,
+                        identity: EventIdentity(
+                            conversationId: conversationId,
+                            submissionId: stopped
+                        ),
+                        payload: .turnCanceled(
+                            TurnCanceledPayload(reason: .user, mergedSubmissionIds: [stopped])
+                        )
+                    )
+                )
+            )
+        }
+        continuation?.yield(
+            .event(
+                ConversationEvent(
+                    eventId: "scripted-cancel-dropped-\(cancels)",
+                    seq: nextSeq(),
+                    kind: .submissionAccepted,
+                    identity: EventIdentity(
+                        conversationId: conversationId,
+                        submissionId: "scripted-cancel-\(cancels)"
+                    ),
+                    payload: .submissionAccepted(SubmissionAcceptedPayload(disposition: .dropped))
+                )
+            )
+        )
+        return CancelAcceptedResponse(protocolVersion: ProtocolVersion.current)
+    }
+
+    func reserveAttachment(
+        origin: URL,
+        accessToken: String,
+        conversationId: String,
+        body: ReserveAttachmentBody
+    ) async throws -> ReserveAttachmentResponse {
+        reserved += 1
+        return ReserveAttachmentResponse(
+            attachmentId: "scripted-attachment-\(reserved)",
+            uploadToken: "scripted-upload-token",
+            maxBytes: 8_388_608,
+            protocolVersion: ProtocolVersion.current
+        )
+    }
+
+    func uploadAttachment(
+        origin: URL,
+        uploadToken: String,
+        attachmentId: String,
+        contentType: String,
+        data: Data
+    ) async throws -> SealedAttachmentResponse {
+        attachmentBytes[attachmentId] = data
+        return SealedAttachmentResponse(
+            attachmentId: attachmentId,
+            protocolVersion: ProtocolVersion.current
+        )
+    }
+
+    func attachmentContent(
+        origin: URL,
+        accessToken: String,
+        attachmentId: String
+    ) async throws -> Data {
+        guard let data = attachmentBytes[attachmentId] else {
+            throw FleetAPIError.unexpectedStatus(404)
+        }
+        return data
     }
 
     // MARK: - ConversationStream
@@ -331,6 +480,7 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
 
     private func emitTurn(
         text: String,
+        attachments: [AttachmentDescriptor],
         durableSubmissionId submissionId: String,
         acceptedSeq: Int
     ) {
@@ -346,7 +496,9 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
                     seq: acceptedSeq,
                     kind: .submissionText,
                     identity: identity,
-                    payload: .submissionText(SubmissionTextPayload(text: text))
+                    payload: .submissionText(
+                        SubmissionTextPayload(text: text, attachments: attachments)
+                    )
                 )
             )
         )
@@ -372,6 +524,11 @@ final class ScriptedBackend: FleetAPIClient, ConversationStream {
                 )
             )
         )
+        if slowTurn {
+            // Left running. It ends when it is stopped.
+            heldSubmissionId = submissionId
+            return
+        }
         continuation?.yield(
             .event(
                 ConversationEvent(
@@ -415,6 +572,9 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         phase = humanInputMode == nil ? Self.gatePhase : "request-input"
     }
     private var isCancelled = false
+    /// How the scripted run closed, once it has: cancelled winds down, terminated is cut off.
+    private var closedStatus = "Canceled"
+    private var isSchedulePaused = false
     private var plannerStatus = "dead"
     private var started: [WorkflowRun] = []
     private var continuation: AsyncStream<ControlLiveEvent>.Continuation?
@@ -425,7 +585,7 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
             runId: "scripted-run-1",
             workflowType: humanInputMode == nil ? "ScriptedWorkflow" : "UweHumanInputWorkflow",
             namespace: "scripted",
-            status: isCancelled ? "Canceled" : WorkflowRun.runningStatus,
+            status: isCancelled ? closedStatus : WorkflowRun.runningStatus,
             prNumber: 42,
             repo: "scripted/project",
             phase: phase,
@@ -522,7 +682,7 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
     ) async throws {
         guard agentName == "scripted-planner" else { return }
         switch action {
-        case .restart, .start: plannerStatus = "idle"
+        case .restart, .start, .reprovision: plannerStatus = "idle"
         case .stop: plannerStatus = "offline"
         case .cancelTask: break
         }
@@ -583,8 +743,12 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         _ connection: ControlConnection, namespace: String, workflowId: String, runId: String
     ) async throws -> [WorkflowEvent] {
         if humanInputUnavailable { throw ControlAPIError.transport("scripted history unavailable") }
-        guard let humanInputMode, namespace == "scripted", workflowId == "scripted-run",
+        guard namespace == "scripted", workflowId == "scripted-run",
               runId == "scripted-run-1" else { throw ControlAPIError.gateChanged(nil) }
+        guard let humanInputMode else {
+            // An ordinary gate: the same history the run's own screen shows, for that exact run.
+            return try await runHistory(connection, namespace: namespace, workflowId: workflowId)
+        }
         var request: [String: Any] = [
             "Question": "Which \"answer\"?\n{{literal}} 🧭",
             "Context": "**Literal context**, not Markdown.\nNo action is executed.",
@@ -612,6 +776,106 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
             started.removeAll { $0.workflowId == workflowId }
         }
         continuation?.yield(.frame(.workflows(running)))
+    }
+
+    func terminateRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws {
+        if workflowId == "scripted-run" {
+            closedStatus = "Terminated"
+            isCancelled = true
+        } else {
+            started.removeAll { $0.workflowId == workflowId }
+        }
+        continuation?.yield(.frame(.workflows(running)))
+    }
+
+    func restartRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> RestartedRun {
+        let restarted = "scripted-restarted-\(started.count + 1)"
+        started.append(
+            WorkflowRun(
+                workflowId: restarted,
+                runId: restarted + "-run",
+                workflowType: "ScriptedWorkflow",
+                namespace: namespace,
+                phase: "implementation"
+            )
+        )
+        continuation?.yield(.frame(.workflows(running)))
+        return RestartedRun(newWorkflowId: restarted, newRunId: restarted + "-run")
+    }
+
+    func schedules(_ connection: ControlConnection) async throws -> [FleetSchedule] {
+        [
+            FleetSchedule(
+                scheduleId: "scripted-nightly",
+                namespace: "scripted",
+                workflowType: "ScriptedWorkflow",
+                cronExpression: "0 3 * * *",
+                isPaused: isSchedulePaused,
+                note: "Scripted nightly run"
+            )
+        ]
+    }
+
+    func performScheduleAction(
+        _ connection: ControlConnection,
+        namespace: String,
+        scheduleId: String,
+        action: ScheduleAction
+    ) async throws {
+        switch action {
+        case .pause: isSchedulePaused = true
+        case .unpause: isSchedulePaused = false
+        case .trigger:
+            let workflowId = "scripted-triggered-\(started.count + 1)"
+            started.append(
+                WorkflowRun(
+                    workflowId: workflowId,
+                    runId: workflowId + "-run",
+                    workflowType: "ScriptedWorkflow",
+                    namespace: namespace,
+                    phase: "implementation"
+                )
+            )
+            continuation?.yield(.frame(.workflows(running)))
+        }
+    }
+
+    func searchMemory(
+        _ connection: ControlConnection,
+        query: String
+    ) async throws -> [MemorySearchResult] {
+        [
+            MemorySearchResult(
+                id: "scripted-memory",
+                title: "Scripted memory",
+                project: "scripted",
+                type: "reference",
+                tags: ["scripted"],
+                snippet: "A scripted memory about " + query
+            )
+        ]
+    }
+
+    func memory(_ connection: ControlConnection, id: String) async throws -> MemoryDocument {
+        MemoryDocument(
+            id: id,
+            title: "Scripted memory",
+            content: "Scripted memory content.",
+            project: "scripted",
+            type: "reference",
+            agent: "scripted-builder",
+            tags: ["scripted"]
+        )
     }
 
     func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType] {
@@ -730,4 +994,12 @@ final class ScriptedPushSystem: PushSystem {
     }
 
     func unregisterForRemoteNotifications() {}
+
+    func setBadgeCount(_ count: Int) {}
+}
+
+/// The scripted owner check: there is a passcode, and the owner always confirms.
+struct ScriptedOwnerCheck: OwnerCheck {
+    var canEvaluate: Bool { true }
+    func evaluate(reason: String) async -> Bool { true }
 }

@@ -12,6 +12,9 @@ struct RunDetailView: View {
     let snapshot: WorkflowRun
 
     @State private var isConfirmingCancel = false
+    @State private var isConfirmingTerminate = false
+    @State private var isConfirmingRestart = false
+    @Environment(\.confirmOwner) private var confirmOwner
 
     /// The live run while it is running, the snapshot otherwise.
     private var run: WorkflowRun {
@@ -48,6 +51,9 @@ struct RunDetailView: View {
 
             if run.isRunning && !hasLeftTheRunningList {
                 cancelSection
+                terminateSection
+            } else if !run.isRunning {
+                restartSection
             }
 
             historySection
@@ -98,6 +104,8 @@ struct RunDetailView: View {
                 }
             }
             fact("run.workflowId", run.workflowId)
+
+            RunWebLinkRow(run: run)
         }
     }
 
@@ -128,6 +136,9 @@ struct RunDetailView: View {
             } else if isConfirmingCancel {
                 Button(role: .destructive) {
                     Task {
+                        guard await confirmOwner(String(localized: "confirmOwner.reason.run")) else {
+                            return
+                        }
                         await runs.cancel(snapshot)
                         isConfirmingCancel = false
                         await fleet.refresh()
@@ -175,6 +186,152 @@ struct RunDetailView: View {
             }
         } footer: {
             Text("run.cancel.help")
+        }
+    }
+
+    /// Stops the run at once. Its own section, under the cancel it is the last resort for: a
+    /// cancel asks the workflow to wind down, and this does not ask.
+    @ViewBuilder
+    private var terminateSection: some View {
+        let state = runs.terminateState(for: snapshot)
+
+        Section {
+            if state == .requested {
+                Label {
+                    Text("run.terminate.requested").font(.footnote)
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(AccessibilityIdentifier.runTerminateState.identifier)
+            } else if isConfirmingTerminate {
+                Button(role: .destructive) {
+                    Task {
+                        guard await confirmOwner(String(localized: "confirmOwner.reason.run")) else {
+                            return
+                        }
+                        await runs.terminate(snapshot)
+                        isConfirmingTerminate = false
+                        await fleet.refresh()
+                    }
+                } label: {
+                    Text("run.terminate.confirm")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(state == .sending)
+                .accessibilityIdentifier(AccessibilityIdentifier.runTerminateConfirm.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runTerminateConfirm.localizedLabel)
+
+                Button(role: .cancel) {
+                    isConfirmingTerminate = false
+                } label: {
+                    Text("run.cancel.keep")
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(state == .sending)
+                .accessibilityIdentifier(AccessibilityIdentifier.runTerminateKeep.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runTerminateKeep.localizedLabel)
+            } else {
+                Button(role: .destructive) {
+                    isConfirmingTerminate = true
+                } label: {
+                    Label {
+                        Text("run.terminate")
+                    } icon: {
+                        Image(systemName: "stop.circle")
+                    }
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.runTerminate.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runTerminate.localizedLabel)
+            }
+
+            if case .failed(let failure)? = state {
+                Label {
+                    ActionFailureText(failure: failure)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(AccessibilityIdentifier.runTerminateState.identifier)
+            }
+        } footer: {
+            Text("run.terminate.help")
+        }
+    }
+
+    /// Starts a new run like this one, once this one has closed. Two taps: a run is work, and
+    /// some of it reaches other people.
+    @ViewBuilder
+    private var restartSection: some View {
+        let state = runs.restartState(for: snapshot)
+
+        Section {
+            if case .restarted(let workflowId)? = state {
+                Label {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("run.restart.started").font(.footnote)
+                        Text(verbatim: workflowId)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .textSelection(.enabled)
+                    }
+                } icon: {
+                    Image(systemName: "checkmark.circle")
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(AccessibilityIdentifier.runRestartState.identifier)
+            } else if isConfirmingRestart {
+                Button {
+                    Task {
+                        await runs.restart(snapshot)
+                        isConfirmingRestart = false
+                        await fleet.refresh()
+                    }
+                } label: {
+                    Text("run.restart.confirm")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(state == .sending)
+                .accessibilityIdentifier(AccessibilityIdentifier.runRestartConfirm.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runRestartConfirm.localizedLabel)
+
+                Button(role: .cancel) {
+                    isConfirmingRestart = false
+                } label: {
+                    Text("run.restart.keep")
+                        .frame(maxWidth: .infinity)
+                }
+                .disabled(state == .sending)
+                .accessibilityIdentifier(AccessibilityIdentifier.runRestartKeep.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runRestartKeep.localizedLabel)
+            } else {
+                Button {
+                    isConfirmingRestart = true
+                } label: {
+                    Label {
+                        Text("run.restart")
+                    } icon: {
+                        Image(systemName: "arrow.clockwise.circle")
+                    }
+                }
+                .accessibilityIdentifier(AccessibilityIdentifier.runRestart.identifier)
+                .accessibilityLabel(AccessibilityIdentifier.runRestart.localizedLabel)
+            }
+
+            if case .failed(let failure)? = state {
+                Label {
+                    ActionFailureText(failure: failure)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle")
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(AccessibilityIdentifier.runRestartState.identifier)
+            }
+        } footer: {
+            Text("run.restart.help")
         }
     }
 
@@ -252,5 +409,24 @@ struct RunEventRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier(AccessibilityIdentifier.runEvent.identifier)
+    }
+}
+
+/// A row that opens the run's pull request or issue in the browser. Nothing when it has neither.
+struct RunWebLinkRow: View {
+
+    let run: WorkflowRun
+
+    var body: some View {
+        if let url = RunLinks.webURL(for: run) {
+            Link(destination: url) {
+                Label {
+                    Text(run.prNumber != nil ? "run.open.pullRequest" : "run.open.issue")
+                } icon: {
+                    Image(systemName: "arrow.up.right.square")
+                }
+            }
+            .accessibilityIdentifier(AccessibilityIdentifier.runWebLink.identifier)
+        }
     }
 }

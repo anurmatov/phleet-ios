@@ -205,6 +205,100 @@ final class URLSessionControlAPIClient: ControlAPIClient {
         _ = try await perform(request)
     }
 
+    func terminateRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.terminateRunPath(
+                namespace: namespace,
+                workflowId: workflowId
+            ),
+            // The run, for the same reason a cancel names it.
+            query: [URLQueryItem(name: "runId", value: runId)]
+        )
+        _ = try await perform(request)
+    }
+
+    func restartRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> RestartedRun {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.restartRunPath(
+                namespace: namespace,
+                workflowId: workflowId
+            ),
+            // The run whose type and input are read. `terminateExisting` is never sent: ending a
+            // run is its own action here, with its own confirmation.
+            query: [URLQueryItem(name: "runId", value: runId)]
+        )
+        let data = try await perform(request)
+        return try Self.decode(data, decoder)
+    }
+
+    func schedules(_ connection: ControlConnection) async throws -> [FleetSchedule] {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.schedulesPath
+        )
+        let data = try await perform(request)
+        let list: LossyList<FleetSchedule> = try Self.decode(data, decoder)
+        return list.items
+    }
+
+    func performScheduleAction(
+        _ connection: ControlConnection,
+        namespace: String,
+        scheduleId: String,
+        action: ScheduleAction
+    ) async throws {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "POST",
+            percentEncodedPath: ControlRequest.scheduleActionPath(
+                namespace: namespace,
+                scheduleId: scheduleId,
+                action: action
+            )
+        )
+        _ = try await perform(request)
+    }
+
+    func searchMemory(
+        _ connection: ControlConnection,
+        query: String
+    ) async throws -> [MemorySearchResult] {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.memorySearchPath,
+            query: [URLQueryItem(name: "q", value: query)]
+        )
+        let data = try await perform(request)
+        let list: LossyList<MemorySearchResult> = try Self.decode(data, decoder)
+        return list.items
+    }
+
+    func memory(_ connection: ControlConnection, id: String) async throws -> MemoryDocument {
+        let request = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.memoryPath(id: id)
+        )
+        let data = try await perform(request)
+        return try Self.decode(data, decoder)
+    }
+
     func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType] {
         let request = try ControlRequest.make(
             connection: connection,
