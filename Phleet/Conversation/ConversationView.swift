@@ -371,8 +371,11 @@ struct ConversationView: View {
                 ),
                 matching: .images
             ) {
+                // The hook is on the label as well as the picker: the picker is the system's
+                // control, and where it puts an identifier given to it is the system's business.
                 Image(systemName: "photo.on.rectangle.angled")
                     .imageScale(.large)
+                    .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)
             }
             .disabled(!model.canAddImage)
             .accessibilityIdentifier(AccessibilityIdentifier.conversationAttach.identifier)

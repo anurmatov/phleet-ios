@@ -39,6 +39,7 @@ struct FleetView: View {
             AgentDetailView(
                 model: model,
                 agentName: route.agentName,
+                chat: appEnvironment.chat,
                 openChat: chatOpener(for: route.agentName)
             )
         }
@@ -116,12 +117,9 @@ struct FleetView: View {
         }
     }
 
-    /// Opens this agent's thread, when it is one that can be chatted with. `nil` otherwise, and
-    /// the agent's screen then offers nothing: a link that leads to a refusal is worse than none.
-    private func chatOpener(for agentName: String) -> (() -> Void)? {
-        guard let chat = appEnvironment.chat, chat.agent(named: agentName) != nil else {
-            return nil
-        }
+    /// Asks the root to open this agent's thread on the Chat tab. Whether to offer it is the
+    /// agent screen's to decide, from the list of who can be chatted with.
+    private func chatOpener(for agentName: String) -> () -> Void {
         let environment = appEnvironment
         return { environment.requestedDestination = .thread(agentName: agentName) }
     }
