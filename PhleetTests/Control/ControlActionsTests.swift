@@ -41,7 +41,8 @@ final class ControlActionsTests: XCTestCase {
                 "/api/agents/a%20b/cancel",
                 "/api/agents/a%20b/restart",
                 "/api/agents/a%20b/stop",
-                "/api/agents/a%20b/start"
+                "/api/agents/a%20b/start",
+                "/api/agents/a%20b/reprovision"
             ]
         )
     }
