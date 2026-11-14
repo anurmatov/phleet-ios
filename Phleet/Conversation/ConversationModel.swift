@@ -18,7 +18,7 @@ final class ConversationModel {
     /// person, the agent and this reference, so the same person opening "main" with the same
     /// agent from the phone or the browser gets the same conversation. Each agent has a single
     /// model context, so more than one thread with it would look separate without being so.
-    nonisolated static let externalRef = "main"
+    nonisolated static let externalRef = ChatThread.externalRef
 
     /// A hard stop on paging, so a server that always reports `hasMore` cannot spin the app.
     nonisolated static let maxCatchUpPages = 200

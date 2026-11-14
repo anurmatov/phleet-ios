@@ -26,21 +26,39 @@ final class KeychainCredentialStore: CredentialStore {
     private let service: String
     private let account: String
 
+    /// The access group the item lives in, or `nil` for the app's own.
+    ///
+    /// The app's own group is readable by the app and nothing else. The app group is readable by
+    /// the app and its two extensions — the widget and the share sheet — which is what lets them
+    /// sign in at all. Naming a group in a query confines the query to that group; naming none
+    /// searches every group the caller may read.
+    private let accessGroup: String?
+
     init(
         service: String = KeychainCredentialStore.defaultService,
-        account: String = KeychainCredentialStore.defaultAccount
+        account: String = KeychainCredentialStore.defaultAccount,
+        accessGroup: String? = nil
     ) {
         self.service = service
         self.account = account
+        self.accessGroup = accessGroup
     }
 
     /// The query identifying this app's one credential item.
-    static func baseQuery(service: String, account: String) -> [String: Any] {
-        [
+    static func baseQuery(
+        service: String,
+        account: String,
+        accessGroup: String? = nil
+    ) -> [String: Any] {
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account
         ]
+        if let accessGroup {
+            query[kSecAttrAccessGroup as String] = accessGroup
+        }
+        return query
     }
 
     /// The attributes a write uses.
@@ -50,9 +68,10 @@ final class KeychainCredentialStore: CredentialStore {
     static func writeAttributes(
         service: String,
         account: String,
-        payload: Data
+        payload: Data,
+        accessGroup: String? = nil
     ) -> [String: Any] {
-        var attributes = baseQuery(service: service, account: account)
+        var attributes = baseQuery(service: service, account: account, accessGroup: accessGroup)
         attributes[kSecValueData as String] = payload
         attributes[kSecAttrAccessible as String] =
             kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -60,7 +79,7 @@ final class KeychainCredentialStore: CredentialStore {
     }
 
     func load() throws -> DeviceCredential? {
-        var query = Self.baseQuery(service: service, account: account)
+        var query = Self.baseQuery(service: service, account: account, accessGroup: accessGroup)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -99,7 +118,8 @@ final class KeychainCredentialStore: CredentialStore {
         // Delete-then-add rather than update, so a rotated secret replaces the item wholesale
         // and cannot leave a half-updated one behind.
         let deleteStatus = SecItemDelete(
-            Self.baseQuery(service: service, account: account) as CFDictionary
+            Self.baseQuery(service: service, account: account, accessGroup: accessGroup)
+                as CFDictionary
         )
         guard deleteStatus == errSecSuccess || deleteStatus == errSecItemNotFound else {
             throw CredentialStoreError.writeFailed(status: deleteStatus)
@@ -108,7 +128,8 @@ final class KeychainCredentialStore: CredentialStore {
         let attributes = Self.writeAttributes(
             service: service,
             account: account,
-            payload: payload
+            payload: payload,
+            accessGroup: accessGroup
         )
         let addStatus = SecItemAdd(attributes as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
@@ -118,7 +139,8 @@ final class KeychainCredentialStore: CredentialStore {
 
     func delete() throws {
         let status = SecItemDelete(
-            Self.baseQuery(service: service, account: account) as CFDictionary
+            Self.baseQuery(service: service, account: account, accessGroup: accessGroup)
+                as CFDictionary
         )
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw CredentialStoreError.writeFailed(status: status)

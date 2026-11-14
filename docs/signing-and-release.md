@@ -27,7 +27,9 @@ half-way through building a keychain.
 | `APP_STORE_CONNECT_PRIVATE_KEY` | secret | base64-encoded `.p8` |
 | `DISTRIBUTION_CERTIFICATE_P12` | secret | base64-encoded distribution certificate |
 | `DISTRIBUTION_CERTIFICATE_PASSWORD` | secret | password for the certificate above |
-| `PROVISIONING_PROFILE` | secret | base64-encoded `.mobileprovision` |
+| `PROVISIONING_PROFILE` | secret | base64-encoded `.mobileprovision` for the app, `com.anvarlab.phleet` |
+| `PROVISIONING_PROFILE_WIDGETS` | secret | the same for the widget, `com.anvarlab.phleet.widgets` |
+| `PROVISIONING_PROFILE_SHARE` | secret | the same for the share sheet, `com.anvarlab.phleet.share` |
 | `KEYCHAIN_PASSWORD` | secret | password for the temporary keychain the job creates and deletes |
 | `DEVELOPMENT_TEAM` | repository variable | Apple team identifier, supplied at run time |
 
@@ -37,23 +39,41 @@ supplied at run time and never committed. `Config/Signing.example.xcconfig` hold
 placeholders.
 
 The self-test proves this list is real: `scripts/check-release-inputs.sh --self-test` runs the
-script under `env -i` and asserts it exits 1 naming exactly these eight.
+script under `env -i` and asserts it exits 1 naming exactly these ten.
+
+### Three things are signed
+
+The app carries two extensions, a widget and a share sheet, and each is its own signed program
+with its own identifier and its own provisioning profile. All three belong to one **app group**,
+`group.com.anvarlab.phleet`, which is how the extensions read the sign-in the app keeps (an app
+group is also a keychain access group). So:
+
+- the App ID of each of the three has the App Groups capability, with that group selected
+- each of the three profiles is generated **after** the group is on its App ID. A profile made
+  before does not carry the group, and the archive then stops with a message that the profile
+  does not include the `application-groups` entitlement. That is the failure wanted: a build
+  that signed without the group would ship extensions that cannot sign in
+- the app's own profile also still carries Push Notifications
+
+`project.yml` gives each target its profile through a build setting of its own
+(`PHLEET_APP_PROFILE`, `PHLEET_WIDGETS_PROFILE`, `PHLEET_SHARE_PROFILE`), which only `release.yml`
+sets. One `PROVISIONING_PROFILE_SPECIFIER` on the command line, as before, would hand the app's
+profile to all three.
 
 ## What the release job does
 
 1. Check out, then **check the inputs** — nothing is created before this passes
 2. **Check the app icon** — see below; also before anything is created
 3. Bootstrap the pinned toolchain
-4. Create a temporary keychain, import the certificate, write the `.p8`, and install the
-   provisioning profile. The profile's `UUID` and `Name` are decoded out of it with
+4. Create a temporary keychain, import the certificate, write the `.p8`, and install the three
+   provisioning profiles. Each profile's `UUID` and `Name` are decoded out of it with
    `security cms -D` rather than assumed: Xcode only finds a profile installed under its own
    `$UUID.mobileprovision`, and manual signing references it by `Name`
 5. Generate `ExportOptions.plist` at run time (method `app-store-connect`, destination
-   `upload`, `signingStyle` manual) including a `provisioningProfiles` entry mapping
-   `com.anvarlab.phleet` to that profile name. It is git-ignored and scanned for
-6. Archive with `CODE_SIGN_STYLE=manual`, `CODE_SIGN_IDENTITY="Apple Distribution"`,
-   `PROVISIONING_PROFILE_SPECIFIER` set to the decoded name, and the build number from the run
-   number. Manual signing selects nothing on its own — if the identity and profile are not
+   `upload`, `signingStyle` manual) including a `provisioningProfiles` entry mapping each of
+   the three identifiers to its profile's name. It is git-ignored and scanned for
+6. Archive with `CODE_SIGN_STYLE=manual`, `CODE_SIGN_IDENTITY="Apple Distribution"`, the three
+   profile names each under its own setting, and the build number from the run number. Manual signing selects nothing on its own — if the identity and profile are not
    handed to `xcodebuild` explicitly, both the archive and the export fail
 7. Export and upload to App Store Connect with the API key
 8. **Delete the keychain, the key, the profile and the export options** in an `if: always()`
@@ -110,7 +130,7 @@ account has to do them.
 ### Repository settings
 
 - [ ] Enable **secret scanning** and **push protection** (Settings → Code security)
-- [ ] Add the seven secrets above (Settings → Secrets and variables → Actions → Secrets)
+- [ ] Add the nine secrets above (Settings → Secrets and variables → Actions → Secrets)
 - [ ] Add `DEVELOPMENT_TEAM` as a repository **variable**, not a secret
 - [ ] Confirm `ci.yml` still passes on a pull request from a fork — it must, because it
       references no secret at all
@@ -122,6 +142,12 @@ account has to do them.
       `com.anvarlab.phleet`. The certificate type matters: the archive step passes
       `CODE_SIGN_IDENTITY="Apple Distribution"`, so a legacy `iPhone Distribution` identity
       fails to match
+- [ ] An **app group** `group.com.anvarlab.phleet` (Identifiers → App Groups)
+- [ ] App IDs `com.anvarlab.phleet.widgets` and `com.anvarlab.phleet.share`, and the App Groups
+      capability with that group selected on **all three** App IDs, the app's included
+- [ ] The app's App Store provisioning profile **regenerated** after that, and one new App Store
+      profile for each of the two extensions, all three for the same Apple Distribution
+      certificate. `base64 -i <file>.mobileprovision` of each goes into its secret
 - [ ] The app record exists in App Store Connect
 - [ ] An APNs key exists, and the app identifier has the Push Notifications capability. The key
       is **not** a secret of this repository: the orchestrator signs and sends notifications, so

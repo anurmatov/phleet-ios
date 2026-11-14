@@ -81,6 +81,8 @@ final class AppEnvironment {
     let controlLogStream: AgentLogStream
     let pushSystem: PushSystem
     let preferences: PreferenceStore
+    /// Nudges the widget when what it shows is known to have changed.
+    let glance: GlanceRefresher
 
     /// Set only under the scripted backend, where it stands in for the camera. `nil` in a real
     /// launch, where the scan button opens the scanner.
@@ -111,6 +113,7 @@ final class AppEnvironment {
         pushSystem: PushSystem? = nil,
         preferences: PreferenceStore? = nil,
         ownerCheck: OwnerCheck? = nil,
+        glance: GlanceRefresher? = nil,
         launchArguments: [String] = ProcessInfo.processInfo.arguments,
         launchEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) {
@@ -119,7 +122,7 @@ final class AppEnvironment {
         let double = LaunchDouble.make(from: launchArguments)
 
         self.credentialStore = credentialStore ?? double?.credentialStore
-            ?? KeychainCredentialStore()
+            ?? SharedCredentialStore.keychain()
         self.legacyCredentialStore = legacyCredentialStore ?? double?.legacyCredentialStore
             ?? KeychainLegacyCredentialStore()
         self.injectedChatAPI = api ?? double?.api
@@ -127,6 +130,8 @@ final class AppEnvironment {
 
         self.scriptedSetupCode = double?.scannedSetupCode
         self.pushSystem = pushSystem ?? double?.pushSystem ?? SystemPushSystem.shared
+        // The scripted backend has no fleet a widget could read, so it nudges nothing.
+        self.glance = glance ?? (double == nil ? WidgetGlanceRefresher() : NoGlanceRefresher())
         let preferenceStore = preferences ?? double?.preferences ?? UserDefaultsPreferenceStore()
         self.preferences = preferenceStore
         self.ownerConfirmation = OwnerConfirmation(
@@ -316,6 +321,8 @@ final class AppEnvironment {
         )
         pushNotifications = push
         push.resume()
+        // The widget may be showing "not signed in", or another server's fleet.
+        glance.refresh()
     }
 
     private func makeTokenHolder(_ store: CredentialStore) -> AccessTokenHolder {
@@ -345,6 +352,8 @@ final class AppEnvironment {
         }
         tearDown()
         signedOutNotice = .revoked
+        // The credential is already gone: the widget's next read finds none and says so.
+        glance.refresh()
     }
 
     /// Signs this phone out of the server and deletes its credential.
@@ -390,6 +399,9 @@ final class AppEnvironment {
         } catch {
             signedOutNotice = .credentialUnavailable
         }
+        // After the credential is gone, not before: a widget redrawn while it was still there
+        // would go on showing a fleet this phone has just signed out of.
+        glance.refresh()
     }
 
     private func tearDown() {

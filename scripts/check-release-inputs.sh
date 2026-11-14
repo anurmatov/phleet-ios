@@ -16,8 +16,12 @@
 
 set -uo pipefail
 
-# The eight inputs of the pinned release signing model. Values are supplied at run time as
+# The ten inputs of the pinned release signing model. Values are supplied at run time as
 # GitHub secrets and repository variables; none of them is in this repository.
+#
+# Three provisioning profiles, one for each thing that is signed: the app, its widget and its
+# share sheet. An extension is signed with a profile of its own, so a release with only the
+# app's would stop at the archive, after a keychain had already been built.
 REQUIRED_INPUTS="
 APP_STORE_CONNECT_KEY_ID
 APP_STORE_CONNECT_ISSUER_ID
@@ -25,6 +29,8 @@ APP_STORE_CONNECT_PRIVATE_KEY
 DISTRIBUTION_CERTIFICATE_P12
 DISTRIBUTION_CERTIFICATE_PASSWORD
 PROVISIONING_PROFILE
+PROVISIONING_PROFILE_WIDGETS
+PROVISIONING_PROFILE_SHARE
 KEYCHAIN_PASSWORD
 DEVELOPMENT_TEAM
 "
@@ -53,7 +59,7 @@ check_inputs() {
 }
 
 self_test() {
-    local script out status failures=0 expected_count=8 reported sorted_expected sorted_actual
+    local script out status failures=0 expected_count=10 reported sorted_expected sorted_actual
 
     script="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
 

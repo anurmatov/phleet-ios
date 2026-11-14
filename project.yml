@@ -38,6 +38,11 @@ targets:
         excludes:
           - "Info.plist"
           - "Phleet.entitlements"
+    # Both extensions are embedded in the app. XcodeGen adds the embed phase for an
+    # app-extension dependency on its own.
+    dependencies:
+      - target: PhleetWidgets
+      - target: PhleetShare
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.anvarlab.phleet
@@ -46,6 +51,95 @@ targets:
         CODE_SIGN_ENTITLEMENTS: Phleet/Phleet.entitlements
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        # Each target is signed with its own profile. release.yml supplies the three names;
+        # nothing else sets them, and `make test` signs ad hoc and passes an empty specifier
+        # on the command line, which wins over this.
+        PROVISIONING_PROFILE_SPECIFIER: $(PHLEET_APP_PROFILE)
+
+  # The home-screen and lock-screen widget.
+  #
+  # An extension is its own program in its own process: it shares no code with the app unless
+  # the same files are compiled into it. The list below is everything the widget needs to sign
+  # in and read the fleet — the screenless sign-in the shortcuts use, the orchestrator client,
+  # and the types those name — and nothing of the app's screens. A file added to that chain has
+  # to be added here and under PhleetShare; the build says so when one is missing.
+  PhleetWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PhleetWidgets
+        excludes:
+          - "Info.plist"
+          - "PhleetWidgets.entitlements"
+      - path: Phleet/Glance/GlanceContent.swift
+      - path: Phleet/Shortcuts/QuickActions.swift
+      - path: Phleet/Credentials/CredentialStore.swift
+      - path: Phleet/Credentials/DeviceCredential.swift
+      - path: Phleet/Credentials/KeychainCredentialStore.swift
+      - path: Phleet/Credentials/SharedCredentialStore.swift
+      - path: Phleet/Control/ControlAPIClient.swift
+      - path: Phleet/Control/ControlConnection.swift
+      - path: Phleet/Control/ControlModels.swift
+      - path: Phleet/Control/ControlPresentation.swift
+      - path: Phleet/Control/PendingGate.swift
+      - path: Phleet/Control/URLSessionControlAPIClient.swift
+      - path: Phleet/Chat/ChatAgent.swift
+      - path: Phleet/Networking/FleetAPIClient.swift
+      - path: Phleet/Networking/URLSessionFleetAPIClient.swift
+      - path: Phleet/Networking/RetryAfterParser.swift
+      - path: Phleet/Protocol
+      - path: Phleet/Conversation/ImagePreparation.swift
+      # The app's own catalog: the shared code looks its words up in the bundle it runs in.
+      - path: Phleet/Resources/Localizable.xcstrings
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.anvarlab.phleet.widgets
+        INFOPLIST_FILE: PhleetWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        CODE_SIGN_ENTITLEMENTS: PhleetWidgets/PhleetWidgets.entitlements
+        PROVISIONING_PROFILE_SPECIFIER: $(PHLEET_WIDGETS_PROFILE)
+        SKIP_INSTALL: "YES"
+        APPLICATION_EXTENSION_API_ONLY: "YES"
+
+  # The share sheet: text, a web address or images from another app, sent to an agent.
+  # The same shared files as the widget, plus the sheet's own model.
+  PhleetShare:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PhleetShare
+        excludes:
+          - "Info.plist"
+          - "PhleetShare.entitlements"
+      - path: Phleet/Sharing/ShareModel.swift
+      - path: Phleet/Support/AccessibilityIdentifier.swift
+      - path: Phleet/Shortcuts/QuickActions.swift
+      - path: Phleet/Credentials/CredentialStore.swift
+      - path: Phleet/Credentials/DeviceCredential.swift
+      - path: Phleet/Credentials/KeychainCredentialStore.swift
+      - path: Phleet/Credentials/SharedCredentialStore.swift
+      - path: Phleet/Control/ControlAPIClient.swift
+      - path: Phleet/Control/ControlConnection.swift
+      - path: Phleet/Control/ControlModels.swift
+      - path: Phleet/Control/ControlPresentation.swift
+      - path: Phleet/Control/PendingGate.swift
+      - path: Phleet/Control/URLSessionControlAPIClient.swift
+      - path: Phleet/Chat/ChatAgent.swift
+      - path: Phleet/Networking/FleetAPIClient.swift
+      - path: Phleet/Networking/URLSessionFleetAPIClient.swift
+      - path: Phleet/Networking/RetryAfterParser.swift
+      - path: Phleet/Protocol
+      - path: Phleet/Conversation/ImagePreparation.swift
+      - path: Phleet/Resources/Localizable.xcstrings
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.anvarlab.phleet.share
+        INFOPLIST_FILE: PhleetShare/Info.plist
+        GENERATE_INFOPLIST_FILE: "NO"
+        CODE_SIGN_ENTITLEMENTS: PhleetShare/PhleetShare.entitlements
+        PROVISIONING_PROFILE_SPECIFIER: $(PHLEET_SHARE_PROFILE)
+        SKIP_INSTALL: "YES"
+        APPLICATION_EXTENSION_API_ONLY: "YES"
 
   # App-hosted on purpose. A non-hosted logic bundle resolves Bundle.main to the test
   # bundle, the a11y.* catalog is not there, and AccessibilityStringTests would pass

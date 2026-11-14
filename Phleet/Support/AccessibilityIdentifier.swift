@@ -160,6 +160,13 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case conversationAttachmentNotice = "conversation.attachmentNotice"
     case conversationSentImage = "conversation.sentImage"
 
+    case shareCancel = "share.cancel"
+    case shareSend = "share.send"
+    case shareAgent = "share.agent"
+    case shareMessage = "share.message"
+    case shareImages = "share.images"
+    case shareState = "share.state"
+
     /// The UI-test hook. Applied with `.accessibilityIdentifier(_:)`.
     var identifier: String { rawValue }
 

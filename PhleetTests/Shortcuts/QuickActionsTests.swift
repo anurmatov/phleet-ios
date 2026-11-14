@@ -176,6 +176,56 @@ final class QuickActionsTests: XCTestCase {
         XCTAssertTrue(chat.calls.isEmpty)
     }
 
+    func testImagesGoUpBeforeTheMessageThatNamesThem() async throws {
+        let chat = FakeFleetAPI()
+        let actions = makeActions(chat: chat)
+
+        try await actions.send("look", images: [Data("abc".utf8)], toAgentNamed: "builder")
+
+        let kinds = chat.calls.map { call -> String in
+            switch call {
+            case .openConversation: return "open"
+            case .reserveAttachment: return "reserve"
+            case .uploadAttachment: return "upload"
+            case .submit: return "submit"
+            default: return "other"
+            }
+        }
+        XCTAssertEqual(kinds, ["open", "reserve", "upload", "submit"])
+        XCTAssertEqual(chat.submittedAttachments, [[SubmissionAttachmentRef(attachmentId: "attachment-1")]])
+        // The upload route is never given the sign-in: open, reserve and submit only.
+        XCTAssertEqual(chat.accessTokensPresented.count, 3)
+    }
+
+    func testAnImageThatDidNotGoUpSendsNothing() async {
+        let chat = FakeFleetAPI()
+        chat.uploadResults = [.failure(FleetAPIError.transport("offline"))]
+
+        let failed = await failure {
+            try await makeActions(chat: chat).send("look", images: [Data("abc".utf8)], toAgentNamed: "builder")
+        }
+
+        XCTAssertEqual(failed, .unreachable)
+        XCTAssertTrue(chat.submissions.isEmpty)
+    }
+
+    func testABare404IsImagesOffOnlyWhenThereWereImagesToSend() async {
+        let withImages = FakeFleetAPI()
+        withImages.reserveResults = [.failure(FleetAPIError.unexpectedStatus(404))]
+        let first = await failure {
+            try await makeActions(chat: withImages).send("look", images: [Data([1])], toAgentNamed: "builder")
+        }
+        XCTAssertEqual(first, .imagesUnsupported)
+
+        // The same status on a message with nothing attached says nothing about images.
+        let wordsOnly = FakeFleetAPI()
+        wordsOnly.submitResults = [.failure(FleetAPIError.unexpectedStatus(404))]
+        let second = await failure {
+            try await makeActions(chat: wordsOnly).send("look", toAgentNamed: "builder")
+        }
+        XCTAssertEqual(second, .unreachable)
+    }
+
     func testOnlyAgentsThatTakeChatAreOffered() async throws {
         let control = FakeControlAPI()
         control.chatAgentsResult = .success(
