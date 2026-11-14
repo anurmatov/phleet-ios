@@ -150,16 +150,35 @@ final class EventDecodingTests: XCTestCase {
         )
     }
 
-    func testSubmissionTextIgnoresFieldsItDoesNotRead() throws {
-        // Attachment descriptors ride on the same payload when there are any. They are another
-        // feature's; the text beside them still decodes, exactly.
+    func testSubmissionTextReadsItsAttachmentsAndIgnoresWhatItDoesNotKnow() throws {
+        // Attachment descriptors ride on the same payload when there are any. The text beside
+        // them still decodes, exactly, and a field this build has never heard of costs nothing.
         let event = try submissionText(
-            payload: #"{"text":"with a photo","attachments":[{"attachmentId":"a1"}],"later":true}"#
+            payload: #"{"text":"with a photo","attachments":[{"attachmentId":"a1","kind":"image"}],"later":true}"#
         )
 
         XCTAssertEqual(event.kind, .submissionText)
         XCTAssertEqual(event.seq, 7)
-        XCTAssertEqual(event.payload, .submissionText(SubmissionTextPayload(text: "with a photo")))
+        XCTAssertEqual(
+            event.payload,
+            .submissionText(
+                SubmissionTextPayload(
+                    text: "with a photo",
+                    attachments: [AttachmentDescriptor(attachmentId: "a1")]
+                )
+            )
+        )
+    }
+
+    func testADescriptorThatDoesNotSayItsKindIsNotTakenForAnImage() throws {
+        let event = try submissionText(
+            payload: #"{"text":"with a file","attachments":[{"attachmentId":"a1"}]}"#
+        )
+
+        guard case .submissionText(let payload) = event.payload else {
+            return XCTFail("expected a submission.text payload")
+        }
+        XCTAssertEqual(payload.attachments.map(\.isImage), [false])
     }
 
     func testValidEmptySubmissionTextIsNotMissingText() throws {

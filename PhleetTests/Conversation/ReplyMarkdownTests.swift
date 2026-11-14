@@ -41,10 +41,14 @@ final class ReplyMarkdownTests: XCTestCase {
         XCTAssertEqual(text(ReplyMarkdown.render(reply)), reply)
     }
 
-    func testBlockSyntaxIsLeftAsWritten() {
-        // A `Text` does not lay out lists and headings; left as typed, they still read.
+    func testBlockSyntaxKeepsEveryLineAndLosesItsPunctuation() {
+        // A `Text` does not lay out lists and headings, so they are written back as text: a
+        // bullet for a marker, strong text for a heading. Each line is still one line.
         let reply = "- item one\n- item two\n# A heading"
-        XCTAssertEqual(text(ReplyMarkdown.render(reply)), reply)
+        let rendered = ReplyMarkdown.render(reply)
+
+        XCTAssertEqual(text(rendered), "\u{2022} item one\n\u{2022} item two\nA heading")
+        XCTAssertEqual(runs(rendered, with: .stronglyEmphasized), ["A heading"])
     }
 
     func testPlainTextIsUnchanged() {

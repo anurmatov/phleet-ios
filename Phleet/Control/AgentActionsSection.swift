@@ -10,6 +10,7 @@ struct AgentActionsSection: View {
     let agent: FleetAgent
 
     @State private var chosen: AgentAction?
+    @Environment(\.confirmOwner) private var confirmOwner
 
     private var state: ControlPlaneModel.AgentActionState? {
         model.agentActionState(for: agent.agentName)
@@ -79,7 +80,11 @@ struct AgentActionsSection: View {
         .accessibilityIdentifier(AccessibilityIdentifier.agentActionCancel.identifier)
         .accessibilityLabel(AccessibilityIdentifier.agentActionCancel.localizedLabel)
 
-        if action.isDisruptive {
+        if action == .reprovision {
+            Text("agentAction.reprovision.help")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        } else if action.isDisruptive {
             Text("agentAction.disruptive.help")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -98,6 +103,11 @@ struct AgentActionsSection: View {
 
     private func send(_ action: AgentAction) {
         Task {
+            if action.isDisruptive {
+                guard await confirmOwner(String(localized: "confirmOwner.reason.action")) else {
+                    return
+                }
+            }
             await model.perform(action, on: agent.agentName)
             chosen = nil
         }

@@ -116,6 +116,50 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case connectionSignOutProgress = "connection.signOutProgress"
     case connectionDone = "connection.done"
 
+    case runWebLink = "run.webLink"
+    case runTerminate = "run.terminate"
+    case runTerminateConfirm = "run.terminateConfirm"
+    case runTerminateKeep = "run.terminateKeep"
+    case runTerminateState = "run.terminateState"
+    case runRestart = "run.restart"
+    case runRestartConfirm = "run.restartConfirm"
+    case runRestartKeep = "run.restartKeep"
+    case runRestartState = "run.restartState"
+    case runsWindow = "runs.window"
+
+    case gateActivityUnavailable = "gate.activityUnavailable"
+
+    case schedulesOpen = "schedules.open"
+    case schedulesEmpty = "schedules.empty"
+    case schedulesSchedule = "schedules.schedule"
+    case scheduleGone = "schedule.gone"
+    case scheduleState = "schedule.state"
+    case scheduleAction = "schedule.action"
+    case scheduleActionConfirm = "schedule.actionConfirm"
+    case scheduleActionCancel = "schedule.actionCancel"
+    case scheduleActionState = "schedule.actionState"
+
+    case memoryOpen = "memory.open"
+    case memoryPrompt = "memory.prompt"
+    case memoryEmpty = "memory.empty"
+    case memoryResult = "memory.result"
+    case memoryDocumentBody = "memory.documentBody"
+    case memoryDocumentFailed = "memory.documentFailed"
+
+    case agentDetailChat = "agentDetail.chat"
+    case setupPaste = "setup.paste"
+    case connectionConfirmOwner = "connection.confirmOwner"
+
+    case chatAgentState = "chat.agentState"
+    case conversationStop = "conversation.stop"
+    case conversationStopNotice = "conversation.stopNotice"
+    case conversationAgentInfo = "conversation.agentInfo"
+    case conversationAttach = "conversation.attach"
+    case conversationAttachment = "conversation.attachment"
+    case conversationAttachmentRemove = "conversation.attachmentRemove"
+    case conversationAttachmentNotice = "conversation.attachmentNotice"
+    case conversationSentImage = "conversation.sentImage"
+
     /// The UI-test hook. Applied with `.accessibilityIdentifier(_:)`.
     var identifier: String { rawValue }
 

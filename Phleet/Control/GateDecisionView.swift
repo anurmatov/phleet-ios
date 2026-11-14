@@ -14,6 +14,7 @@ struct GateDecisionView: View {
     let gate: PendingGate
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.confirmOwner) private var confirmOwner
 
     @State private var comment = ""
     @State private var chosen: SignalButton?
@@ -64,11 +65,21 @@ struct GateDecisionView: View {
                     GateFailureRow(failure: failure)
                 }
             }
+
+            // Under the decision, not above it: the answer stays where a thumb expects it, and
+            // what led here is one scroll away for whoever wants it before answering.
+            if !isHumanSignal {
+                activitySection
+            }
         }
         .navigationTitle(Text(verbatim: gate.heading))
         .navigationBarTitleDisplayMode(.inline)
         .task(id: gate) {
-            if isHumanSignal { await model.loadHumanInput(for: gate) }
+            if isHumanSignal {
+                await model.loadHumanInput(for: gate)
+            } else {
+                await model.loadGateActivity(for: gate)
+            }
         }
     }
 
@@ -108,6 +119,41 @@ struct GateDecisionView: View {
                     Text("gate.runningFor")
                 }
             }
+
+            RunWebLinkRow(run: gate.run)
+        }
+    }
+
+    /// What the run did on its way here: the last things an agent produced, what failed, what
+    /// was signalled. Read from that exact run, and never a condition of deciding — a gate whose
+    /// history cannot be read still offers its decision.
+    @ViewBuilder
+    private var activitySection: some View {
+        switch model.gateActivity(for: gate) {
+        case .loaded(let events)? where !events.isEmpty:
+            Section {
+                ForEach(events) { event in
+                    RunEventRow(event: event)
+                }
+            } header: {
+                Text("gate.activity.title")
+            } footer: {
+                Text("gate.activity.help")
+            }
+        case .unavailable?:
+            Section {
+                Label {
+                    Text("gate.activity.unavailable").font(.footnote)
+                } icon: {
+                    Image(systemName: "clock.badge.questionmark")
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier(AccessibilityIdentifier.gateActivityUnavailable.identifier)
+            } header: {
+                Text("gate.activity.title")
+            }
+        case .loading?, .loaded?, nil:
+            EmptyView()
         }
     }
 
@@ -169,6 +215,9 @@ struct GateDecisionView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         Button("gate.confirm.send") {
                             Task {
+                                guard await confirmOwner(String(localized: "confirmOwner.reason.decision")) else {
+                                    return
+                                }
                                 let accepted = await model.answerHumanInput(gate: gate, value: value, comment: comment)
                                 confirmedHumanValue = nil
                                 if accepted { wasSent = true; dismiss() }
@@ -280,6 +329,11 @@ struct GateDecisionView: View {
 
     private func send(_ button: SignalButton) {
         Task {
+            // The second look, when the switch is on. A refusal leaves the choice standing, so
+            // trying again is one tap rather than a new decision.
+            guard await confirmOwner(String(localized: "confirmOwner.reason.decision")) else {
+                return
+            }
             let accepted = await model.decide(gate: gate, button: button, comment: comment)
             chosen = nil
             if accepted {

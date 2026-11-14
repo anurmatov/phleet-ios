@@ -11,8 +11,12 @@ import Observation
 @Observable
 final class RunsModel {
 
-    /// How far back closed runs are read. The orchestrator caps the list regardless.
+    /// How far back closed runs are read when nothing else was chosen. The orchestrator caps the
+    /// list regardless.
     nonisolated static let closedWindowHours = 24
+
+    /// The windows offered: the last day, and the three days the orchestrator reads at most.
+    nonisolated static let windowChoices = [24, 72]
 
     enum Load: Equatable, Sendable {
         case idle
@@ -34,6 +38,13 @@ final class RunsModel {
         case failed(ControlPlaneModel.ActionFailure)
     }
 
+    enum RestartState: Equatable, Sendable {
+        case sending
+        /// A new run was started. The run that was restarted is unchanged.
+        case restarted(workflowId: String)
+        case failed(ControlPlaneModel.ActionFailure)
+    }
+
     enum StartState: Equatable, Sendable {
         case idle
         case sending
@@ -51,6 +62,11 @@ final class RunsModel {
     /// By `WorkflowRun.identity`.
     private(set) var histories: [String: History] = [:]
     private(set) var cancelStates: [String: CancelState] = [:]
+    private(set) var terminateStates: [String: CancelState] = [:]
+    private(set) var restartStates: [String: RestartState] = [:]
+
+    /// How far back closed runs are read, in hours. One of `windowChoices`.
+    private(set) var windowHours = RunsModel.closedWindowHours
 
     private(set) var typesLoad: Load = .idle
     private(set) var types: [WorkflowType] = []
@@ -78,12 +94,23 @@ final class RunsModel {
             closedLoad = .loading
         }
         do {
-            closed = try await api.closedRuns(connection, hours: Self.closedWindowHours)
+            let hours = windowHours
+            let read = try await api.closedRuns(connection, hours: hours)
+            // A read for a window that has since been changed is not what the screen asks for.
+            guard hours == windowHours else { return }
+            closed = read
             closedLoad = .loaded
         } catch {
             guard !Task.isCancelled else { return }
             closedLoad = .failed(Self.failure(for: error))
         }
+    }
+
+    /// Changes how far back closed runs are read, and reads again.
+    func setWindow(hours: Int) async {
+        guard Self.windowChoices.contains(hours), hours != windowHours else { return }
+        windowHours = hours
+        await refreshClosed()
     }
 
     // MARK: - History
@@ -138,6 +165,64 @@ final class RunsModel {
         }
         cancelStates[run.identity] = .requested
         return true
+    }
+
+    // MARK: - Terminating
+
+    func terminateState(for run: WorkflowRun) -> CancelState? {
+        terminateStates[run.identity]
+    }
+
+    /// Stops one run at once. Unlike a cancel, the workflow gets no chance to wind down, which is
+    /// what a run that ignores a cancel needs.
+    @discardableResult
+    func terminate(_ run: WorkflowRun) async -> Bool {
+        guard terminateStates[run.identity] != .sending else { return false }
+
+        terminateStates[run.identity] = .sending
+        do {
+            try await api.terminateRun(
+                connection,
+                namespace: run.namespace,
+                workflowId: run.workflowId,
+                runId: run.runId
+            )
+        } catch {
+            terminateStates[run.identity] = .failed(ControlPlaneModel.ActionFailure.from(error))
+            return false
+        }
+        terminateStates[run.identity] = .requested
+        return true
+    }
+
+    // MARK: - Restarting
+
+    func restartState(for run: WorkflowRun) -> RestartState? {
+        restartStates[run.identity]
+    }
+
+    /// Starts a new run of the same type with the input this run was started with.
+    ///
+    /// Offered for a run that has closed. The orchestrator reads the type and input from that
+    /// run's own history, so the run is named by its run identifier.
+    @discardableResult
+    func restart(_ run: WorkflowRun) async -> RestartedRun? {
+        guard restartStates[run.identity] != .sending else { return nil }
+
+        restartStates[run.identity] = .sending
+        do {
+            let restarted = try await api.restartRun(
+                connection,
+                namespace: run.namespace,
+                workflowId: run.workflowId,
+                runId: run.runId
+            )
+            restartStates[run.identity] = .restarted(workflowId: restarted.newWorkflowId)
+            return restarted
+        } catch {
+            restartStates[run.identity] = .failed(ControlPlaneModel.ActionFailure.from(error))
+            return nil
+        }
     }
 
     // MARK: - Starting
@@ -195,14 +280,7 @@ final class RunsModel {
     }
 
     private static func failure(for error: Error) -> ControlPlaneModel.Failure {
-        switch error as? ControlAPIError {
-        case .accessDenied?:
-            return .accessDenied
-        case .transport?:
-            return .unreachable
-        case .decoding?, .unauthorized?, .gateChanged?, .refused?, nil:
-            return .unexpectedAnswer
-        }
+        ControlPlaneModel.Failure.from(error)
     }
 }
 

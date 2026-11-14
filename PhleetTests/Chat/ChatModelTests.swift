@@ -132,7 +132,9 @@ final class ChatModelTests: XCTestCase {
 
         XCTAssertEqual(model.limits, limits)
         XCTAssertEqual(chat.calls.filter { $0 == .session }.count, 1)
-        XCTAssertEqual(chat.accessTokensPresented, ["access-token-1"])
+        // The limits once; the threads on every read of the list, because what is new changes.
+        XCTAssertEqual(chat.calls, [.session, .conversations, .conversations])
+        XCTAssertEqual(Set(chat.accessTokensPresented), ["access-token-1"])
         XCTAssertEqual(model.conversation(for: builder).limits, limits)
     }
 

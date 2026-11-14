@@ -71,7 +71,12 @@ final class TurnStateTests: XCTestCase {
 
     func testQueueFullAndDroppedAreTerminalRatherThanSendFailures() {
         for disposition in [Disposition.queueFull, .dropped] {
-            let state = machine([TestEvent.accepted("s1", disposition, seq: 1)])
+            // The words come first, as the server writes them: the accept that stores them takes
+            // the lower seq.
+            let state = machine([
+                TestEvent.text("s1", seq: 1, text: "hello"),
+                TestEvent.accepted("s1", disposition, seq: 2)
+            ])
 
             XCTAssertEqual(state.record("s1")?.state, .notRun(disposition))
             XCTAssertTrue(state.record("s1")?.state.isTerminal == true)

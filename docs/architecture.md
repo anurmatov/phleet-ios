@@ -24,14 +24,14 @@ credential; see [One sign-in](#one-sign-in). For the thread, the wire contract i
 
 Not in this slice, and not partially present either:
 
-- no opening a thread from a notification: a reply's notification opens the Chat tab
-- no voice, attachments, or multi-agent rooms
-- no steer or cancel interface — the routes exist, this app does not surface them
+- no widget and no share extension: both need their own targets, an App Group and provisioning
+  profiles the operator creates
+- no voice, no attachment other than an image, no image from an agent, no multi-agent rooms
+- no steer interface — the route exists, this app does not surface it
 - no local persistence of conversation history: no database, no file store, no user defaults —
-  history, the person's own messages included, is read back from the server
-- no setup without a camera: the dashboard shows the setup code only as a QR code
-- no provisioning, no terminate or restart of a run, and no editing of instructions, contexts,
-  workflow definitions or secrets — those stay on the web dashboard
+  history, the person's own messages and images included, is read back from the server
+- no provisioning of an agent that never was, and no editing of instructions, contexts, workflow
+  definitions, schedules, memories or secrets — those stay on the web dashboard
 
 The app also ships **no server address**. There is no `Info.plist` key, no `.xcconfig` key, and
 no source literal holding a host.
@@ -50,9 +50,11 @@ Phleet/
   Setup/                       scan → register → store → mint, and the screen
   Chat/                        the chat-enabled agents, and a thread model per agent
   Conversation/                attach, catch up, buffer, send, render (replies as Markdown)
-  Control/                     the Fleet tab: orchestrator routes signed in, agents, gates, decisions
+  Control/                     Fleet and Runs: agents, gates, decisions, runs, schedules, memory
+  Shortcuts/                   the two App Intents, and the screenless sign-in they share
   Configuration/               server profile: model, store seam, resolution
-  Support/                     accessibility identifiers, launch arguments
+  Support/                     accessibility identifiers, launch arguments, the small
+                               preference store, the owner check
   Resources/                   string catalog, asset catalog
 ```
 
@@ -247,12 +249,68 @@ a switch in the agent's settings.
 
 ### An agent's reply is Markdown, and never HTML
 
-`ReplyMarkdown` renders what one `Text` can show faithfully: inline syntax through
-`AttributedString(markdown:)` with inline-only interpretation that preserves whitespace, and
-fenced code blocks, which are split out first and shown verbatim. Full block parsing produces
-presentation intents a `Text` does not lay out — paragraphs run together and list markers vanish —
-so block syntax stays as typed. A tag is shown as its characters with the parser's HTML mark
-removed, and a link is kept only for `http` and `https`. The person's own messages are plain text.
+`ReplyMarkdown` renders what a column of `Text` can show faithfully. Inline syntax goes through
+`AttributedString(markdown:)` with inline-only interpretation that preserves whitespace. Its full
+block parsing produces presentation intents a `Text` does not lay out — paragraphs run together
+and list markers vanish — so block syntax is read here a line at a time and written back as text:
+a heading becomes strong text, a list item keeps its indentation and gets a bullet or a task box,
+a quote gets a bar, a rule becomes a line. Every line of the reply is still one line of the
+result. Fenced code blocks and tables are split out and laid out on their own
+(`MarkdownBlocksView`): code verbatim on its own ground, a table as a grid whose every row has
+the header's columns.
+
+Nothing in a reply scrolls sideways. A long line of code wraps and a wide table's columns narrow,
+because a region that scrolls on its own inside a transcript takes the drag meant for the
+transcript. A tag is shown as its characters with the parser's HTML mark removed, and a link is
+kept only for `http` and `https`. The person's own messages are plain text.
+
+### Stop is a request, and events say what it did
+
+While a submission of the thread owns a running turn, or is folded into one, the composer offers
+Stop: `POST /v1/conversations/{id}:cancel` with `scope: "current"`. The answer says only that the
+request was taken. What happened arrives as events — the turn's own `turn.canceled`, or a
+`control.ack` saying nothing was running — so nothing in the client marks a turn stopped. The
+button reads "Stopping…" until the turn ends or an acknowledgement arrives, whichever is first.
+
+A stop is a submission of its own on the server. It carries no words, the agent closes it as
+`dropped` once it has acted, and nothing else ever names it. So a `submission.accepted
+{ dropped }` for a submission nothing has been seen of is a stop's own receipt, and gets no row:
+drawing one would put a button press into the transcript as a message whose text is unavailable.
+A message that really was dropped has its `submission.text` at a lower seq, so its row is
+already there. An acknowledgement with `hadRunningTask: false` is the whole story — no terminal
+follows it — and is said as one line.
+
+### An image goes up before the message that names it
+
+Reserve, upload, then submit: three steps, each of which can fail without costing the words.
+
+- **Converted on the phone.** The server takes JPEG, PNG, GIF and WebP and refuses everything
+  else at reservation, HEIC included, which is what the camera writes. Every picked image is
+  re-encoded as JPEG, its long side at most 2048 pixels (`ImagePreparation`).
+- **Two credentials, kept apart.** The reservation is made with the sign-in and answers with a
+  single-use upload token; the upload carries that token and no sign-in. The token is used once
+  and stored nowhere. The reservation also names an upload address, which this client ignores:
+  the address is built from the attachment's identifier, so the bytes and the token go to the
+  server this phone is signed in to whatever that answer said.
+- **A failed upload sends nothing.** The words and the images stay in the composer, and the next
+  send does not upload again what already went up.
+- **A server without images says so by not having the routes.** A bare `404` on reservation is
+  that; the picker is withdrawn and the composer says why. A `404` the server names is about the
+  conversation, and is a refusal.
+
+Sent images come back as descriptors on `submission.text` and are read from
+`GET /v1/attachments/{id}/content` with the phone's own sign-in when a row that shows one comes on
+screen, kept in memory only and only the most recent few. An image this phone has just sent is
+kept from the upload. An image the server no longer has says so where the picture would be.
+
+### The chat list says who is there and what has moved
+
+Each agent's row shows how the fleet says it is doing, when its thread was last active and a mark
+when the thread has moved on since this phone last showed it. The last two come from
+`GET /v1/conversations`; "moved on" compares the thread's newest position with the furthest one
+this phone has shown, which is a number per agent in the app's preferences and nothing else. It
+claims only that there is something to look at — the newest event may be a reply, a message sent
+from the dashboard or progress on a running turn — never what, and never how many.
 
 ## One sign-in
 
@@ -266,6 +324,19 @@ setup code (QR) ── POST /api/auth/devices ──▶ { deviceId, deviceSecret
 every request ───── Authorization: Bearer <accessToken>   (+ the proxy's service token)
 ```
 
+### What a shortcut may do
+
+Two App Intents: "What needs me" reads how many runs are waiting and which agents are down, and
+"Ask an agent" sends one message into an agent's thread. Both go through `QuickActions`, which
+signs in the way the app does — the stored credential, one token minted from it, sent in a
+header — and keeps nothing afterwards. It never deletes the credential: a refused mint is
+reported as signed out, and ending the sign-in stays with `AccessTokenHolder` the next time the
+app runs. A send is one attempt; one that does not complete is said to be not known to have been
+sent and is not tried again under new identifiers.
+
+No intent answers a gate, starts a workflow or acts on an agent. A shortcut can run from a lock
+screen or a watch, and a decision is sent from a screen that shows what is being decided.
+
 ### A setup code shows the address and never connects
 
 The dashboard draws a JSON object as a QR code:
@@ -278,6 +349,9 @@ The dashboard draws a JSON object as a QR code:
   name, with where to make a new code. Nothing in it is read.
 - The address passes the same rule as any other — `https`, a host, no user name or password — and
   is shown for a person to check. Connecting is a separate tap.
+
+A code can also be pasted as text, through the system's paste button, for a phone that cannot
+point its camera at one. It goes through the same `SetupCode.parse` and the same separate tap.
 
 The camera is `DataScannerViewController`, restricted to QR codes, in a sheet that hands back the
 first code's text and nothing else. Camera access is asked for when the sheet opens, never at
@@ -351,15 +425,32 @@ signing, or the orchestrator's configuration.
 
 The system side sits behind `PushSystem`. The real one, `SystemPushSystem`, is a single object
 because the application delegate and the notification-centre delegate are created by the system
-and have nothing else to report to. Most tapped notifications select the Fleet, Runs or Chat tab;
-an unknown kind opens Fleet rather than nothing.
+and have nothing else to report to.
 
-A `gate` notification for `request-input` may also carry namespace, workflow, run and signal
-identity. The app refreshes Fleet and opens only the matching pending human-input request.
-Missing fields, stale runs and missing matches leave the person on the list. The push supplies
-no question, context or answer, and never permission to send. A later navigation visit or a
-different sign-in invalidates an older lookup; changing the control-plane session clears the
-Fleet navigation path.
+A tapped notification carries a `kind` and the identity of what it is about, and
+`PushDestination` reads only that: a run's namespace, workflow and run identifiers, a signal
+name, an agent's name. The push supplies no question, context, answer or message text, and never
+permission to send. Each kind opens the thing it names — a gate, a run, an agent, a thread — but
+only when a fresh read still finds it:
+
+| Kind | Opens | When it cannot |
+|---|---|---|
+| `gate` | that run's gate, for that signal | Fleet |
+| `run` | that run, in progress or closed | Runs |
+| `agent` | that agent | Fleet |
+| `chat` | that agent's thread | Chat |
+| anything else, or an identity in part | — | the tab its kind belongs to; Fleet for an unknown kind |
+
+A run is matched by all three identifiers and a gate by the signal as well, so a newer run under
+the same workflow identifier, or the same run moved on to another gate, is not what the
+notification was about and is not opened in its place. A later navigation or a different sign-in
+invalidates an older lookup; changing the control-plane session clears every tab's path. The same
+requests are how one tab links into another — an agent's screen opening its thread, a thread
+opening its agent — so there is one way a screen is reached by name.
+
+How many runs are waiting is shown on the Fleet tab and on the app's icon. The icon's count is
+set by the app from its own reads; the server's notifications carry none, so it is as fresh as
+the app's last read and is cleared at sign-out.
 
 The app holds no key. The orchestrator signs and sends; see `docs/push-notifications.md` in the
 platform repository.
@@ -425,6 +516,29 @@ Loading, a failed refresh, a replacement run or a superseded history read cannot
 The request carries the displayed `runId` and `expectedGateRef`. A stale or uncertain send
 refreshes and reloads that same exact request without replaying the answer automatically.
 
+### What led to a gate is read from that run, and decides nothing
+
+Under the decision the gate screen shows the newest entries of the run's history that say
+something: what an agent produced, what failed, what was signalled (`GateActivityDigest`). The
+history is read with the gate's own run identifier, never as "the latest run of this workflow",
+because what sits beside a decision must be about the run the decision is sent to. It sits
+*under* the decision so the answer stays where a thumb expects it. A history that cannot be read
+is said in one line and the decision is still offered: it never depended on it.
+
+A run that names its repository as `owner/name` links to its pull request, else its issue, on
+GitHub (`RunLinks`). Both halves are held to the characters a repository name may contain, so a
+value that is not one cannot become a path to somewhere else on the site.
+
+### Confirm it's you is this phone's guard, not the server's
+
+`OwnerConfirmation` is an optional switch, off by default. With it on, sending a decision, a
+disruptive agent action, a schedule action, and cancelling or terminating a run each ask the
+phone to confirm its owner first — Face ID or Touch ID, falling back to the passcode. Views ask
+through an environment value (`\.confirmOwner`) whose default says yes, so a view rendered alone
+behaves as it does with the switch off. Turning the switch off takes the same check, or it would
+guard nothing. It is a guard on the interface: the orchestrator neither knows nor cares, and a
+credential stolen from the Keychain is not slowed by it.
+
 ### An action is "requested", and the state is the evidence
 
 Restart, stop, start and cancel-task answer when the orchestrator has taken the request, not when
@@ -437,11 +551,33 @@ Which actions are offered follows the agent's state (`AgentAction.available(for:
 with no heartbeat is offered restart rather than start: "no heartbeat" may mean hung or stopped,
 and a restart is right for both.
 
+Reprovisioning is offered wherever there is a container to recreate. It can outlast the request
+that asked for it; that is reported as an outcome not known, and the agent's state says the rest.
+
 ### A cancel names the run
 
 `cancelRun` sends the run identifier as well as the workflow identifier. A workflow restarted
 under the same name is a different run, and a screen still showing the old one must not cancel
 the new one.
+
+Terminating names the run the same way. It is a separate action under cancel, with its own two
+taps: a cancel asks the workflow to wind down, and a terminate does not ask. Running a closed run
+again starts a new run from that run's own type and input, read by the orchestrator from its
+history; `terminateExisting` is never sent, so starting a run never ends one.
+
+### Schedules and memory are read, and schedules are nudged
+
+A schedule can be paused, resumed, or made to start a run now. After any of them the list is
+read again, because whether a schedule is paused is the orchestrator's to say. Creating and
+editing one stays on the dashboard: it needs a cron expression and a workflow input.
+
+Memory search is read-only, and is sent on return rather than on every keystroke: each search is
+an embedding lookup on the server. An answer to an earlier search changes nothing once a newer
+one has been asked.
+
+Closed runs are read for the last day by default and for three days when asked, which is as far
+back as the orchestrator reads; a window it would silently cap is not offered. The agent and run
+lists are narrowed on the phone, from what was already read (`ListSearch`).
 
 ### A log is a tail, and it does not silently resume
 

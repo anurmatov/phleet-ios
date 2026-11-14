@@ -80,12 +80,15 @@ extension AgentAction {
     /// container up as well as recycling a hung one, so it is right whichever of the two "no
     /// heartbeat" turns out to mean. An agent that was never provisioned has no container to act
     /// on; that is done from the dashboard.
+    ///
+    /// Reprovisioning is offered wherever there is a container to recreate: it is what a changed
+    /// model, instruction or harness setting waits for, and it brings a stopped agent up as well.
     static func available(for health: AgentHealth) -> [AgentAction] {
         switch health {
-        case .working: return [.cancelTask, .restart, .stop]
-        case .idle: return [.restart, .stop]
-        case .down, .stale, .unknown: return [.restart, .stop]
-        case .stopped: return [.start]
+        case .working: return [.cancelTask, .restart, .stop, .reprovision]
+        case .idle: return [.restart, .stop, .reprovision]
+        case .down, .stale, .unknown: return [.restart, .stop, .reprovision]
+        case .stopped: return [.start, .reprovision]
         case .notProvisioned: return []
         }
     }
@@ -96,6 +99,7 @@ extension AgentAction {
         case .restart: return "agentAction.restart"
         case .stop: return "agentAction.stop"
         case .start: return "agentAction.start"
+        case .reprovision: return "agentAction.reprovision"
         }
     }
 
@@ -109,13 +113,14 @@ extension AgentAction {
         case .restart: return "arrow.clockwise.circle"
         case .stop: return "stop.circle"
         case .start: return "play.circle"
+        case .reprovision: return "shippingbox.circle"
         }
     }
 
-    /// Stopping and restarting interrupt whatever the agent is doing.
+    /// Stopping, restarting and reprovisioning interrupt whatever the agent is doing.
     var isDisruptive: Bool {
         switch self {
-        case .cancelTask, .restart, .stop: return true
+        case .cancelTask, .restart, .stop, .reprovision: return true
         case .start: return false
         }
     }

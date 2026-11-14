@@ -66,11 +66,43 @@ final class ConversationModel {
         case notKnownToHaveHappened
     }
 
+    /// Why a stop was not sent.
+    enum StopFailure: Equatable, Sendable {
+        /// `409 agent_unavailable` — chat was turned off for this agent.
+        case agentUnavailable
+        /// The request did not complete. Nothing is known to have been stopped.
+        case notSent
+    }
+
+    /// Why an image could not be attached, or could not be sent.
+    enum AttachmentFailure: Equatable, Sendable {
+        /// Not an image this phone can read, or one that cannot be brought under the size limit.
+        case unreadable
+        /// More than a message may carry.
+        case tooMany
+        /// This server has no attachment routes: images are a separate switch on the chat
+        /// service, and it is off.
+        case unsupportedServer
+        /// The server refused the image.
+        case refused
+        /// The upload did not complete. The message was not sent, and the draft is kept.
+        case notSent
+    }
+
+    /// An image picked for the message being written: already converted, not yet uploaded.
+    struct OutgoingImage: Equatable, Sendable, Identifiable {
+        let id: String
+        let jpeg: Data
+    }
+
     /// A submission this device sent, kept so a retry can reuse its identifiers.
     struct PendingSubmission: Equatable, Sendable {
         let submissionId: String
         let idempotencyKey: String
         let text: String
+        /// What was uploaded for it. A retry names the same attachments: they are bound to this
+        /// submission and to no other.
+        var attachments: [SubmissionAttachmentRef] = []
     }
 
     enum CycleOutcome: Equatable, Sendable {
@@ -122,6 +154,50 @@ final class ConversationModel {
     /// `afterSeq` values this client has processed up to. Starts at the cold-start cursor.
     private(set) var lastAppliedSeq = CatchUpCursor.coldStart
 
+    // MARK: - Stopping
+
+    private(set) var stopFailure: StopFailure?
+
+    /// How many acknowledgements had been seen when a stop was asked for. `nil` when none is
+    /// outstanding.
+    private var stopAckBaseline: Int?
+
+    /// A stop was asked for and the turn has not ended yet. Over when the turn ends or the
+    /// agent acknowledges, whichever comes first — both arrive as events, never as the answer to
+    /// the request.
+    var isStopping: Bool {
+        guard let baseline = stopAckBaseline else { return false }
+        return machine.hasRunningTurn && machine.controlAckCount == baseline
+    }
+
+    /// Whether there is a running turn to stop and no stop already on its way.
+    var canStop: Bool {
+        conversationId != nil && machine.hasRunningTurn && !isStopping
+    }
+
+    // MARK: - Images
+
+    /// The most a message may carry. The server refuses a fifth.
+    nonisolated static let maxImagesPerMessage = 4
+
+    /// Images picked for the message being written.
+    private(set) var draftImages: [OutgoingImage] = []
+    private(set) var attachmentFailure: AttachmentFailure?
+
+    /// The images of the message being sent are on their way up.
+    private(set) var isUploading = false
+
+    /// Learned from a refusal: this server takes no images. The picker is withdrawn and the
+    /// composer says why, rather than offering something that cannot work.
+    private(set) var attachmentsUnsupported = false
+
+    /// The bytes of the images in this thread.
+    let images: AttachmentImages
+
+    var canAddImage: Bool {
+        !attachmentsUnsupported && !isUploading && draftImages.count < Self.maxImagesPerMessage
+    }
+
     // MARK: - Observable history, for assertions and for logging
 
     /// One entry per stream attach, in order. Every one is a live-tail floor.
@@ -154,6 +230,11 @@ final class ConversationModel {
     private var didSpendFreeReauthentication = false
     private var lastCursorWriteAt: Double?
     private var writtenDeliveredSeq = 0
+    private let prepareImage: (Data) -> Data?
+
+    /// Attachment identifiers by picked image, so a send that is tried again does not upload
+    /// the same bytes twice.
+    private var uploadedAttachmentIds: [String: String] = [:]
 
     init(
         api: FleetAPIClient,
@@ -166,6 +247,7 @@ final class ConversationModel {
         clock: MonotonicClock = SystemMonotonicClock(),
         newIdentifier: @escaping () -> String = ClientIdentifier.random,
         randomFraction: @escaping () -> Double = { Double.random(in: 0...1) },
+        prepareImage: @escaping (Data) -> Data? = { ImagePreparation.jpeg(from: $0) },
         sleep: @escaping (Double) async -> Void = { seconds in
             try? await Task.sleep(nanoseconds: UInt64(max(seconds, 0) * 1_000_000_000))
         }
@@ -181,7 +263,17 @@ final class ConversationModel {
         self.newIdentifier = newIdentifier
         self.randomFraction = randomFraction
         self.sleep = sleep
+        self.prepareImage = prepareImage
         self.buffer = BoundedLiveBuffer(capacity: limits.outboundBufferEvents)
+        self.images = AttachmentImages { attachmentId in
+            try await tokens.authorized { token in
+                try await api.attachmentContent(
+                    origin: origin,
+                    accessToken: token,
+                    attachmentId: attachmentId
+                )
+            }
+        }
     }
 
     // MARK: - Composer
@@ -194,10 +286,40 @@ final class ConversationModel {
         text.utf8.count <= limits.inboundTextBytes
     }
 
-    /// Sends a new message.
+    /// Adds a picked image to the message being written.
+    ///
+    /// Converted here, before anything is sent: the server takes no HEIC, which is what the
+    /// camera writes, and a photo straight from the library is larger than it needs to be.
+    @discardableResult
+    func addImage(_ data: Data) -> Bool {
+        attachmentFailure = nil
+        guard draftImages.count < Self.maxImagesPerMessage else {
+            attachmentFailure = .tooMany
+            return false
+        }
+        guard let jpeg = prepareImage(data) else {
+            attachmentFailure = .unreadable
+            return false
+        }
+        draftImages.append(OutgoingImage(id: newIdentifier(), jpeg: jpeg))
+        return true
+    }
+
+    func removeImage(id: String) {
+        draftImages.removeAll { $0.id == id }
+        uploadedAttachmentIds[id] = nil
+        attachmentFailure = nil
+    }
+
+    /// Sends a new message, with whatever images were picked for it.
+    ///
+    /// The images go up first, each to a slot reserved for it, and the message names them. An
+    /// upload that fails sends nothing: the words and the images stay in the composer, and
+    /// `nil` comes back with `attachmentFailure` saying why.
     @discardableResult
     func send(_ text: String) async -> PendingSubmission? {
         sendFailure = nil
+        attachmentFailure = nil
 
         guard isWithinInboundLimit(text) else {
             // Blocked locally, and the `413` path below still exists: the server's limit is the
@@ -206,15 +328,138 @@ final class ConversationModel {
             return nil
         }
 
+        var references: [SubmissionAttachmentRef] = []
+        var descriptors: [AttachmentDescriptor] = []
+        if !draftImages.isEmpty {
+            guard let conversationId else {
+                attachmentFailure = .notSent
+                return nil
+            }
+            isUploading = true
+            defer { isUploading = false }
+
+            for image in draftImages {
+                do {
+                    let attachmentId = try await upload(image, to: conversationId)
+                    references.append(SubmissionAttachmentRef(attachmentId: attachmentId))
+                    descriptors.append(
+                        AttachmentDescriptor(
+                            attachmentId: attachmentId,
+                            contentType: Self.imageContentType,
+                            byteSize: image.jpeg.count
+                        )
+                    )
+                } catch {
+                    let failure = Self.attachmentFailure(for: error)
+                    if failure == .unsupportedServer {
+                        attachmentsUnsupported = true
+                        draftImages = []
+                        uploadedAttachmentIds = [:]
+                    }
+                    attachmentFailure = failure
+                    return nil
+                }
+            }
+            draftImages = []
+            uploadedAttachmentIds = [:]
+        }
+
         let submission = PendingSubmission(
             submissionId: newIdentifier(),
             idempotencyKey: newIdentifier(),
-            text: text
+            text: text,
+            attachments: references
         )
         pending[submission.submissionId] = submission
-        machine.registerLocalSubmission(id: submission.submissionId, text: text)
+        machine.registerLocalSubmission(
+            id: submission.submissionId,
+            text: text,
+            attachments: descriptors
+        )
         await post(submission)
         return submission
+    }
+
+    private nonisolated static let imageContentType = "image/jpeg"
+
+    /// Reserves a slot, uploads the bytes into it, and keeps them for the row that shows them.
+    private func upload(_ image: OutgoingImage, to conversationId: String) async throws -> String {
+        if let uploaded = uploadedAttachmentIds[image.id] {
+            return uploaded
+        }
+        let body = ReserveAttachmentBody(
+            kind: "image",
+            contentType: Self.imageContentType,
+            byteSize: image.jpeg.count,
+            sha256: ImagePreparation.sha256Hex(image.jpeg),
+            fileName: "image.jpg"
+        )
+        let reservation = try await tokens.authorized { token in
+            try await api.reserveAttachment(
+                origin: origin,
+                accessToken: token,
+                conversationId: conversationId,
+                body: body
+            )
+        }
+        // The upload route takes the reservation's token and no sign-in. The token is used here,
+        // once, and kept nowhere.
+        _ = try await api.uploadAttachment(
+            origin: origin,
+            uploadToken: reservation.uploadToken,
+            attachmentId: reservation.attachmentId,
+            contentType: Self.imageContentType,
+            data: image.jpeg
+        )
+        uploadedAttachmentIds[image.id] = reservation.attachmentId
+        images.store(image.jpeg, for: reservation.attachmentId)
+        return reservation.attachmentId
+    }
+
+    /// A route that is not there answers with a bare `404` or `405`, which is how a server
+    /// without attachments says so: its attachment routes are not mapped at all. A `404` the
+    /// server *named* is about the conversation or the attachment, and is a refusal.
+    private static func attachmentFailure(for error: Error) -> AttachmentFailure {
+        switch error as? FleetAPIError {
+        case .unexpectedStatus(let status)? where status == 404 || status == 405:
+            return .unsupportedServer
+        case .refused(.unsupportedAttachments, _, _)?:
+            return .unsupportedServer
+        case .refused?, .unexpectedStatus?, .protocolMismatch?, .decoding?, .unauthorized?:
+            return .refused
+        case .rateLimited?, .transport?, nil:
+            return .notSent
+        }
+    }
+
+    // MARK: - Stopping the running turn
+
+    /// Asks the agent to stop the turn that is running in this thread.
+    ///
+    /// The answer only says the request was taken. What it did arrives as events: the turn's own
+    /// cancelled terminal, or an acknowledgement that nothing was running. So nothing here marks
+    /// anything as stopped.
+    func stop() async {
+        guard let conversationId, canStop else { return }
+        stopFailure = nil
+        stopAckBaseline = machine.controlAckCount
+
+        do {
+            _ = try await tokens.authorized { token in
+                try await api.cancel(
+                    origin: origin,
+                    accessToken: token,
+                    conversationId: conversationId,
+                    body: CancelBody(scope: .current)
+                )
+            }
+        } catch FleetAPIError.refused(.agentUnavailable, _, _) {
+            stopAckBaseline = nil
+            stopFailure = .agentUnavailable
+        } catch {
+            stopAckBaseline = nil
+            stopFailure = .notSent
+        }
     }
 
     /// Retries a send that did not land.
@@ -243,6 +488,15 @@ final class ConversationModel {
         guard let previous = pending[machine.localSubmissionId(for: submissionId)] else {
             return nil
         }
+        // An attachment is bound to the submission it went with, so a second submission needs
+        // its own. The bytes are still here from the first upload; they go up again.
+        if draftImages.isEmpty {
+            draftImages = previous.attachments.compactMap { reference in
+                images.data(for: reference.attachmentId).map {
+                    OutgoingImage(id: newIdentifier(), jpeg: $0)
+                }
+            }
+        }
         return await send(previous.text)
     }
 
@@ -256,7 +510,8 @@ final class ConversationModel {
             type: .create,
             submissionId: submission.submissionId,
             idempotencyKey: submission.idempotencyKey,
-            text: submission.text
+            text: submission.text,
+            attachments: submission.attachments.isEmpty ? nil : submission.attachments
         )
 
         do {

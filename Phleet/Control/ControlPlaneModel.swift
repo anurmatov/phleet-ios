@@ -136,6 +136,58 @@ final class ControlPlaneModel {
         return gates.first { target.matches($0) }
     }
 
+    /// The run a notification named, if it is still in progress. A closed run is not held here.
+    func runningRunForNotification(_ target: RunNotificationTarget) async -> WorkflowRun? {
+        await refresh()
+        guard case .current = status else { return nil }
+        return runs.first { target.matches($0) }
+    }
+
+    // MARK: - What led to a gate
+
+    /// The last things that happened in a run that is waiting, for the gate screen.
+    enum GateActivity: Equatable, Sendable {
+        case loading
+        case loaded([WorkflowEvent])
+        /// The history could not be read. The decision is still offered: it never depended on it.
+        case unavailable
+    }
+
+    private(set) var gateActivities: [String: GateActivity] = [:]
+
+    func gateActivity(for gate: PendingGate) -> GateActivity? {
+        gateActivities[gate.id]
+    }
+
+    /// Reads the exact run's history and keeps its newest entries worth reading.
+    ///
+    /// The run is named by its run identifier, never "the latest run of this workflow": what is
+    /// shown beside a decision must be about the run the decision is sent to. A reload keeps what
+    /// is on screen until the new read arrives.
+    func loadGateActivity(for gate: PendingGate) async {
+        guard !gate.run.runId.isEmpty else {
+            gateActivities[gate.id] = .unavailable
+            return
+        }
+        if gateActivities[gate.id] == nil {
+            gateActivities[gate.id] = .loading
+        }
+        do {
+            let events = try await api.exactRunHistory(
+                connection,
+                namespace: gate.run.namespace,
+                workflowId: gate.run.workflowId,
+                runId: gate.run.runId
+            )
+            guard !Task.isCancelled else { return }
+            gateActivities[gate.id] = .loaded(GateActivityDigest.recent(from: events))
+        } catch {
+            guard !Task.isCancelled else { return }
+            if case .loaded? = gateActivities[gate.id] { return }
+            gateActivities[gate.id] = .unavailable
+        }
+    }
+
     // MARK: - Dependencies
 
     private let api: ControlAPIClient
@@ -305,6 +357,7 @@ final class ControlPlaneModel {
         decisionStates = decisionStates.filter { listed.contains($0.key) }
         humanInputStates = humanInputStates.filter { listed.contains($0.key) }
         humanInputLoads = humanInputLoads.filter { listed.contains($0.key) }
+        gateActivities = gateActivities.filter { listed.contains($0.key) }
     }
 
     private func setLive(_ live: Bool) {
@@ -331,14 +384,7 @@ final class ControlPlaneModel {
     }
 
     private static func failure(for error: Error) -> Failure {
-        switch error as? ControlAPIError {
-        case .accessDenied?:
-            return .accessDenied
-        case .transport?:
-            return .unreachable
-        case .decoding?, .unauthorized?, .gateChanged?, .refused?, nil:
-            return .unexpectedAnswer
-        }
+        Failure.from(error)
     }
 
     // MARK: - Deciding
@@ -450,5 +496,46 @@ final class ControlPlaneModel {
         case .transport?, .decoding?, nil:
             return .outcomeUnknown
         }
+    }
+}
+
+extension ControlPlaneModel.Failure {
+
+    /// Why a read failed, from what the client threw.
+    static func from(_ error: Error) -> ControlPlaneModel.Failure {
+        switch error as? ControlAPIError {
+        case .accessDenied?:
+            return .accessDenied
+        case .transport?:
+            return .unreachable
+        case .decoding?, .unauthorized?, .gateChanged?, .refused?, nil:
+            return .unexpectedAnswer
+        }
+    }
+}
+
+/// Which entries of a run's history are worth showing beside a decision.
+enum GateActivityDigest {
+
+    /// How many entries the gate screen shows.
+    static let limit = 5
+
+    /// The newest entries that say who did what, newest first.
+    ///
+    /// A run's history is mostly bookkeeping — timers, markers, tasks scheduled and started. What
+    /// helps someone decide is what an agent produced, what failed and what was signalled, so
+    /// those are kept when there are any. A history with none of them is shown as it is rather
+    /// than as nothing.
+    static func recent(from events: [WorkflowEvent], limit: Int = GateActivityDigest.limit) -> [WorkflowEvent] {
+        let telling = events.filter(isTelling)
+        let source = telling.isEmpty ? events : telling
+        return Array(source.suffix(max(limit, 0)).reversed())
+    }
+
+    static func isTelling(_ event: WorkflowEvent) -> Bool {
+        if event.isFailure { return true }
+        if let signal = event.signalName, !signal.isEmpty { return true }
+        if let agent = event.agent, !agent.isEmpty, event.detail != nil { return true }
+        return false
     }
 }

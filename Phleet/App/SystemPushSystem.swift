@@ -32,6 +32,11 @@ final class SystemPushSystem: PushSystem {
         UIApplication.shared.unregisterForRemoteNotifications()
     }
 
+    func setBadgeCount(_ count: Int) {
+        // Best effort: without the person's permission the system does nothing, which is right.
+        UNUserNotificationCenter.current().setBadgeCount(max(count, 0)) { _ in }
+    }
+
     /// A device token as the lowercase hex the orchestrator stores and Apple's API takes.
     static func hex(_ deviceToken: Data) -> String {
         deviceToken.map { String(format: "%02x", $0) }.joined()

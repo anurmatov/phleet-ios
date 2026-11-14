@@ -14,6 +14,9 @@ struct AgentDetailView: View {
 
     let model: ControlPlaneModel
     let agentName: String
+    /// Opens this agent's thread. `nil` when it cannot be chatted with, and then nothing is
+    /// offered.
+    var openChat: (() -> Void)?
 
     var body: some View {
         Group {
@@ -76,6 +79,22 @@ struct AgentDetailView: View {
                 }
             } header: {
                 Text("agentDetail.task.title")
+            }
+
+            if let openChat {
+                Section {
+                    Button {
+                        openChat()
+                    } label: {
+                        Label {
+                            Text("agentDetail.chat")
+                        } icon: {
+                            Image(systemName: "bubble.left.and.bubble.right")
+                        }
+                    }
+                    .accessibilityIdentifier(AccessibilityIdentifier.agentDetailChat.identifier)
+                    .accessibilityLabel(AccessibilityIdentifier.agentDetailChat.localizedLabel)
+                }
             }
 
             AgentActionsSection(model: model, agent: agent)

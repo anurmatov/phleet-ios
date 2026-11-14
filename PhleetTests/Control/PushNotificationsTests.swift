@@ -51,6 +51,80 @@ final class PushNotificationsTests: XCTestCase {
         XCTAssertEqual(PushDestination.destination(in: [:]), .fleet)
     }
 
+    func testEveryKindOpensWhatItNamesWhenItsIdentityIsComplete() {
+        let run = ["namespace": "fleet", "workflowId": "pr-42", "runId": "run-1"]
+
+        // Any gate, not only a question: the run and the signal it is waiting for.
+        var gate = run
+        gate["kind"] = "gate"
+        gate["signal"] = "merge-approval"
+        XCTAssertEqual(
+            PushDestination.destination(in: ["phleet": gate]),
+            .gate(GateNotificationTarget(
+                namespace: "fleet", workflowId: "pr-42", runId: "run-1", signal: "merge-approval"
+            ))
+        )
+
+        var failed = run
+        failed["kind"] = "run"
+        XCTAssertEqual(
+            PushDestination.destination(in: ["phleet": failed]),
+            .run(RunNotificationTarget(namespace: "fleet", workflowId: "pr-42", runId: "run-1"))
+        )
+
+        XCTAssertEqual(
+            PushDestination.destination(in: ["phleet": ["kind": "agent", "agentName": "planner"]]),
+            .agent(name: "planner")
+        )
+        XCTAssertEqual(
+            PushDestination.destination(
+                in: ["phleet": ["kind": "chat", "agentName": "builder", "conversationId": "c-1"]]
+            ),
+            .thread(agentName: "builder")
+        )
+    }
+
+    func testAnIncompleteIdentityOpensTheTabAndNeverAGuess() {
+        // A run named in part is not a run that can be opened.
+        for field in ["namespace", "workflowId", "runId"] {
+            var failed = ["kind": "run", "namespace": "fleet", "workflowId": "pr-42", "runId": "run-1"]
+            failed[field] = ""
+            XCTAssertEqual(PushDestination.destination(in: ["phleet": failed]), .runs)
+        }
+        XCTAssertEqual(
+            PushDestination.destination(in: ["phleet": ["kind": "agent", "agentName": ""]]),
+            .fleet
+        )
+        XCTAssertEqual(
+            PushDestination.destination(in: ["phleet": ["kind": "chat", "agentName": 7]]),
+            .chat
+        )
+    }
+
+    func testAGateTargetMatchesOnlyThatRunWaitingForThatSignal() {
+        let target = GateNotificationTarget(
+            namespace: "fleet", workflowId: "pr-42", runId: "run-1", signal: "merge-approval"
+        )
+        func gate(runId: String = "run-1", signal: String = "merge-approval") -> PendingGate {
+            PendingGate(
+                run: WorkflowRun(
+                    workflowId: "pr-42",
+                    runId: runId,
+                    workflowType: "UwePrImplementationWorkflow",
+                    namespace: "fleet",
+                    phase: signal
+                ),
+                signal: SignalDefinition(name: signal, label: signal, buttons: [])
+            )
+        }
+
+        XCTAssertTrue(target.matches(gate()))
+        // A newer run under the same workflow identifier is a different question.
+        XCTAssertFalse(target.matches(gate(runId: "run-2")))
+        // The same run, moved on to another gate.
+        XCTAssertFalse(target.matches(gate(signal: "design-approval")))
+    }
+
     func testTurningOnAsksThePersonThenAppleThenTheOrchestrator() async {
         let api = FakeControlAPI()
         let system = FakePushSystem()

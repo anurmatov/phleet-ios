@@ -21,6 +21,8 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>The camera reads the setup code your dashboard shows, which signs this phone in to your fleet.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>When you turn on “Confirm it’s you”, Face ID is asked before a decision or a disruptive action is sent to your fleet.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UILaunchScreen</key>

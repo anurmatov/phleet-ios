@@ -92,12 +92,17 @@ final class ControlActionsTests: XCTestCase {
     // MARK: - What is offered
 
     func testActionsOfferedFollowTheAgentsState() {
-        XCTAssertEqual(AgentAction.available(for: .working), [.cancelTask, .restart, .stop])
-        XCTAssertEqual(AgentAction.available(for: .idle), [.restart, .stop])
+        XCTAssertEqual(
+            AgentAction.available(for: .working),
+            [.cancelTask, .restart, .stop, .reprovision]
+        )
+        XCTAssertEqual(AgentAction.available(for: .idle), [.restart, .stop, .reprovision])
         // "No heartbeat" may mean hung or stopped. A restart is right for both.
-        XCTAssertEqual(AgentAction.available(for: .down), [.restart, .stop])
-        XCTAssertEqual(AgentAction.available(for: .stale), [.restart, .stop])
-        XCTAssertEqual(AgentAction.available(for: .stopped), [.start])
+        XCTAssertEqual(AgentAction.available(for: .down), [.restart, .stop, .reprovision])
+        XCTAssertEqual(AgentAction.available(for: .stale), [.restart, .stop, .reprovision])
+        // Reprovisioning brings a stopped agent up as well as applying its saved settings.
+        XCTAssertEqual(AgentAction.available(for: .stopped), [.start, .reprovision])
+        // Never provisioned: there is no container to recreate, and that stays on the dashboard.
         XCTAssertTrue(AgentAction.available(for: .notProvisioned).isEmpty)
     }
 

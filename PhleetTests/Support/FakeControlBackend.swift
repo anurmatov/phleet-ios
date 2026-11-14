@@ -16,6 +16,12 @@ final class FakeControlAPI: ControlAPIClient {
         case runHistory(namespace: String, workflowId: String)
         case exactRunHistory(namespace: String, workflowId: String, runId: String)
         case cancelRun(namespace: String, workflowId: String, runId: String)
+        case terminateRun(namespace: String, workflowId: String, runId: String)
+        case restartRun(namespace: String, workflowId: String, runId: String)
+        case schedules
+        case scheduleAction(namespace: String, scheduleId: String, action: ScheduleAction)
+        case searchMemory(query: String)
+        case memory(id: String)
         case workflowTypes
         case startWorkflow(StartWorkflowBody)
         case registerPush(deviceId: String, token: String)
@@ -42,6 +48,18 @@ final class FakeControlAPI: ControlAPIClient {
     var historyResult: Result<[WorkflowEvent], Error> = .success([])
     var onExactHistory: (() async throws -> [WorkflowEvent])?
     var cancelResult: Result<Void, Error> = .success(())
+    var terminateResult: Result<Void, Error> = .success(())
+    var restartResult: Result<RestartedRun, Error> = .success(
+        RestartedRun(newWorkflowId: "restarted-1", newRunId: "restarted-run-1")
+    )
+    var schedulesResult: Result<[FleetSchedule], Error> = .success([])
+    var scheduleActionResult: Result<Void, Error> = .success(())
+    /// Runs when a schedule action is sent, before its result is produced.
+    var onScheduleAction: (() -> Void)?
+    var memorySearchResult: Result<[MemorySearchResult], Error> = .success([])
+    var memoryResult: Result<MemoryDocument, Error> = .success(
+        MemoryDocument(id: "memory-1", title: "Synthetic memory", content: "Synthetic content")
+    )
     var typesResult: Result<[WorkflowType], Error> = .success([])
     var startResult: Result<String, Error> = .success("started-1")
     var registerPushResult: Result<Void, Error> = .success(())
@@ -235,6 +253,58 @@ extension FakeControlAPI {
         try cancelResult.get()
     }
 
+    func terminateRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws {
+        record(.terminateRun(namespace: namespace, workflowId: workflowId, runId: runId), connection)
+        try terminateResult.get()
+    }
+
+    func restartRun(
+        _ connection: ControlConnection,
+        namespace: String,
+        workflowId: String,
+        runId: String
+    ) async throws -> RestartedRun {
+        record(.restartRun(namespace: namespace, workflowId: workflowId, runId: runId), connection)
+        return try restartResult.get()
+    }
+
+    func schedules(_ connection: ControlConnection) async throws -> [FleetSchedule] {
+        record(.schedules, connection)
+        return try schedulesResult.get()
+    }
+
+    func performScheduleAction(
+        _ connection: ControlConnection,
+        namespace: String,
+        scheduleId: String,
+        action: ScheduleAction
+    ) async throws {
+        record(
+            .scheduleAction(namespace: namespace, scheduleId: scheduleId, action: action),
+            connection
+        )
+        onScheduleAction?()
+        try scheduleActionResult.get()
+    }
+
+    func searchMemory(
+        _ connection: ControlConnection,
+        query: String
+    ) async throws -> [MemorySearchResult] {
+        record(.searchMemory(query: query), connection)
+        return try memorySearchResult.get()
+    }
+
+    func memory(_ connection: ControlConnection, id: String) async throws -> MemoryDocument {
+        record(.memory(id: id), connection)
+        return try memoryResult.get()
+    }
+
     func workflowTypes(_ connection: ControlConnection) async throws -> [WorkflowType] {
         record(.workflowTypes, connection)
         return try typesResult.get()
@@ -388,4 +458,8 @@ final class FakePushSystem: PushSystem {
 
     func registerForRemoteNotifications() { registerCalls += 1 }
     func unregisterForRemoteNotifications() { unregisterCalls += 1 }
+
+    /// Every count the app asked the icon to show, in order.
+    private(set) var badgeCounts: [Int] = []
+    func setBadgeCount(_ count: Int) { badgeCounts.append(count) }
 }

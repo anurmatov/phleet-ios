@@ -52,6 +52,16 @@ final class AppEnvironment {
     /// Who can be chatted with, and a thread with each. Built and torn down with `controlPlane`.
     private(set) var chat: ChatModel?
 
+    /// The fleet's schedules. Built and torn down with `controlPlane`.
+    private(set) var schedules: SchedulesModel?
+
+    /// Looking things up in the fleet's memory. Built and torn down with `controlPlane`.
+    private(set) var memory: MemoryModel?
+
+    /// The optional second look before a decision or a disruptive action. A setting of this
+    /// phone's, so it outlives a sign-in.
+    let ownerConfirmation: OwnerConfirmation
+
     /// Where a tapped notification asked to land. The root view takes it and clears it.
     var requestedDestination: PushDestination?
 
@@ -70,6 +80,7 @@ final class AppEnvironment {
     let controlStream: ControlLiveStream
     let controlLogStream: AgentLogStream
     let pushSystem: PushSystem
+    let preferences: PreferenceStore
 
     /// Set only under the scripted backend, where it stands in for the camera. `nil` in a real
     /// launch, where the scan button opens the scanner.
@@ -98,6 +109,8 @@ final class AppEnvironment {
         controlStream: ControlLiveStream? = nil,
         controlLogStream: AgentLogStream? = nil,
         pushSystem: PushSystem? = nil,
+        preferences: PreferenceStore? = nil,
+        ownerCheck: OwnerCheck? = nil,
         launchArguments: [String] = ProcessInfo.processInfo.arguments,
         launchEnvironment: [String: String] = ProcessInfo.processInfo.environment
     ) {
@@ -114,6 +127,12 @@ final class AppEnvironment {
 
         self.scriptedSetupCode = double?.scannedSetupCode
         self.pushSystem = pushSystem ?? double?.pushSystem ?? SystemPushSystem.shared
+        let preferenceStore = preferences ?? double?.preferences ?? UserDefaultsPreferenceStore()
+        self.preferences = preferenceStore
+        self.ownerConfirmation = OwnerConfirmation(
+            check: ownerCheck ?? double?.ownerCheck ?? SystemOwnerCheck(),
+            preferences: preferenceStore
+        )
         if let controlAPI = controlAPI ?? double?.controlAPI,
            let controlStream = controlStream ?? double?.controlStream,
            let controlLogStream = controlLogStream ?? double?.controlLogStream {
@@ -243,6 +262,8 @@ final class AppEnvironment {
             connection: connection
         )
         runs = RunsModel(api: api, connection: connection)
+        schedules = SchedulesModel(api: api, connection: connection)
+        memory = MemoryModel(api: api, connection: connection)
         signedInLogStream = SignedInAgentLogStream(base: controlLogStream, tokens: tokens)
 
         let chatAPI: FleetAPIClient
@@ -269,7 +290,8 @@ final class AppEnvironment {
             api: api,
             connection: connection,
             chatAPI: chatAPI,
-            tokens: tokens
+            tokens: tokens,
+            preferences: preferences
         ) { agent, limits in
             ConversationModel(
                 api: chatAPI,
@@ -378,7 +400,13 @@ final class AppEnvironment {
         controlPlane?.stop()
         controlPlane = nil
         runs = nil
+        schedules = nil
+        memory = nil
         chat = nil
+        // Nothing is waiting for someone who is signed out, and how far a thread was read
+        // belongs to the sign-in that read it.
+        pushSystem.setBadgeCount(0)
+        preferences.remove(forKey: PreferenceKey.seenThreadPositions)
         pushNotifications = nil
         signedInAPI = nil
         signedInLogStream = nil

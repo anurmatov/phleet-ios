@@ -23,30 +23,69 @@ protocol PushSystem: AnyObject {
     func requestPermission() async -> PushPermission
     func registerForRemoteNotifications()
     func unregisterForRemoteNotifications()
+
+    /// Shows how many things are waiting on the app's icon. Zero clears it. The system ignores
+    /// this until the person has allowed notifications, so it never has to be asked for.
+    func setBadgeCount(_ count: Int)
 }
 
 /// Where a tapped notification should land.
+///
+/// A notification names what it is about — a run, an agent, a thread — and nothing more. Each
+/// case with a target is a request to *look for* that thing: the screen opens only when a fresh
+/// read still finds it, and the tab is where the person lands otherwise.
 enum PushDestination: Equatable, Sendable {
-    /// A waiting gate or an agent that went down: the Fleet tab shows both first.
+    /// An agent that went down, or anything this build cannot place: the Fleet tab shows what
+    /// needs attention first.
     case fleet
+    /// A run waiting at a gate.
     case gate(GateNotificationTarget)
+    /// An agent, by name: its detail screen.
+    case agent(name: String)
     /// A failed run: the Runs tab lists it under what stopped without finishing.
     case runs
+    /// One run, by its exact identity.
+    case run(RunNotificationTarget)
     /// An agent replied in chat while no client was attached: the Chat tab lists who.
     case chat
+    /// One agent's thread.
+    case thread(agentName: String)
 
-    /// Only identity fields are consumed. Questions and answers never come from a push.
+    /// Only identity fields are consumed. Questions, answers and message text never come from a
+    /// push. A notification with its identity incomplete opens the tab its kind belongs to.
     static func destination(in userInfo: [AnyHashable: Any]) -> PushDestination {
         guard let payload = userInfo["phleet"] as? [String: Any] else { return .fleet }
-        if payload["kind"] as? String == "gate",
-           let namespace = payload["namespace"] as? String, !namespace.isEmpty,
-           let workflowId = payload["workflowId"] as? String, !workflowId.isEmpty,
-           let runId = payload["runId"] as? String, !runId.isEmpty,
-           let signal = payload["signal"] as? String, signal == "request-input" {
-            return .gate(GateNotificationTarget(namespace: namespace, workflowId: workflowId,
-                                                runId: runId, signal: signal))
+        let kind = payload["kind"] as? String
+
+        switch kind {
+        case "gate"?:
+            if let run = RunNotificationTarget(payload: payload),
+               let signal = text(payload, "signal") {
+                return .gate(
+                    GateNotificationTarget(
+                        namespace: run.namespace,
+                        workflowId: run.workflowId,
+                        runId: run.runId,
+                        signal: signal
+                    )
+                )
+            }
+        case "run"?:
+            if let run = RunNotificationTarget(payload: payload) {
+                return .run(run)
+            }
+        case "agent"?:
+            if let name = text(payload, "agentName") {
+                return .agent(name: name)
+            }
+        case "chat"?:
+            if let name = text(payload, "agentName") {
+                return .thread(agentName: name)
+            }
+        default:
+            break
         }
-        return destination(forKind: payload["kind"] as? String)
+        return destination(forKind: kind)
     }
 
     /// Reads the `kind` the orchestrator put in the notification. Anything else — a kind this
@@ -64,6 +103,37 @@ enum PushDestination: Equatable, Sendable {
     static func kind(in userInfo: [AnyHashable: Any]) -> String? {
         (userInfo["phleet"] as? [String: Any])?["kind"] as? String
     }
+
+    fileprivate static func text(_ payload: [String: Any], _ key: String) -> String? {
+        guard let value = payload[key] as? String, !value.isEmpty else { return nil }
+        return value
+    }
+}
+
+/// One run, as a notification names it.
+struct RunNotificationTarget: Equatable, Sendable {
+    let namespace: String
+    let workflowId: String
+    let runId: String
+
+    init(namespace: String, workflowId: String, runId: String) {
+        self.namespace = namespace
+        self.workflowId = workflowId
+        self.runId = runId
+    }
+
+    /// All three, or nothing: a run named in part is not a run that can be opened.
+    init?(payload: [String: Any]) {
+        guard let namespace = PushDestination.text(payload, "namespace"),
+              let workflowId = PushDestination.text(payload, "workflowId"),
+              let runId = PushDestination.text(payload, "runId")
+        else { return nil }
+        self.init(namespace: namespace, workflowId: workflowId, runId: runId)
+    }
+
+    func matches(_ run: WorkflowRun) -> Bool {
+        run.namespace == namespace && run.workflowId == workflowId && run.runId == runId
+    }
 }
 
 /// No latest-run fallback: a stale tap may open the Fleet list, never a replacement request.
@@ -73,8 +143,10 @@ struct GateNotificationTarget: Equatable, Sendable {
     let runId: String
     let signal: String
 
+    /// The same run, waiting for the same signal. A run that has moved on to another gate, or a
+    /// newer run under the same workflow identifier, is not what the notification was about.
     func matches(_ gate: PendingGate) -> Bool {
-        gate.isHumanInput && gate.run.namespace == namespace && gate.run.workflowId == workflowId &&
+        gate.run.namespace == namespace && gate.run.workflowId == workflowId &&
         gate.run.runId == runId && gate.signal.name == signal
     }
 }
