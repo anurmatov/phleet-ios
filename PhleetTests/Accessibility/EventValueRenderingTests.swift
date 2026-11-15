@@ -222,6 +222,62 @@ final class EventValueRenderingTests: XCTestCase {
         XCTAssertNil(EventValueReaderView.noticeKey(for: json, reading: JSONReading.read("{}")))
     }
 
+    /// The whole reader, hosted in a window as it is on screen: a stored JSON string of 100,000
+    /// scalars opens as the text it stands for, in the system text view, whole, and selecting
+    /// all of it copies all of it.
+    func testTheReaderShowsALargeValueWholeInTheSystemTextView() async throws {
+        let original = SyntheticText.unicode(scalars: 100_000)
+        let literal = String(decoding: try JSONEncoder().encode(original), as: UTF8.self)
+        let host = UIHostingController(
+            rootView: NavigationStack {
+                EventValueReaderView(
+                    value: EventPayloadText(encoding: "json/plain", text: literal),
+                    title: "Complete value"
+                )
+            }
+        )
+        let scene = try XCTUnwrap(
+            UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        )
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+
+        // The JSON is read off the main thread once the reader appears.
+        var found: UITextView?
+        for _ in 0..<200 where found == nil {
+            try await Task.sleep(nanoseconds: 50_000_000)
+            host.view.layoutIfNeeded()
+            found = Self.textViews(in: host.view).first
+        }
+        let view = try XCTUnwrap(found, "the reader never showed its text")
+
+        XCTAssertEqual(view.accessibilityIdentifier, AccessibilityIdentifier.eventReaderText.identifier)
+        XCTAssertTrue(view.isSelectable)
+        XCTAssertFalse(view.isEditable)
+        XCTAssertTrue(
+            SyntheticText.scalarsEqual(view.text, original),
+            "the reader did not show the whole text the JSON string stands for"
+        )
+
+        view.selectedRange = NSRange(location: 0, length: (view.text as NSString).length)
+        UIPasteboard.general.string = "something else"
+        view.copy(nil)
+        XCTAssertTrue(
+            SyntheticText.scalarsEqual(UIPasteboard.general.string, original),
+            "selecting all in the reader did not copy the whole value"
+        )
+    }
+
+    private static func textViews(in view: UIView) -> [UITextView] {
+        ([view as? UITextView].compactMap { $0 }) + view.subviews.flatMap { textViews(in: $0) }
+    }
+
     func testCopyTakesTheValueExactlyAsStored() {
         let original = SyntheticText.unicode(scalars: 100_000)
         UIPasteboard.general.string = "something else"
