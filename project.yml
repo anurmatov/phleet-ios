@@ -182,6 +182,7 @@ targets:
       # quietly ignores it.
       - path: Phleet/Support/AccessibilityIdentifier.swift
       - path: Phleet/Support/LaunchArguments.swift
+      - path: Phleet/Support/ScriptedValues.swift
     dependencies:
       - target: Phleet
     settings:

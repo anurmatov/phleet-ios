@@ -782,19 +782,6 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         return known.contains { $0.0 == workflowId && $0.1 == runId }
     }
 
-    /// A value of 100,000 Unicode scalars: characters outside the Basic Multilingual Plane,
-    /// combining marks, line breaks, quotes and backslashes. Synthetic.
-    static let largeUnicodeText: String = {
-        let pattern: [Unicode.Scalar] = [
-            "S", "e", "\u{0301}", " ", "\u{1F9ED}", " ", "\"", "\\", "\n", "\u{4E16}"
-        ]
-        var scalars = String.UnicodeScalarView()
-        for index in 0..<100_000 {
-            scalars.append(pattern[index % pattern.count])
-        }
-        return String(scalars)
-    }()
-
     /// The stored text of one field of one scripted event, as the orchestrator would answer it.
     /// The run's own identifier is part of the first value, so a screen showing another run's
     /// value would show another identifier.
@@ -825,11 +812,7 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
             // A completed activity's input is read from the event that scheduled it.
             return complete("text/plain", plainInput, source: 2)
         case (3, .output):
-            let literal = String(
-                decoding: (try? JSONEncoder().encode(Self.largeUnicodeText)) ?? Data(),
-                as: UTF8.self
-            )
-            return complete("json/plain", literal)
+            return complete("json/plain", ScriptedValues.largeUnicodeLiteral)
         case (4, .failure):
             return complete("text/plain", "Scripted failure")
         case (5, .input):

@@ -80,13 +80,15 @@ final class EventValueSmokeTests: XCTestCase {
 
         tapLoad(in: app, field: "Read the complete output")
 
-        // 100,000 scalars are 90,000 characters: a combining accent joins the letter before it.
+        // The read returns the stored JSON literal, quotes and escapes included, so the count
+        // on screen is the literal's characters, not those of the text it stands for.
+        let characters = ScriptedValues.largeUnicodeLiteral.count
         let offered = app.descendants(matching: .any)
             .matching(identifier: AccessibilityIdentifier.eventValueOpen.identifier)
             .matching(NSPredicate(
                 format: "label CONTAINS %@ AND label CONTAINS %@",
                 "json/plain",
-                90_000.formatted() + " characters"
+                characters.formatted() + " characters"
             ))
             .firstMatch
         XCTAssertTrue(offered.waitForExistence(timeout: 30), "the large value did not arrive whole")
