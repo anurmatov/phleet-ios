@@ -164,15 +164,22 @@ final class EventValueRenderingTests: XCTestCase {
 
     func testTheNumberedWordsResolveFromTheCatalog() {
         // A missing entry resolves to its own key, which would show "event.value.position 2 3".
+        // Counts follow the reader's number format; an event number is an identifier and does not.
         XCTAssertEqual(String(localized: "event.value.position \(2) \(3)"), "Value 2 of 3")
-        XCTAssertEqual(String(localized: "event.value.characters \(100000)"), "100000 characters")
         XCTAssertEqual(
-            String(localized: "event.value.source \(37)"),
-            "Read from event 37, which scheduled this activity."
+            String(localized: "event.value.characters \(100_000)"),
+            "\(100_000.formatted()) characters"
+        )
+        XCTAssertEqual(
+            String(localized: "event.value.source \(String(12345))"),
+            "Read from event 12345, which scheduled this activity."
         )
         XCTAssertEqual(String(localized: "json.object.count \(3)"), "Object (3)")
         XCTAssertEqual(String(localized: "json.array.count \(0)"), "List (0)")
-        XCTAssertTrue(String(localized: "event.value.tooLarge \(1_048_576)").contains("1048576 bytes"))
+        XCTAssertTrue(
+            String(localized: "event.value.tooLarge \(1_048_576)")
+                .contains("\(1_048_576.formatted()) bytes")
+        )
     }
 
     // MARK: - The reader

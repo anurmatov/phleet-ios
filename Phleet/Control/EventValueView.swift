@@ -138,7 +138,8 @@ struct EventValueResultRows: View {
         switch result {
         case .complete(let values, let sourceEventId):
             if sourceEventId != eventId {
-                Text(verbatim: String(localized: "event.value.source \(sourceEventId)"))
+                // An identifier, not a quantity: no grouping separator.
+                Text(verbatim: String(localized: "event.value.source \(String(sourceEventId))"))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

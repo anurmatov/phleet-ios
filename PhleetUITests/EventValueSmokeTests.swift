@@ -67,7 +67,14 @@ final class EventValueSmokeTests: XCTestCase {
         attach(app, "Pretty")
     }
 
-    /// A value of 100,000 characters, read whole and selectable with the system's handles.
+    /// A value of 100,000 characters, opened whole in the system text view, which a long press
+    /// selects in.
+    ///
+    /// The press goes to a point inside the text view's frame rather than to the element: for a
+    /// value this long the test runner cannot compute the view's activation point (CI run
+    /// 43690030109 retried it for six minutes), and each accessibility snapshot carries the whole
+    /// value. Selecting and copying all of it is proven against the same `UITextView` in
+    /// `EventValueRenderingTests`.
     func testALargeUnicodeValueIsSelectableInFull() throws {
         let app = openEvent(titled: "Activity completed")
 
@@ -75,15 +82,13 @@ final class EventValueSmokeTests: XCTestCase {
         open(in: app)
 
         let text = element(in: app, .eventReaderText)
-        XCTAssertTrue(text.waitForExistence(timeout: 30), "the value's text is not on screen")
+        XCTAssertTrue(text.waitForExistence(timeout: 60), "the value's text is not on screen")
         XCTAssertTrue(app.buttons["Text"].exists, "a JSON string is not offered as its text")
-        text.press(forDuration: 1.2)
-        XCTAssertTrue(selectionMenuAppeared(in: app), "a long press on the value raised no selection menu")
-        let selectAll = app.menuItems["Select All"]
-        if selectAll.waitForExistence(timeout: 5) {
-            selectAll.tap()
-            XCTAssertTrue(selectionMenuAppeared(in: app), "Select All left nothing to copy")
-        }
+        text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 1.2)
+        XCTAssertTrue(
+            selectionMenuAppeared(in: app, timeout: 60),
+            "a long press on the value raised no selection menu"
+        )
         attach(app, "Large value selected")
     }
 
@@ -92,6 +97,10 @@ final class EventValueSmokeTests: XCTestCase {
     func testPlainTextAndMalformedJSONAreShownAsStored() throws {
         let app = openEvent(titled: "Activity completed")
         tapLoad(in: app, field: "Read the complete input")
+        XCTAssertTrue(
+            labelled("Read from event 2", in: app).waitForExistence(timeout: 30),
+            "a completed activity's input did not name the event that scheduled it"
+        )
         open(in: app)
         XCTAssertTrue(
             notice(containing: "Plain text", in: app).waitForExistence(timeout: 30),
@@ -170,14 +179,18 @@ final class EventValueSmokeTests: XCTestCase {
         let app = SignIn.launch(extraArguments: extraArguments)
         AppTabs.selectRuns(in: app)
 
+        // Lists build their rows as they scroll into view, so at the largest text sizes an entry
+        // below the fold does not exist until the list is scrolled to it.
+        XCTAssertTrue(element(in: app, .runsRun).waitForExistence(timeout: 30), "no run is listed")
         let failed = labelled("scripted/project · PR #41", in: app)
-        XCTAssertTrue(failed.waitForExistence(timeout: 30), "the failed run is not listed")
+        scrollTo(failed, in: app)
+        XCTAssertTrue(failed.waitForExistence(timeout: 10), "the failed run is not listed")
         failed.tap()
-        XCTAssertTrue(element(in: app, .runEvent).waitForExistence(timeout: 30), "the history never loaded")
+        XCTAssertTrue(element(in: app, .runStatus).waitForExistence(timeout: 30), "the run never opened")
 
         let entry = row(titled: title, in: app)
         scrollTo(entry, in: app)
-        XCTAssertTrue(entry.exists, "no history entry says \(title)")
+        XCTAssertTrue(entry.waitForExistence(timeout: 10), "no history entry says \(title)")
         entry.tap()
         return app
     }
@@ -222,8 +235,8 @@ final class EventValueSmokeTests: XCTestCase {
             .firstMatch
     }
 
-    private func selectionMenuAppeared(in app: XCUIApplication) -> Bool {
-        if app.menuItems["Copy"].waitForExistence(timeout: 5) { return true }
+    private func selectionMenuAppeared(in app: XCUIApplication, timeout: TimeInterval = 5) -> Bool {
+        if app.menuItems["Copy"].waitForExistence(timeout: timeout) { return true }
         return app.buttons["Copy"].exists
     }
 
@@ -231,8 +244,9 @@ final class EventValueSmokeTests: XCTestCase {
         app.navigationBars.firstMatch.tap()
     }
 
+    /// Scrolls until the element is on screen. One that does not exist yet is below the fold.
     private func scrollTo(_ element: XCUIElement, in app: XCUIApplication) {
-        for _ in 0..<12 where !element.isHittable {
+        for _ in 0..<12 where !(element.exists && element.isHittable) {
             if element.exists && element.frame.minY < app.frame.midY { app.swipeDown() }
             else { app.swipeUp() }
         }

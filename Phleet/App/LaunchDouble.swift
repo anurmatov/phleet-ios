@@ -741,22 +741,29 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
                 eventType: "WorkflowStarted",
                 inputSummary: #"{"topic":"scripted \"topic\"","count":12345678901234567890,"#
             ),
+            // Scheduled with plain text, which the history's preview leaves out.
             WorkflowEvent(
                 eventId: 2,
+                eventType: "ActivityScheduled",
+                activityType: "DelegateToAgentActivity",
+                agent: "scripted-builder"
+            ),
+            WorkflowEvent(
+                eventId: 3,
                 eventType: "ActivityCompleted",
                 activityType: "DelegateToAgentActivity",
                 agent: "scripted-builder",
                 outputSummary: "Scripted output"
             ),
             WorkflowEvent(
-                eventId: 3,
+                eventId: 4,
                 eventType: "ActivityFailed",
                 activityType: "DelegateToAgentActivity",
                 agent: "scripted-reviewer",
                 failureMessage: "Scripted failure"
             ),
             WorkflowEvent(
-                eventId: 4,
+                eventId: 5,
                 eventType: "SignalReceived",
                 inputSummary: #"{"Decision":"approved""#,
                 signalName: "scripted-signal"
@@ -795,10 +802,15 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
         eventId: Int,
         field: EventValueField,
         runId: String
-    ) -> (status: String, values: [EventValueEnvelope.Value], reason: String?)? {
-        func complete(_ encoding: String, _ text: String) -> (String, [EventValueEnvelope.Value], String?) {
-            ("complete", [EventValueEnvelope.Value(encoding: encoding, text: text)], nil)
+    ) -> (status: String, values: [EventValueEnvelope.Value], reason: String?, source: Int?)? {
+        func complete(
+            _ encoding: String,
+            _ text: String,
+            source: Int? = nil
+        ) -> (String, [EventValueEnvelope.Value], String?, Int?) {
+            ("complete", [EventValueEnvelope.Value(encoding: encoding, text: text)], nil, source ?? eventId)
         }
+        let plainInput = "Scripted plain input.\nNot JSON: {\"a\": 1"
         switch (eventId, field) {
         case (1, .input):
             return complete(
@@ -808,19 +820,22 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
                     + #""run":"\#(runId)"}"#
             )
         case (2, .input):
-            return complete("text/plain", "Scripted plain input.\nNot JSON: {\"a\": 1")
-        case (2, .output):
+            return complete("text/plain", plainInput)
+        case (3, .input):
+            // A completed activity's input is read from the event that scheduled it.
+            return complete("text/plain", plainInput, source: 2)
+        case (3, .output):
             let literal = String(
                 decoding: (try? JSONEncoder().encode(Self.largeUnicodeText)) ?? Data(),
                 as: UTF8.self
             )
             return complete("json/plain", literal)
-        case (3, .failure):
+        case (4, .failure):
             return complete("text/plain", "Scripted failure")
-        case (4, .input):
+        case (5, .input):
             return complete("json/plain", #"{"Decision":"approved""#)
-        case (1...4, _):
-            return ("absent", [], "no_value")
+        case (1...5, _):
+            return ("absent", [], "no_value", nil)
         default:
             return nil
         }
@@ -857,7 +872,7 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
             runId: request.runId,
             eventId: request.eventId,
             field: request.field.rawValue,
-            sourceEventId: answer.status == "complete" ? request.eventId : nil,
+            sourceEventId: answer.source,
             status: answer.status,
             values: answer.values,
             reason: answer.reason,

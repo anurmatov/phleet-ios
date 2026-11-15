@@ -3969,14 +3969,14 @@
         }
       }
     },
-    "event.value.source %lld" : {
+    "event.value.source %@" : {
       "comment" : "Shown when a completed activity's input was read from the event that scheduled it. The number is that event.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Read from event %lld, which scheduled this activity."
+            "value" : "Read from event %@, which scheduled this activity."
           }
         }
       }
