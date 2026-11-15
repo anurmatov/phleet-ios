@@ -13,7 +13,8 @@ final class FakeControlAPI: ControlAPIClient {
         case sendSignal(namespace: String, workflowId: String, body: SignalRequestBody)
         case agentAction(agentName: String, action: AgentAction)
         case closedRuns(hours: Int)
-        case runHistory(namespace: String, workflowId: String)
+        case runHistory(namespace: String, workflowId: String, runId: String)
+        case eventValue(EventValueRequest)
         case exactRunHistory(namespace: String, workflowId: String, runId: String)
         case cancelRun(namespace: String, workflowId: String, runId: String)
         case terminateRun(namespace: String, workflowId: String, runId: String)
@@ -47,6 +48,9 @@ final class FakeControlAPI: ControlAPIClient {
     var closedResult: Result<[WorkflowRun], Error> = .success([])
     var historyResult: Result<[WorkflowEvent], Error> = .success([])
     var onExactHistory: (() async throws -> [WorkflowEvent])?
+    var eventValueResult: Result<EventValueResult, Error> = .success(.absent)
+    /// Answers a complete-value read in place of `eventValueResult`, when set.
+    var onEventValue: ((EventValueRequest) async throws -> EventValueResult)?
     var cancelResult: Result<Void, Error> = .success(())
     var terminateResult: Result<Void, Error> = .success(())
     var restartResult: Result<RestartedRun, Error> = .success(
@@ -229,10 +233,21 @@ extension FakeControlAPI {
     func runHistory(
         _ connection: ControlConnection,
         namespace: String,
-        workflowId: String
+        workflowId: String,
+        runId: String
     ) async throws -> [WorkflowEvent] {
-        record(.runHistory(namespace: namespace, workflowId: workflowId), connection)
+        record(.runHistory(namespace: namespace, workflowId: workflowId, runId: runId), connection)
         return try historyResult.get()
+    }
+
+    func eventValue(
+        _ connection: ControlConnection,
+        request: EventValueRequest
+    ) async throws -> EventValueResult {
+        record(.eventValue(request), connection)
+        try refuseIfAsked(connection)
+        if let onEventValue { return try await onEventValue(request) }
+        return try eventValueResult.get()
     }
 
     func exactRunHistory(

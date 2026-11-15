@@ -152,19 +152,52 @@ final class URLSessionControlAPIClient: ControlAPIClient {
     func runHistory(
         _ connection: ControlConnection,
         namespace: String,
-        workflowId: String
+        workflowId: String,
+        runId: String
     ) async throws -> [WorkflowEvent] {
+        // Without a run the orchestrator answers with the latest one, whose event numbers name
+        // other events. Refused here rather than sent.
+        guard !Self.isBlank(runId) else { throw ControlAPIError.decoding("exact run required") }
         let request = try ControlRequest.make(
             connection: connection,
             method: "GET",
             percentEncodedPath: ControlRequest.runHistoryPath(
                 namespace: namespace,
                 workflowId: workflowId
-            )
+            ),
+            percentEncodedQuery: [URLQueryItem(name: "runId", value: runId)]
         )
         let data = try await perform(request)
         let list: LossyList<WorkflowEvent> = try Self.decode(data, decoder)
         return list.items
+    }
+
+    func eventValue(
+        _ connection: ControlConnection,
+        request: EventValueRequest
+    ) async throws -> EventValueResult {
+        guard
+            !Self.isBlank(request.workflowId),
+            !Self.isBlank(request.runId),
+            request.eventId > 0
+        else { throw ControlAPIError.decoding("exact event required") }
+
+        let urlRequest = try ControlRequest.make(
+            connection: connection,
+            method: "GET",
+            percentEncodedPath: ControlRequest.eventValuePath(
+                namespace: request.namespace,
+                workflowId: request.workflowId
+            ),
+            percentEncodedQuery: ControlRequest.eventValueQuery(request)
+        )
+        let data = try await perform(urlRequest)
+        let envelope: EventValueEnvelope = try Self.decode(data, decoder)
+        return try envelope.checked(against: request)
+    }
+
+    private static func isBlank(_ value: String) -> Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     func exactRunHistory(

@@ -116,7 +116,11 @@ final class RunsModelTests: XCTestCase {
 
         await model.loadHistory(for: running)
 
-        XCTAssertEqual(api.calls, [.runHistory(namespace: "fleet", workflowId: "design/synthetic 7")])
+        // That run, by its own identifier: never the latest run of the workflow.
+        XCTAssertEqual(
+            api.calls,
+            [.runHistory(namespace: "fleet", workflowId: "design/synthetic 7", runId: "run-design-1")]
+        )
         guard case .loaded(let events)? = model.history(for: running) else {
             return XCTFail("the history never loaded")
         }

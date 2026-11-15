@@ -69,8 +69,10 @@ What Fleet does:
   the evidence. An agent with chat on links to its thread
 - **logs** — the tail of an agent's container log, followed while the screen is open
 - **runs** — in progress, stopped without finishing, and finished in the last day or the last
-  three; a run's history; cancel and terminate, addressed to that run rather than to its workflow
-  name; and run again, which starts a new run like a closed one
+  three; a run's history, read from that run, with any event's complete input, output or failure
+  read in full when asked for — laid out when it is JSON, selectable and copied exactly as
+  stored; cancel and terminate, addressed to that run rather than to its workflow name; and run
+  again, which starts a new run like a closed one
 - **schedules** — what each starts and when; pause, resume, and start a run now
 - **start a workflow** — pick a type and fill in its text, number and switch inputs
 - **search** — the agent and run lists narrow as you type; memory search looks up what the fleet

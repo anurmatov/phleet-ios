@@ -80,11 +80,24 @@ final class SignedInControlAPI: ControlAPIClient {
     func runHistory(
         _ connection: ControlConnection,
         namespace: String,
-        workflowId: String
+        workflowId: String,
+        runId: String
     ) async throws -> [WorkflowEvent] {
         try await signedIn(connection) {
-            try await base.runHistory($0, namespace: namespace, workflowId: workflowId)
+            try await base.runHistory(
+                $0,
+                namespace: namespace,
+                workflowId: workflowId,
+                runId: runId
+            )
         }
+    }
+
+    func eventValue(
+        _ connection: ControlConnection,
+        request: EventValueRequest
+    ) async throws -> EventValueResult {
+        try await signedIn(connection) { try await base.eventValue($0, request: request) }
     }
 
     func exactRunHistory(

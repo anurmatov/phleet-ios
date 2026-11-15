@@ -22,6 +22,13 @@ enum AppTabs {
         let byLabel = app.tabBars.buttons[label]
         if byLabel.waitForExistence(timeout: 30) {
             byLabel.tap()
+            // A tap made while the app is still busy can be dropped: CI run 43696908768 tapped
+            // Runs and the snapshot at failure still had Fleet selected. The tab saying it is
+            // selected is the evidence, and one more tap is the remedy.
+            if !isSelected(byLabel) {
+                byLabel.tap()
+                XCTAssertTrue(isSelected(byLabel), "the \(label) tab never became selected", file: file, line: line)
+            }
             return
         }
 
@@ -34,6 +41,14 @@ enum AppTabs {
         let anywhere = app.buttons[label].firstMatch
         XCTAssertTrue(anywhere.exists, "the \(label) tab is missing", file: file, line: line)
         anywhere.tap()
+    }
+
+    private static func isSelected(_ tab: XCUIElement) -> Bool {
+        let selected = XCTNSPredicateExpectation(
+            predicate: NSPredicate(format: "isSelected == true"),
+            object: tab
+        )
+        return XCTWaiter().wait(for: [selected], timeout: 10) == .completed
     }
 
     static func selectChat(

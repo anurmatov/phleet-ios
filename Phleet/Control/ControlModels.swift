@@ -431,7 +431,7 @@ enum AgentAction: String, CaseIterable, Sendable {
 }
 
 /// One entry in a run's history, as the orchestrator summarises it.
-struct WorkflowEvent: Equatable, Sendable, Identifiable {
+struct WorkflowEvent: Hashable, Sendable, Identifiable {
     let eventId: Int
     let eventType: String
     let timestamp: Date?

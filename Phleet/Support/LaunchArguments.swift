@@ -44,4 +44,12 @@ enum LaunchArguments {
     /// Makes the stand-in for the camera "scan" a setup code from a dashboard that predates one
     /// sign-in, so the smoke test can watch it refused by name.
     static let olderSetupCode = "-phleet-older-setup-code"
+
+    /// Makes the scripted orchestrator answer complete-value reads as an orchestrator that has no
+    /// such route does, so the smoke test can watch the history stay usable without them.
+    static let eventValuesUnavailable = "-phleet-event-values-unavailable"
+
+    /// Makes the scripted orchestrator hold every complete-value read open until it is stopped,
+    /// so the stop control has a read in flight to act on.
+    static let slowEventValues = "-phleet-slow-event-values"
 }

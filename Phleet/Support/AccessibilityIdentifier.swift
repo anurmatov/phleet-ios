@@ -178,6 +178,17 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case shareImages = "share.images"
     case shareState = "share.state"
 
+    case eventValuePreview = "eventValue.preview"
+    case eventValueLoad = "eventValue.load"
+    case eventValueStop = "eventValue.stop"
+    case eventValueState = "eventValue.state"
+    case eventValueOpen = "eventValue.open"
+    case eventReaderMode = "eventReader.mode"
+    case eventReaderNotice = "eventReader.notice"
+    case eventReaderText = "eventReader.text"
+    case eventReaderCopy = "eventReader.copy"
+    case eventReaderNode = "eventReader.node"
+
     /// The UI-test hook. Applied with `.accessibilityIdentifier(_:)`.
     var identifier: String { rawValue }
 
