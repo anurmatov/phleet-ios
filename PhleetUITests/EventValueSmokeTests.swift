@@ -67,29 +67,34 @@ final class EventValueSmokeTests: XCTestCase {
         attach(app, "Pretty")
     }
 
-    /// A value of 100,000 characters, opened whole in the system text view, which a long press
-    /// selects in.
+    /// A value of 100,000 Unicode scalars arrives whole and waits to be opened.
     ///
-    /// The press goes to a point inside the text view's frame rather than to the element: for a
-    /// value this long the test runner cannot compute the view's activation point (CI run
-    /// 43690030109 retried it for six minutes), and each accessibility snapshot carries the whole
-    /// value. Selecting and copying all of it is proven against the same `UITextView` in
-    /// `EventValueRenderingTests`.
-    func testALargeUnicodeValueIsSelectableInFull() throws {
+    /// The test stops short of opening it on purpose. With that value in the system text view,
+    /// every accessibility snapshot the runner takes carries all of it: on CI run 43690030109 the
+    /// runner could not compute the view's activation point, and on 43693230008 a plain query
+    /// timed out. Selecting and copying the whole value is proven against the same `UITextView`
+    /// in `EventValueRenderingTests`, and selection in the reader by a long press is proven here
+    /// on a smaller value.
+    func testALargeUnicodeValueArrivesWholeAndIsNotOpenedByItself() throws {
         let app = openEvent(titled: "Activity completed")
 
         tapLoad(in: app, field: "Read the complete output")
-        open(in: app)
 
-        let text = element(in: app, .eventReaderText)
-        XCTAssertTrue(text.waitForExistence(timeout: 60), "the value's text is not on screen")
-        XCTAssertTrue(app.buttons["Text"].exists, "a JSON string is not offered as its text")
-        text.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.2)).press(forDuration: 1.2)
-        XCTAssertTrue(
-            selectionMenuAppeared(in: app, timeout: 60),
-            "a long press on the value raised no selection menu"
+        // 100,000 scalars are 90,000 characters: a combining accent joins the letter before it.
+        let offered = app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.eventValueOpen.identifier)
+            .matching(NSPredicate(
+                format: "label CONTAINS %@ AND label CONTAINS %@",
+                "json/plain",
+                90_000.formatted() + " characters"
+            ))
+            .firstMatch
+        XCTAssertTrue(offered.waitForExistence(timeout: 30), "the large value did not arrive whole")
+        XCTAssertFalse(
+            element(in: app, .eventReaderText).exists,
+            "a large value was opened before anyone asked"
         )
-        attach(app, "Large value selected")
+        attach(app, "Large value offered")
     }
 
     /// Plain text stays text, and text stored as JSON that is not valid JSON says so instead of
