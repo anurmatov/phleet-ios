@@ -121,6 +121,9 @@ final class RunsModel {
 
     /// Reads one run's history. A reload keeps the events already on screen until the new ones
     /// arrive, so a refresh never blanks the screen first.
+    ///
+    /// Read by the run's own identifier: a complete value is read by event number from that run,
+    /// and the latest run of the same workflow numbers its events differently.
     func loadHistory(for run: WorkflowRun) async {
         if histories[run.identity] == nil {
             histories[run.identity] = .loading
@@ -129,7 +132,8 @@ final class RunsModel {
             let events = try await api.runHistory(
                 connection,
                 namespace: run.namespace,
-                workflowId: run.workflowId
+                workflowId: run.workflowId,
+                runId: run.runId
             )
             histories[run.identity] = .loaded(events)
         } catch {
@@ -137,6 +141,12 @@ final class RunsModel {
             if case .loaded? = histories[run.identity] { return }
             histories[run.identity] = .failed
         }
+    }
+
+    /// The complete values of one event, for its screen. Held by that screen and gone with it:
+    /// nothing read in full is kept here.
+    func eventValues(of event: WorkflowEvent, in run: WorkflowRun) -> EventValuesModel {
+        EventValuesModel(api: api, connection: connection, run: run, event: event)
     }
 
     // MARK: - Cancelling
@@ -281,6 +291,152 @@ final class RunsModel {
 
     private static func failure(for error: Error) -> ControlPlaneModel.Failure {
         ControlPlaneModel.Failure.from(error)
+    }
+}
+
+/// One history event's complete values, while its screen is open.
+///
+/// Nothing is read until a person asks for a field, and each field is read on its own: the
+/// history list never reads complete values, and opening this screen does not either.
+@MainActor
+@Observable
+final class EventValuesModel {
+
+    /// Why a read gave no answer to show.
+    enum Failure: Equatable, Sendable {
+        /// The server has no complete-value route: an orchestrator older than it.
+        case notOffered
+        /// The server found no such run or event, or does not know the namespace.
+        case notFound
+        /// The server could not read the run's history.
+        case historyUnavailable
+        /// Reading the history took longer than the server allows.
+        case timedOut
+        /// The answer did not decode, named another run or event, or contradicted itself.
+        /// Nothing from it is shown.
+        case unreadableAnswer
+        case tokenRejected
+        case accessDenied
+        case unreachable
+        /// Any other refusal, with the server's code when it gave one.
+        case refused(String?)
+    }
+
+    enum State: Equatable, Sendable {
+        case idle
+        case loading
+        case loaded(EventValueResult)
+        case failed(Failure)
+        /// Stopped before an answer arrived, by the person or by leaving the screen.
+        case stopped
+    }
+
+    let run: WorkflowRun
+    let event: WorkflowEvent
+
+    private let api: ControlAPIClient
+    private let connection: ControlConnection
+
+    private(set) var states: [EventValueField: State] = [:]
+    private var reads: [EventValueField: Task<Void, Never>] = [:]
+    /// Which read an answer belongs to. A stopped read that answers anyway changes nothing.
+    private var generations: [EventValueField: Int] = [:]
+
+    init(api: ControlAPIClient, connection: ControlConnection, run: WorkflowRun, event: WorkflowEvent) {
+        self.api = api
+        self.connection = connection
+        self.run = run
+        self.event = event
+    }
+
+    /// The fields this kind of event has, in the order they are shown.
+    var fields: [EventValueField] {
+        EventValueRequest.fields(for: event)
+    }
+
+    func state(of field: EventValueField) -> State {
+        states[field] ?? .idle
+    }
+
+    /// The exact read for one field: this run, this event. Never the latest run.
+    func request(for field: EventValueField) -> EventValueRequest {
+        EventValueRequest(run: run, event: event, field: field)
+    }
+
+    /// Reads one field in full. Asking again while it is being read does nothing.
+    func load(_ field: EventValueField) {
+        guard fields.contains(field), state(of: field) != .loading else { return }
+        let generation = (generations[field] ?? 0) + 1
+        generations[field] = generation
+        states[field] = .loading
+
+        let request = request(for: field)
+        reads[field] = Task { [weak self] in
+            guard let self else { return }
+            let outcome: State
+            do {
+                outcome = .loaded(try await self.api.eventValue(self.connection, request: request))
+            } catch {
+                outcome = Task.isCancelled ? .stopped : .failed(Self.failure(for: error))
+            }
+            guard self.generations[field] == generation else { return }
+            self.states[field] = outcome
+            self.reads[field] = nil
+        }
+    }
+
+    /// Stops one read. The request is cancelled, and an answer that arrives anyway is dropped.
+    func stop(_ field: EventValueField) {
+        generations[field, default: 0] += 1
+        reads[field]?.cancel()
+        reads[field] = nil
+        if state(of: field) == .loading {
+            states[field] = .stopped
+        }
+    }
+
+    /// Stops every read in flight, as the screen goes away.
+    func stopAll() {
+        for field in Array(reads.keys) {
+            stop(field)
+        }
+    }
+
+    /// Waits for the read in flight on one field, if there is one.
+    func settle(_ field: EventValueField) async {
+        await reads[field]?.value
+    }
+
+    nonisolated static func failure(for error: Error) -> Failure {
+        if error is EventValueAnswerError {
+            return .unreadableAnswer
+        }
+        switch error as? ControlAPIError {
+        case .unauthorized?:
+            return .tokenRejected
+        case .accessDenied?:
+            return .accessDenied
+        case .transport?:
+            return .unreachable
+        case .decoding?:
+            return .unreadableAnswer
+        case .refused(404, let code)?:
+            // The route answers a missing run or event with its own code. A 404 without it is
+            // a server that has no such route at all.
+            return code == "not_found" ? .notFound : .notOffered
+        case .refused(405, _)?:
+            return .notOffered
+        case .refused(503, "history_timeout"?)?:
+            return .timedOut
+        case .refused(503, "history_unavailable"?)?:
+            return .historyUnavailable
+        case .refused(_, let code)?:
+            return .refused(code)
+        case .gateChanged(let code)?:
+            return .refused(code)
+        case nil:
+            return .unreachable
+        }
     }
 }
 

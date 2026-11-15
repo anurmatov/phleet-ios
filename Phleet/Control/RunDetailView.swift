@@ -345,7 +345,16 @@ struct RunDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(events) { event in
-                        RunEventRow(event: event)
+                        if EventValueRequest.fields(for: event).isEmpty {
+                            RunEventRow(event: event)
+                        } else {
+                            // The row stays a preview. Its values are read in full on the event's
+                            // own screen, from this run, and only when asked for there.
+                            NavigationLink(value: RunEventRoute(run: snapshot, event: event)) {
+                                RunEventRow(event: event, opensCompleteValues: true)
+                            }
+                            .accessibilityHint(Text("run.event.readFull.hint"))
+                        }
                     }
                 }
             case .failed?:
@@ -376,6 +385,9 @@ struct RunDetailView: View {
 struct RunEventRow: View {
 
     let event: WorkflowEvent
+    /// Whether the row opens the event's complete values, which it then says in words: a preview
+    /// cut short must not read as the whole value.
+    var opensCompleteValues = false
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -403,6 +415,15 @@ struct RunEventRow: View {
                     Text(timestamp, style: .time)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+                if opensCompleteValues {
+                    Label {
+                        Text("run.event.readFull")
+                    } icon: {
+                        Image(systemName: "doc.text.magnifyingglass")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(.tint)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

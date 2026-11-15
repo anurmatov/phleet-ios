@@ -444,6 +444,7 @@ AppEnvironment
   ├── AgentLogStream                one agent's log socket, as a sequence
   ├── ControlPlaneModel             agents, runs in progress, gates, agent actions
   └── RunsModel                     closed runs, run history, cancel, start
+        └── EventValuesModel        one event's complete values, while its screen is open
 ```
 
 The models exist exactly when a sign-in does and are torn down with it. Runs in progress live only
@@ -660,6 +661,34 @@ A workflow type's inputs are read from its JSON Schema. Text, number and boolean
 become fields; an array or a nested object is left out rather than rendered as a text box that
 could only produce the wrong type. An optional input left empty is omitted from the request, not
 sent as an empty string, so a workflow that tests "was this given" is not told yes.
+
+### A complete value is read on request, from that run
+
+The history is a summary: the orchestrator cuts each value to 2,000 characters and joins
+several payloads into one. The history row keeps that preview and says it opens in full; the
+event's screen reads nothing until a person asks for one field, with
+`GET /api/workflows/{ns}/event-value/{workflowId}?runId=&eventId=&field=`, as the companion
+server contract defines it ([phleet#584](https://github.com/anurmatov/phleet/issues/584)). Built
+and tested against synthetic answers in that shape; it has not been run against a server that
+serves the route. The history itself is read with the run's identifier, because
+event numbers are read back by that run and the latest run of the same workflow numbers its
+events differently.
+
+`EventValueEnvelope.checked(against:)` refuses an answer that names another namespace, workflow,
+run, event or field — compared scalar by scalar, since Swift's `==` equates canonically
+equivalent strings — or whose status, values, reason and source disagree. Nothing from a refused
+answer is shown. `absent`, each `unsupported` reason and `too_large` are said in words; empty
+text is a value, not an absence. An orchestrator without the route answers `404` without its
+own `not_found` code, and the screen says complete values are not offered there while the
+history stays as it was.
+
+A value is shown exactly as stored. `JSONReading` lays it out only when the payload's encoding
+says JSON and the whole text parses as one value; it keeps every number's and string's source
+text, member order and duplicates, and stops at a nesting and entry bound rather than guess.
+Truncated or malformed JSON is shown raw with a note, never as a partial object. The reader is
+the system text view (`SelectableTextView`), so selection, Select All, Dynamic Type and
+VoiceOver's text navigation are the platform's own; Copy takes the original text whichever way
+it is shown. A read can be stopped, and leaving the screen stops it.
 
 ### Decoding is forgiving, addressing is strict
 

@@ -80,6 +80,7 @@ targets:
       - path: Phleet/Control/ControlAPIClient.swift
       - path: Phleet/Control/ControlConnection.swift
       - path: Phleet/Control/ControlModels.swift
+      - path: Phleet/Control/WorkflowEventValue.swift
       - path: Phleet/Control/ControlPresentation.swift
       - path: Phleet/Control/PendingGate.swift
       - path: Phleet/Control/URLSessionControlAPIClient.swift
@@ -121,6 +122,7 @@ targets:
       - path: Phleet/Control/ControlAPIClient.swift
       - path: Phleet/Control/ControlConnection.swift
       - path: Phleet/Control/ControlModels.swift
+      - path: Phleet/Control/WorkflowEventValue.swift
       - path: Phleet/Control/ControlPresentation.swift
       - path: Phleet/Control/PendingGate.swift
       - path: Phleet/Control/URLSessionControlAPIClient.swift

@@ -54,12 +54,24 @@ protocol ControlAPIClient {
     /// too, newest first, capped by the orchestrator.
     func closedRuns(_ connection: ControlConnection, hours: Int) async throws -> [WorkflowRun]
 
-    /// `GET /api/workflows/{namespace}/history/{workflowId}`
+    /// `GET /api/workflows/{namespace}/history/{workflowId}?runId=` — that run's history, never
+    /// the latest run of the workflow: the event numbers on screen are read in full by that run.
     func runHistory(
         _ connection: ControlConnection,
         namespace: String,
-        workflowId: String
+        workflowId: String,
+        runId: String
     ) async throws -> [WorkflowEvent]
+
+    /// `GET /api/workflows/{namespace}/event-value/{workflowId}?runId=&eventId=&field=` — one
+    /// field of one event of one exact run, whole. Read only when a person asks for it.
+    ///
+    /// The answer is checked against the request before it is returned; one that names another
+    /// run or event, or contradicts itself, fails as `EventValueAnswerError`.
+    func eventValue(
+        _ connection: ControlConnection,
+        request: EventValueRequest
+    ) async throws -> EventValueResult
 
     /// Original input for an exact run. Never falls back to latest-run history.
     func exactRunHistory(
@@ -190,13 +202,15 @@ enum ControlRequest {
         method: String,
         percentEncodedPath: String,
         query: [URLQueryItem] = [],
+        percentEncodedQuery: [URLQueryItem] = [],
         body: Data? = nil
     ) throws -> URLRequest {
         var request = URLRequest(
             url: try url(
                 origin: connection.origin,
                 percentEncodedPath: percentEncodedPath,
-                query: query
+                query: query,
+                percentEncodedQuery: percentEncodedQuery
             )
         )
         request.httpMethod = method
@@ -220,10 +234,15 @@ enum ControlRequest {
 
     /// Builds a route URL. A query never carries a secret: the only values that ride in one
     /// are a run identifier, a number of hours and the words of a memory search.
+    ///
+    /// `percentEncodedQuery` is for values that must arrive exactly: they are escaped down to the
+    /// unreserved set, so a `+`, `/`, `&` or `%` in an identifier is not read as something else.
+    /// It replaces `query` when given.
     static func url(
         origin: URL,
         percentEncodedPath: String,
-        query: [URLQueryItem] = []
+        query: [URLQueryItem] = [],
+        percentEncodedQuery: [URLQueryItem] = []
     ) throws -> URL {
         guard var components = URLComponents(url: origin, resolvingAgainstBaseURL: false) else {
             throw ControlAPIError.transport("malformed origin")
@@ -233,7 +252,13 @@ enum ControlRequest {
             base.removeLast()
         }
         components.percentEncodedPath = base + percentEncodedPath
-        components.queryItems = query.isEmpty ? nil : query
+        if percentEncodedQuery.isEmpty {
+            components.queryItems = query.isEmpty ? nil : query
+        } else {
+            components.percentEncodedQueryItems = percentEncodedQuery.map {
+                URLQueryItem(name: escaped($0.name), value: $0.value.map(escaped))
+            }
+        }
         components.fragment = nil
 
         guard let built = components.url else {
@@ -269,6 +294,19 @@ enum ControlRequest {
 
     static func runHistoryPath(namespace: String, workflowId: String) -> String {
         "/api/workflows/" + escaped(namespace) + "/history/" + escaped(workflowId)
+    }
+
+    static func eventValuePath(namespace: String, workflowId: String) -> String {
+        "/api/workflows/" + escaped(namespace) + "/event-value/" + escaped(workflowId)
+    }
+
+    /// The query naming one exact run, event and field. Every value is required.
+    static func eventValueQuery(_ request: EventValueRequest) -> [URLQueryItem] {
+        [
+            URLQueryItem(name: "runId", value: request.runId),
+            URLQueryItem(name: "eventId", value: String(request.eventId)),
+            URLQueryItem(name: "field", value: request.field.rawValue)
+        ]
     }
 
     static func cancelRunPath(namespace: String, workflowId: String) -> String {

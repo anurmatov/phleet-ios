@@ -757,6 +757,126 @@
         }
       }
     },
+    "a11y.eventReader.copy" : {
+      "comment" : "Spoken label for the button that copies a complete value exactly as stored.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy the original value"
+          }
+        }
+      }
+    },
+    "a11y.eventReader.mode" : {
+      "comment" : "Spoken label for the choice of how a complete value is shown.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show as"
+          }
+        }
+      }
+    },
+    "a11y.eventReader.node" : {
+      "comment" : "Spoken label for one entry in a JSON outline.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "JSON entry"
+          }
+        }
+      }
+    },
+    "a11y.eventReader.notice" : {
+      "comment" : "Spoken label for the note saying how a complete value is shown.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How this value is shown"
+          }
+        }
+      }
+    },
+    "a11y.eventReader.text" : {
+      "comment" : "Spoken label for the selectable text of a complete value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value text"
+          }
+        }
+      }
+    },
+    "a11y.eventValue.load" : {
+      "comment" : "Spoken label for the button that reads an event value in full.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the complete value"
+          }
+        }
+      }
+    },
+    "a11y.eventValue.open" : {
+      "comment" : "Spoken label for the link that opens a complete event value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open the complete value"
+          }
+        }
+      }
+    },
+    "a11y.eventValue.preview" : {
+      "comment" : "Spoken label for the history's short preview of an event value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "History preview"
+          }
+        }
+      }
+    },
+    "a11y.eventValue.state" : {
+      "comment" : "Spoken label for what a complete-value read found.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete value"
+          }
+        }
+      }
+    },
+    "a11y.eventValue.stop" : {
+      "comment" : "Spoken label for the button that stops reading an event value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop reading"
+          }
+        }
+      }
+    },
     "a11y.fleet.agent" : {
       "comment" : "Spoken label for an agent row.",
       "extractionState" : "manual",
@@ -3549,6 +3669,522 @@
         }
       }
     },
+    "event.field.failure" : {
+      "comment" : "Section heading for an event's failure message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failure"
+          }
+        }
+      }
+    },
+    "event.field.input" : {
+      "comment" : "Section heading for an event's input.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Input"
+          }
+        }
+      }
+    },
+    "event.field.output" : {
+      "comment" : "Section heading for an event's output.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Output"
+          }
+        }
+      }
+    },
+    "event.number" : {
+      "comment" : "Label for a history event's number within its run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Event"
+          }
+        }
+      }
+    },
+    "event.time" : {
+      "comment" : "Label for when a history event was recorded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded"
+          }
+        }
+      }
+    },
+    "event.value.absent" : {
+      "comment" : "Shown when an event stores no value for the field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This event stores no such value."
+          }
+        }
+      }
+    },
+    "event.value.characters %lld" : {
+      "comment" : "How long a complete value is, in characters.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld characters"
+          }
+        }
+      }
+    },
+    "event.value.emptyText" : {
+      "comment" : "Shown for a value that is stored and has no characters.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty text. The value is stored and has no characters."
+          }
+        }
+      }
+    },
+    "event.value.failure.accessDenied" : {
+      "comment" : "Shown when the access proxy refused a complete-value read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The access proxy refused this device."
+          }
+        }
+      }
+    },
+    "event.value.failure.historyUnavailable" : {
+      "comment" : "Shown when the server could not read the run's history.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator couldn't read this run's history. Try again later."
+          }
+        }
+      }
+    },
+    "event.value.failure.notFound" : {
+      "comment" : "Shown when the server finds no such event in the run.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator found no such event in this run."
+          }
+        }
+      }
+    },
+    "event.value.failure.notOffered" : {
+      "comment" : "Shown when the server has no complete-value route, such as an older orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This server doesn't offer complete values. The history preview is all it sends."
+          }
+        }
+      }
+    },
+    "event.value.failure.refused" : {
+      "comment" : "Shown when the orchestrator refused a complete-value read for another reason.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator did not read this value."
+          }
+        }
+      }
+    },
+    "event.value.failure.timedOut" : {
+      "comment" : "Shown when reading the run's history took longer than the server allows.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading this run's history took too long. Try again later."
+          }
+        }
+      }
+    },
+    "event.value.failure.tokenRejected" : {
+      "comment" : "Shown when the orchestrator refused this phone's sign-in while reading a value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator did not accept this phone's sign-in. If this keeps happening, sign out and connect again from the dashboard."
+          }
+        }
+      }
+    },
+    "event.value.failure.unreachable" : {
+      "comment" : "Shown when a complete-value read did not reach the orchestrator.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The orchestrator is not answering."
+          }
+        }
+      }
+    },
+    "event.value.failure.unreadableAnswer" : {
+      "comment" : "Shown when the answer was not a complete value for this event.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The answer wasn't a complete value for this event, so none of it is shown."
+          }
+        }
+      }
+    },
+    "event.value.load.failure" : {
+      "comment" : "Button that reads an event's complete failure message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the complete failure message"
+          }
+        }
+      }
+    },
+    "event.value.load.input" : {
+      "comment" : "Button that reads an event's complete input.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the complete input"
+          }
+        }
+      }
+    },
+    "event.value.load.output" : {
+      "comment" : "Button that reads an event's complete output.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read the complete output"
+          }
+        }
+      }
+    },
+    "event.value.loadAgain" : {
+      "comment" : "Button that reads an event value again after it was stopped or failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read again"
+          }
+        }
+      }
+    },
+    "event.value.loading" : {
+      "comment" : "Shown while an event value is being read.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading the complete value…"
+          }
+        }
+      }
+    },
+    "event.value.position %lld %lld" : {
+      "comment" : "Title of one of several stored values of a field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Value %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "event.value.preview" : {
+      "comment" : "Above the history's short preview of an event value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preview from the history. It may be cut short."
+          }
+        }
+      }
+    },
+    "event.value.single" : {
+      "comment" : "Title of the one complete value of a field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete value"
+          }
+        }
+      }
+    },
+    "event.value.source %lld" : {
+      "comment" : "Shown when a completed activity's input was read from the event that scheduled it. The number is that event.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read from event %lld, which scheduled this activity."
+          }
+        }
+      }
+    },
+    "event.value.stop" : {
+      "comment" : "Button that stops reading an event value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop"
+          }
+        }
+      }
+    },
+    "event.value.stopped" : {
+      "comment" : "Shown when reading an event value was stopped before an answer arrived.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped. Nothing was read."
+          }
+        }
+      }
+    },
+    "event.value.tooLarge %lld" : {
+      "comment" : "Shown when a value is larger than the server sends. The number is the server's limit in bytes.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Larger than the %lld bytes the server sends. None of it is shown, not even the beginning."
+          }
+        }
+      }
+    },
+    "event.value.unsupported.encodedFailure" : {
+      "comment" : "Shown when a failure is stored encoded.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The failure is stored encoded, so its message isn't available as text."
+          }
+        }
+      }
+    },
+    "event.value.unsupported.encoding" : {
+      "comment" : "Shown when a value is stored in a form that is not text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stored in a form that isn't text, such as binary, compressed or encrypted data, so it can't be shown."
+          }
+        }
+      }
+    },
+    "event.value.unsupported.eventType" : {
+      "comment" : "Shown when the server does not read values for this kind of event.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The server doesn't read complete values for this kind of event."
+          }
+        }
+      }
+    },
+    "event.value.unsupported.invalidUTF8" : {
+      "comment" : "Shown when a value's stored bytes are not valid UTF-8.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The stored bytes aren't valid text, so they can't be shown."
+          }
+        }
+      }
+    },
+    "eventReader.copied" : {
+      "comment" : "Shown after a complete value was copied.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied"
+          }
+        }
+      }
+    },
+    "eventReader.copy" : {
+      "comment" : "Button that copies a complete value exactly as stored.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy original"
+          }
+        }
+      }
+    },
+    "eventReader.mode.outline" : {
+      "comment" : "Shows a JSON value as an outline that opens object by object.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Outline"
+          }
+        }
+      }
+    },
+    "eventReader.mode.pretty" : {
+      "comment" : "Shows a JSON value indented.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pretty"
+          }
+        }
+      }
+    },
+    "eventReader.mode.raw" : {
+      "comment" : "Shows a value exactly as stored.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Raw"
+          }
+        }
+      }
+    },
+    "eventReader.mode.text" : {
+      "comment" : "Shows a JSON string as the text it stands for.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Text"
+          }
+        }
+      }
+    },
+    "eventReader.notice.invalid" : {
+      "comment" : "Above a value stored as JSON that is not valid JSON.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stored as JSON, but it isn't valid JSON, so it's shown exactly as stored."
+          }
+        }
+      }
+    },
+    "eventReader.notice.text" : {
+      "comment" : "Above a value stored as plain text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plain text, shown exactly as stored."
+          }
+        }
+      }
+    },
+    "eventReader.notice.tooDeep" : {
+      "comment" : "Above a JSON value nested too deeply to lay out.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nested too deeply to lay out, so it's shown exactly as stored."
+          }
+        }
+      }
+    },
+    "eventReader.notice.tooMany" : {
+      "comment" : "Above a JSON value with too many entries for an outline.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many entries to lay out as an outline."
+          }
+        }
+      }
+    },
     "fleet.agents.empty" : {
       "comment" : "Shown when the orchestrator lists no agents.",
       "extractionState" : "manual",
@@ -4195,6 +4831,66 @@
         }
       }
     },
+    "json.array.count %lld" : {
+      "comment" : "A JSON array in an outline. The number is how many elements it has.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List (%lld)"
+          }
+        }
+      }
+    },
+    "json.array.empty" : {
+      "comment" : "Shown for a JSON array with no elements.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty list"
+          }
+        }
+      }
+    },
+    "json.object.count %lld" : {
+      "comment" : "A JSON object in an outline. The number is how many members it has.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Object (%lld)"
+          }
+        }
+      }
+    },
+    "json.object.empty" : {
+      "comment" : "Shown for a JSON object with no members.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty object"
+          }
+        }
+      }
+    },
+    "json.string.empty" : {
+      "comment" : "A JSON string with no characters.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Empty text"
+          }
+        }
+      }
+    },
     "markdown.code" : {
       "comment" : "Spoken before a block of code in an agent's reply.",
       "extractionState" : "manual",
@@ -4611,6 +5307,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Closed"
+          }
+        }
+      }
+    },
+    "run.event.readFull" : {
+      "comment" : "Under a history entry whose values can be read in full on its own screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read in full"
+          }
+        }
+      }
+    },
+    "run.event.readFull.hint" : {
+      "comment" : "Accessibility hint on a history entry that opens its complete values.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens this event's complete values."
           }
         }
       }

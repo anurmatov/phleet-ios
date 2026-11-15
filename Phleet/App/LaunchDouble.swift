@@ -55,7 +55,9 @@ struct LaunchDouble {
             : arguments.contains(LaunchArguments.humanInputText) ? "text"
             : arguments.contains(LaunchArguments.humanInputPreset) ? "approve-reject" : nil
         let controlBackend = ScriptedControlBackend(humanInputMode: humanMode,
-            humanInputUnavailable: arguments.contains(LaunchArguments.humanInputUnavailable))
+            humanInputUnavailable: arguments.contains(LaunchArguments.humanInputUnavailable),
+            eventValuesUnavailable: arguments.contains(LaunchArguments.eventValuesUnavailable),
+            slowEventValues: arguments.contains(LaunchArguments.slowEventValues))
         let scanned: String
         if arguments.contains(LaunchArguments.unreadableSetupCode) {
             scanned = "not a setup code"
@@ -564,11 +566,20 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
 
     private let humanInputMode: String?
     private let humanInputUnavailable: Bool
+    private let eventValuesUnavailable: Bool
+    private let slowEventValues: Bool
     private var phase: String?
 
-    init(humanInputMode: String? = nil, humanInputUnavailable: Bool = false) {
+    init(
+        humanInputMode: String? = nil,
+        humanInputUnavailable: Bool = false,
+        eventValuesUnavailable: Bool = false,
+        slowEventValues: Bool = false
+    ) {
         self.humanInputMode = humanInputMode
         self.humanInputUnavailable = humanInputUnavailable
+        self.eventValuesUnavailable = eventValuesUnavailable
+        self.slowEventValues = slowEventValues
         phase = humanInputMode == nil ? Self.gatePhase : "request-input"
     }
     private var isCancelled = false
@@ -718,10 +729,18 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
     func runHistory(
         _ connection: ControlConnection,
         namespace: String,
-        workflowId: String
+        workflowId: String,
+        runId: String
     ) async throws -> [WorkflowEvent] {
-        [
-            WorkflowEvent(eventId: 1, eventType: "WorkflowStarted"),
+        guard isScriptedRun(namespace: namespace, workflowId: workflowId, runId: runId) else {
+            throw ControlAPIError.refused(status: 404, message: nil)
+        }
+        return [
+            WorkflowEvent(
+                eventId: 1,
+                eventType: "WorkflowStarted",
+                inputSummary: #"{"topic":"scripted \"topic\"","count":12345678901234567890,"#
+            ),
             WorkflowEvent(
                 eventId: 2,
                 eventType: "ActivityCompleted",
@@ -735,8 +754,115 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
                 activityType: "DelegateToAgentActivity",
                 agent: "scripted-reviewer",
                 failureMessage: "Scripted failure"
+            ),
+            WorkflowEvent(
+                eventId: 4,
+                eventType: "SignalReceived",
+                inputSummary: #"{"Decision":"approved""#,
+                signalName: "scripted-signal"
             )
         ]
+    }
+
+    /// A run this backend lists, by its exact identity.
+    private func isScriptedRun(namespace: String, workflowId: String, runId: String) -> Bool {
+        guard namespace == "scripted" else { return false }
+        let known = [
+            ("scripted-run", "scripted-run-1"),
+            ("scripted-finished", "scripted-finished-1"),
+            ("scripted-failed", "scripted-failed-1")
+        ] + started.map { ($0.workflowId, $0.runId) }
+        return known.contains { $0.0 == workflowId && $0.1 == runId }
+    }
+
+    /// A value of 100,000 Unicode scalars: characters outside the Basic Multilingual Plane,
+    /// combining marks, line breaks, quotes and backslashes. Synthetic.
+    static let largeUnicodeText: String = {
+        let pattern: [Unicode.Scalar] = [
+            "S", "e", "\u{0301}", " ", "\u{1F9ED}", " ", "\"", "\\", "\n", "\u{4E16}"
+        ]
+        var scalars = String.UnicodeScalarView()
+        for index in 0..<100_000 {
+            scalars.append(pattern[index % pattern.count])
+        }
+        return String(scalars)
+    }()
+
+    /// The stored text of one field of one scripted event, as the orchestrator would answer it.
+    /// The run's own identifier is part of the first value, so a screen showing another run's
+    /// value would show another identifier.
+    private func scriptedValues(
+        eventId: Int,
+        field: EventValueField,
+        runId: String
+    ) -> (status: String, values: [EventValueEnvelope.Value], reason: String?)? {
+        func complete(_ encoding: String, _ text: String) -> (String, [EventValueEnvelope.Value], String?) {
+            ("complete", [EventValueEnvelope.Value(encoding: encoding, text: text)], nil)
+        }
+        switch (eventId, field) {
+        case (1, .input):
+            return complete(
+                "json/plain",
+                #"{"topic":"scripted \"topic\"","count":12345678901234567890,"ratio":1.10,"#
+                    + #""nested":{"flags":[true,false,null],"note":"line one\nline two 🧭"},"#
+                    + #""run":"\#(runId)"}"#
+            )
+        case (2, .input):
+            return complete("text/plain", "Scripted plain input.\nNot JSON: {\"a\": 1")
+        case (2, .output):
+            let literal = String(
+                decoding: (try? JSONEncoder().encode(Self.largeUnicodeText)) ?? Data(),
+                as: UTF8.self
+            )
+            return complete("json/plain", literal)
+        case (3, .failure):
+            return complete("text/plain", "Scripted failure")
+        case (4, .input):
+            return complete("json/plain", #"{"Decision":"approved""#)
+        case (1...4, _):
+            return ("absent", [], "no_value")
+        default:
+            return nil
+        }
+    }
+
+    func eventValue(
+        _ connection: ControlConnection,
+        request: EventValueRequest
+    ) async throws -> EventValueResult {
+        if eventValuesUnavailable {
+            // What an orchestrator without this route answers: a 404 with no code of its own.
+            throw ControlAPIError.refused(status: 404, message: nil)
+        }
+        if slowEventValues {
+            try await Task.sleep(nanoseconds: 120_000_000_000)
+        }
+        guard
+            isScriptedRun(
+                namespace: request.namespace,
+                workflowId: request.workflowId,
+                runId: request.runId
+            ),
+            let answer = scriptedValues(
+                eventId: request.eventId,
+                field: request.field,
+                runId: request.runId
+            )
+        else { throw ControlAPIError.refused(status: 404, message: "not_found") }
+
+        // Through the same checks a real answer takes.
+        return try EventValueEnvelope(
+            namespace: request.namespace,
+            workflowId: request.workflowId,
+            runId: request.runId,
+            eventId: request.eventId,
+            field: request.field.rawValue,
+            sourceEventId: answer.status == "complete" ? request.eventId : nil,
+            status: answer.status,
+            values: answer.values,
+            reason: answer.reason,
+            limitBytes: 1_048_576
+        ).checked(against: request)
     }
 
     func exactRunHistory(
@@ -747,7 +873,12 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
               runId == "scripted-run-1" else { throw ControlAPIError.gateChanged(nil) }
         guard let humanInputMode else {
             // An ordinary gate: the same history the run's own screen shows, for that exact run.
-            return try await runHistory(connection, namespace: namespace, workflowId: workflowId)
+            return try await runHistory(
+                connection,
+                namespace: namespace,
+                workflowId: workflowId,
+                runId: runId
+            )
         }
         var request: [String: Any] = [
             "Question": "Which \"answer\"?\n{{literal}} 🧭",

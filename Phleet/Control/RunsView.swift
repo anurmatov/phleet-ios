@@ -34,6 +34,9 @@ struct RunsView: View {
         .navigationDestination(for: WorkflowRun.self) { run in
             RunDetailView(fleet: fleet, runs: runs, snapshot: run)
         }
+        .navigationDestination(for: RunEventRoute.self) { route in
+            RunEventView(model: runs.eventValues(of: route.event, in: route.run))
+        }
         .navigationDestination(for: SchedulesRoute.self) { _ in
             if let schedules {
                 SchedulesView(model: schedules, fleet: fleet)
