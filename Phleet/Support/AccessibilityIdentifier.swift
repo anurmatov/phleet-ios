@@ -117,6 +117,7 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case connectionDone = "connection.done"
 
     case runWebLink = "run.webLink"
+    case runSecondWebLink = "run.secondWebLink"
     case runTerminate = "run.terminate"
     case runTerminateConfirm = "run.terminateConfirm"
     case runTerminateKeep = "run.terminateKeep"
