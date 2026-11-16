@@ -349,9 +349,9 @@ struct RunDetailView: View {
                             RunEventRow(event: event)
                         } else {
                             // The row stays a preview. Its values are read in full on the event's
-                            // own screen, from this run, and only when asked for there.
+                            // own screen, from this run, once that screen is opened.
                             NavigationLink(value: RunEventRoute(run: snapshot, event: event)) {
-                                RunEventRow(event: event, opensCompleteValues: true)
+                                RunEventRow(event: event)
                             }
                             .accessibilityHint(Text("run.event.readFull.hint"))
                         }
@@ -385,9 +385,10 @@ struct RunDetailView: View {
 struct RunEventRow: View {
 
     let event: WorkflowEvent
-    /// Whether the row opens the event's complete values, which it then says in words: a preview
-    /// cut short must not read as the whole value.
-    var opensCompleteValues = false
+
+    /// How much of a preview a row shows. Enough to tell one event from the next; the event's
+    /// own screen has the value.
+    static let previewLines = 3
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -408,22 +409,13 @@ struct RunEventRow: View {
                 if let detail = event.detail {
                     Text(verbatim: detail)
                         .font(.footnote)
-                        .lineLimit(6)
+                        .lineLimit(Self.previewLines)
                         .textSelection(.enabled)
                 }
                 if let timestamp = event.timestamp {
                     Text(timestamp, style: .time)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-                if opensCompleteValues {
-                    Label {
-                        Text("run.event.readFull")
-                    } icon: {
-                        Image(systemName: "doc.text.magnifyingglass")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.tint)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

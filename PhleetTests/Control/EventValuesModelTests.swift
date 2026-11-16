@@ -1,8 +1,8 @@
 import XCTest
 @testable import Phleet
 
-/// One event's complete values: read only on request, for that exact run and event, and
-/// stoppable while being read.
+/// One event's complete values: read when its screen opens and never before, for that exact
+/// run and event, and stoppable while being read.
 @MainActor
 final class EventValuesModelTests: XCTestCase {
 
@@ -25,13 +25,47 @@ final class EventValuesModelTests: XCTestCase {
         RunsModel(api: api, connection: .fixture).eventValues(of: event ?? completed, in: run)
     }
 
-    func testOpeningTheScreenReadsNothing() {
+    func testNothingIsReadUntilTheEventsScreenOpens() {
         let api = FakeControlAPI()
         let values = model(api)
         XCTAssertEqual(values.fields, [.input, .output])
         XCTAssertEqual(values.state(of: .input), .idle)
         XCTAssertEqual(values.state(of: .output), .idle)
-        XCTAssertTrue(api.calls.isEmpty, "complete values were read before anyone asked")
+        XCTAssertTrue(api.calls.isEmpty, "complete values were read before the event was opened")
+    }
+
+    func testOpeningTheScreenReadsEachFieldOfThatEventOnce() async {
+        let api = FakeControlAPI()
+        api.eventValueResult = .success(.absent)
+        let values = model(api)
+
+        values.loadPending()
+        await values.settle(.input)
+        await values.settle(.output)
+
+        XCTAssertEqual(api.calls.count, 2)
+        XCTAssertTrue(api.calls.contains(.eventValue(values.request(for: .input))))
+        XCTAssertTrue(api.calls.contains(.eventValue(values.request(for: .output))))
+
+        // Coming back to the screen reads nothing that is already there.
+        values.loadPending()
+        await values.settle(.input)
+        await values.settle(.output)
+        XCTAssertEqual(api.calls.count, 2, "a value on screen was read again")
+    }
+
+    func testOpeningTheScreenDoesNotRetryAStoppedOrFailedRead() async {
+        let api = FakeControlAPI()
+        api.eventValueResult = .failure(ControlAPIError.transport("offline"))
+        let values = model(api)
+        values.loadPending()
+        await values.settle(.input)
+        await values.settle(.output)
+        XCTAssertEqual(values.state(of: .input), .failed(.unreachable))
+
+        values.loadPending()
+        await values.settle(.input)
+        XCTAssertEqual(api.calls.count, 2, "a failed read was repeated without being asked for")
     }
 
     func testAReadNamesTheExactRunEventAndFieldAndReadsOnlyThatField() async {
@@ -110,17 +144,59 @@ final class EventValuesModelTests: XCTestCase {
         XCTAssertEqual(values.state(of: .input), .stopped, "a late answer replaced the stop")
     }
 
-    func testLeavingTheScreenStopsEveryRead() async {
+    func testLeavingTheScreenCancelsReadsInFlightAndComingBackReadsThemAgain() async {
         let api = FakeControlAPI()
+        var cancelled = 0
+        api.onEventValue = { _ in
+            do {
+                try await Task.sleep(nanoseconds: 30_000_000_000)
+            } catch {
+                cancelled += 1
+                throw error
+            }
+            return .absent
+        }
+        let values = model(api)
+        values.loadPending()
+        XCTAssertEqual(values.state(of: .input), .loading)
+        XCTAssertEqual(values.state(of: .output), .loading)
+
+        values.pause()
+
+        // Not asked for, rather than a stop nobody pressed.
+        XCTAssertEqual(values.state(of: .input), .idle)
+        XCTAssertEqual(values.state(of: .output), .idle)
+        for _ in 0..<20 { await Task.yield() }
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        XCTAssertEqual(cancelled, 2, "leaving the screen left a read running")
+        XCTAssertEqual(values.state(of: .input), .idle, "a cancelled read changed the screen")
+
+        api.onEventValue = nil
+        api.eventValueResult = .success(.absent)
+        values.loadPending()
+        await values.settle(.input)
+        await values.settle(.output)
+        XCTAssertEqual(values.state(of: .input), .loaded(.absent))
+        XCTAssertEqual(values.state(of: .output), .loaded(.absent))
+    }
+
+    func testLeavingTheScreenKeepsWhatWasReadAndWhatWasStopped() async {
+        let api = FakeControlAPI()
+        api.eventValueResult = .success(.absent)
+        let values = model(api)
+        values.load(.input)
+        await values.settle(.input)
+
         api.onEventValue = { _ in
             try await Task.sleep(nanoseconds: 30_000_000_000)
             return .absent
         }
-        let values = model(api)
-        values.load(.input)
         values.load(.output)
-        values.stopAll()
-        XCTAssertEqual(values.state(of: .input), .stopped)
+        values.stop(.output)
+
+        values.pause()
+
+        XCTAssertEqual(values.state(of: .input), .loaded(.absent))
         XCTAssertEqual(values.state(of: .output), .stopped)
     }
 

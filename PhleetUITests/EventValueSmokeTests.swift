@@ -16,11 +16,21 @@ final class EventValueSmokeTests: XCTestCase {
     func testAJSONValueOpensAsAnOutlineOfTheRunsOwnEventAndCopiesTheOriginal() throws {
         let app = openEvent(titled: "Workflow started")
 
-        XCTAssertFalse(
-            element(in: app, .eventValueOpen).exists,
-            "a complete value was read before anyone asked for it"
+        // Opening the event is the asking: the value is there, laid out, with nothing more to tap.
+        XCTAssertTrue(
+            value(containing: "json/plain", in: app).waitForExistence(timeout: 30),
+            "the complete value never arrived"
         )
-        tapLoad(in: app)
+        // Laid out, which the stored text is not: it has no space after a colon.
+        XCTAssertTrue(
+            value(containing: "\"topic\": ", in: app).waitForExistence(timeout: 30),
+            "the value's beginning is not on the event's own screen, laid out"
+        )
+        XCTAssertFalse(
+            element(in: app, .eventValuePreview).exists,
+            "the history's preview is shown beside the complete value"
+        )
+        attach(app, "Event")
         open(in: app)
 
         // An outline, collapsed: the nested object's entries wait until it is opened.
@@ -78,8 +88,6 @@ final class EventValueSmokeTests: XCTestCase {
     func testALargeUnicodeValueArrivesWholeAndIsNotOpenedByItself() throws {
         let app = openEvent(titled: "Activity completed")
 
-        tapLoad(in: app, field: "Read the complete output")
-
         // The read returns the stored JSON literal, quotes and escapes included, so the count
         // on screen is the literal's characters, not those of the text it stands for.
         let characters = ScriptedValues.largeUnicodeLiteral.count
@@ -91,7 +99,13 @@ final class EventValueSmokeTests: XCTestCase {
                 characters.formatted() + " characters"
             ))
             .firstMatch
+        scrollTo(offered, in: app)
         XCTAssertTrue(offered.waitForExistence(timeout: 30), "the large value did not arrive whole")
+        XCTAssertLessThan(
+            offered.label.count,
+            2_000,
+            "the event's screen carries more than the beginning of a large value"
+        )
         XCTAssertFalse(
             element(in: app, .eventReaderText).exists,
             "a large value was opened before anyone asked"
@@ -103,12 +117,13 @@ final class EventValueSmokeTests: XCTestCase {
     /// becoming an object.
     func testPlainTextAndMalformedJSONAreShownAsStored() throws {
         let app = openEvent(titled: "Activity completed")
-        tapLoad(in: app, field: "Read the complete input")
         XCTAssertTrue(
             labelled("Read from event 2", in: app).waitForExistence(timeout: 30),
             "a completed activity's input did not name the event that scheduled it"
         )
-        open(in: app)
+        // The input, not the output beside it: that one is the large value, which no UI query
+        // survives once it is in the reader.
+        open(in: app, encoding: "text/plain")
         XCTAssertTrue(
             notice(containing: "Plain text", in: app).waitForExistence(timeout: 30),
             "plain text did not say it is shown as stored"
@@ -122,7 +137,6 @@ final class EventValueSmokeTests: XCTestCase {
         let signal = row(titled: "Signal received", in: app)
         scrollTo(signal, in: app)
         signal.tap()
-        tapLoad(in: app)
         open(in: app)
         XCTAssertTrue(
             notice(containing: "isn't valid JSON", in: app).waitForExistence(timeout: 30),
@@ -142,17 +156,21 @@ final class EventValueSmokeTests: XCTestCase {
                 "UICTContentSizeCategoryAccessibilityXXXL"
             ]
         )
-        let load = element(in: app, .eventValueLoad)
-        scrollTo(load, in: app)
-        XCTAssertTrue(load.isHittable, "reading in full is not reachable at the largest text size")
-        load.tap()
+        // The history's preview is all such a server sends, so it stays on screen.
+        let preview = element(in: app, .eventValuePreview)
+        scrollTo(preview, in: app)
+        XCTAssertTrue(preview.waitForExistence(timeout: 30), "the history's preview is not shown")
 
         let state = app.descendants(matching: .any)
             .matching(identifier: AccessibilityIdentifier.eventValueState.identifier)
             .matching(NSPredicate(format: "label CONTAINS %@", "doesn't offer complete values"))
             .firstMatch
+        scrollTo(state, in: app)
         XCTAssertTrue(state.waitForExistence(timeout: 30), "an older server was not named")
         XCTAssertFalse(element(in: app, .eventValueOpen).exists, "something was shown as the value")
+        let again = element(in: app, .eventValueLoad)
+        scrollTo(again, in: app)
+        XCTAssertTrue(again.isHittable, "reading again is not reachable at the largest text size")
         attach(app, "Older server")
 
         app.navigationBars.buttons.element(boundBy: 0).tap()
@@ -165,10 +183,10 @@ final class EventValueSmokeTests: XCTestCase {
     /// A read in flight can be stopped, and stopping leaves a way to read again.
     func testAReadCanBeStopped() throws {
         let app = openEvent(titled: "Workflow started", extraArguments: [LaunchArguments.slowEventValues])
-        tapLoad(in: app)
 
         let stop = element(in: app, .eventValueStop)
         XCTAssertTrue(stop.waitForExistence(timeout: 10), "a read in flight offered no stop")
+        scrollTo(stop, in: app)
         stop.tap()
 
         let stopped = app.descendants(matching: .any)
@@ -202,20 +220,17 @@ final class EventValueSmokeTests: XCTestCase {
         return app
     }
 
-    private func tapLoad(in app: XCUIApplication, field: String? = nil) {
-        let load: XCUIElement
-        if let field {
-            load = app.buttons.matching(NSPredicate(format: "label CONTAINS %@", field)).firstMatch
-        } else {
-            load = element(in: app, .eventValueLoad)
-        }
-        XCTAssertTrue(load.waitForExistence(timeout: 30), "reading in full is not offered")
-        scrollTo(load, in: app)
-        load.tap()
+    /// A complete value on the event's screen, told from another by how it is stored.
+    private func value(containing text: String, in app: XCUIApplication) -> XCUIElement {
+        app.descendants(matching: .any)
+            .matching(identifier: AccessibilityIdentifier.eventValueOpen.identifier)
+            .matching(NSPredicate(format: "label CONTAINS %@", text))
+            .firstMatch
     }
 
-    private func open(in app: XCUIApplication) {
-        let open = element(in: app, .eventValueOpen)
+    /// Opens a complete value in the reader. The screen read it when it opened.
+    private func open(in app: XCUIApplication, encoding: String? = nil) {
+        let open = encoding.map { value(containing: $0, in: app) } ?? element(in: app, .eventValueOpen)
         XCTAssertTrue(open.waitForExistence(timeout: 30), "the complete value never arrived")
         scrollTo(open, in: app)
         open.tap()

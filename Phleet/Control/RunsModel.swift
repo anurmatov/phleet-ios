@@ -296,8 +296,8 @@ final class RunsModel {
 
 /// One history event's complete values, while its screen is open.
 ///
-/// Nothing is read until a person asks for a field, and each field is read on its own: the
-/// history list never reads complete values, and opening this screen does not either.
+/// The history list never reads complete values. Opening one event's screen reads that event's
+/// fields, each on its own, so a field that fails or is stopped leaves the other as it is.
 @MainActor
 @Observable
 final class EventValuesModel {
@@ -395,10 +395,27 @@ final class EventValuesModel {
         }
     }
 
-    /// Stops every read in flight, as the screen goes away.
-    func stopAll() {
+    /// Reads every field that has not been asked for yet. Opening the event's screen is the
+    /// asking: one event's values, at most the server's limit each, and none from the history list.
+    ///
+    /// A field a person stopped, and one whose read failed, wait for them to ask again.
+    func loadPending() {
+        for field in fields where state(of: field) == .idle {
+            load(field)
+        }
+    }
+
+    /// The screen went out of sight, for the value's own reader or for good. Reads in flight are
+    /// cancelled and go back to not asked for, so coming back reads them again rather than
+    /// showing a stop nobody pressed. A late answer is dropped.
+    func pause() {
         for field in Array(reads.keys) {
-            stop(field)
+            generations[field, default: 0] += 1
+            reads[field]?.cancel()
+            reads[field] = nil
+            if state(of: field) == .loading {
+                states[field] = nil
+            }
         }
     }
 

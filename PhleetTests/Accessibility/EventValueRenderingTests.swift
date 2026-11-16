@@ -64,8 +64,46 @@ final class EventValueRenderingTests: XCTestCase {
 
     // MARK: - Rows and states
 
-    func testAHistoryRowSaysItOpensTheCompleteValues() {
-        assertRenders(RunEventRow(event: event, opensCompleteValues: true), "a history row")
+    func testAHistoryRowRenders() {
+        assertRenders(RunEventRow(event: event), "a history row")
+    }
+
+    func testTheHistorysPreviewGivesWayOnlyToTheCompleteValue() {
+        let complete = EventValueResult.complete(
+            values: [EventPayloadText(encoding: "text/plain", text: "whole")],
+            sourceEventId: 9
+        )
+        XCTAssertFalse(EventFieldSection.showsPreview(in: .loaded(complete)))
+
+        let others: [EventValuesModel.State] = [
+            .idle, .loading, .stopped, .failed(.notOffered), .failed(.unreachable),
+            .loaded(.absent), .loaded(.unsupported(.encoding)), .loaded(.tooLarge(limitBytes: 1_048_576))
+        ]
+        for state in others {
+            XCTAssertTrue(
+                EventFieldSection.showsPreview(in: state),
+                "the preview went away with nothing in its place (\(state))"
+            )
+        }
+    }
+
+    func testACompleteValueRendersWhereItWasAskedFor() {
+        let values = [
+            EventPayloadText(encoding: "json/plain", text: #"{"a":{"b":[1,2,3]},"c":"text"}"#),
+            EventPayloadText(encoding: "json/plain", text: #""a string\nof two lines""#),
+            EventPayloadText(encoding: "json/plain", text: #"{"truncated":"#),
+            EventPayloadText(encoding: "text/plain", text: SyntheticText.unicode(scalars: 100_000))
+        ]
+        for value in values {
+            assertRenders(
+                EventValueExcerptRow(value: value, title: "Complete value", position: nil),
+                "a value's beginning (\(value.encoding), \(value.text.prefix(12)))"
+            )
+            assertRenders(
+                EventValueExcerptRow(value: value, title: "Value 1 of 2", position: "Value 1 of 2"),
+                "one of several values (\(value.encoding))"
+            )
+        }
     }
 
     func testEveryStateOfAFieldRenders() async {
@@ -129,7 +167,7 @@ final class EventValueRenderingTests: XCTestCase {
             )
         }
 
-        loading.stopAll()
+        loading.stop(.input)
         XCTAssertEqual(loading.state(of: .input), .stopped)
         assertRenders(
             VStack(alignment: .leading) { EventFieldSection(model: loading, field: .input) },
@@ -294,6 +332,7 @@ final class EventValueRenderingTests: XCTestCase {
         SelectableTextView.configure(view, text: original, monospaced: true)
 
         XCTAssertFalse(view.isEditable, "a stored value is not edited here")
+        XCTAssertTrue(view.isFindInteractionEnabled, "the text cannot be searched")
         XCTAssertTrue(view.isSelectable, "the text is not selectable")
         XCTAssertTrue(view.isScrollEnabled)
         XCTAssertEqual(view.dataDetectorTypes, [], "a stored value must not become links or actions")

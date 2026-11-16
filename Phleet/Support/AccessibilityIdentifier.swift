@@ -183,10 +183,12 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case eventValueStop = "eventValue.stop"
     case eventValueState = "eventValue.state"
     case eventValueOpen = "eventValue.open"
+    case eventValueCopy = "eventValue.copy"
     case eventReaderMode = "eventReader.mode"
     case eventReaderNotice = "eventReader.notice"
     case eventReaderText = "eventReader.text"
     case eventReaderCopy = "eventReader.copy"
+    case eventReaderFind = "eventReader.find"
     case eventReaderNode = "eventReader.node"
 
     /// The UI-test hook. Applied with `.accessibilityIdentifier(_:)`.
