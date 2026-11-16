@@ -5707,6 +5707,54 @@
         }
       }
     },
+    "runs.link.child %@" : {
+      "comment" : "Under a run in the list of runs: the run that started it as a child workflow, which is not shown above it. The argument is that run's subject or identifier.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Child of %@"
+          }
+        }
+      }
+    },
+    "runs.link.child.above" : {
+      "comment" : "Spoken after a nested run in the list of runs: it was started as a child workflow by the run in the row above.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Child of the run above"
+          }
+        }
+      }
+    },
+    "runs.link.started %@" : {
+      "comment" : "Under a run in the list of runs: the run that started it and waits for it, which is not shown above it. The argument is that run's subject or identifier.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started by %@"
+          }
+        }
+      }
+    },
+    "runs.link.started.above" : {
+      "comment" : "Spoken after a nested run in the list of runs: the run in the row above started it and waits for it.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Started by the run above"
+          }
+        }
+      }
+    },
     "runs.running.empty" : {
       "comment" : "Shown when no run is in progress.",
       "extractionState" : "manual",

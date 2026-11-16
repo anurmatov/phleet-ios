@@ -662,6 +662,18 @@ become fields; an array or a nested object is left out rather than rendered as a
 could only produce the wrong type. An optional input left empty is omitted from the request, not
 sent as an empty string, so a workflow that tests "was this given" is not told yes.
 
+### Runs that belong together are nested
+
+The list of runs in progress is a tree. A run names what it belongs to in two ways, both sent by
+the orchestrator: `parentWorkflowId`/`parentRunId`, the run that started it as a child workflow,
+and `waiterWorkflowId`, a driver that started it and waits for it without being its parent.
+`RunTree.arrange` places each run directly under its owner, one level in, keeps the order of runs
+at the same level, and places every run exactly once; the parent wins over the waiter. A run whose
+owner is not in the list (the search left it out, or it is over) stays at the top and says whose
+it is in a line of its own. VoiceOver is told the same in words, since the indent is for the eye.
+Closed runs stay flat: owner and child end at different times and land in different sections. An
+orchestrator older than the fields gives the flat list as before.
+
 ### A complete value is read on request, from that run
 
 The history is a summary: the orchestrator cuts each value to 2,000 characters and joins
