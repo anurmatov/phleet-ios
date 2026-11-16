@@ -79,6 +79,7 @@ enum AccessibilityIdentifier: String, CaseIterable {
     case agentAction = "agentAction.action"
     case agentActionConfirm = "agentAction.confirm"
     case agentActionCancel = "agentAction.cancel"
+    case agentActionNewSession = "agentAction.newSession"
     case agentActionNotice = "agentAction.notice"
     case agentActionState = "agentAction.state"
 

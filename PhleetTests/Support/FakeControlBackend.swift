@@ -11,7 +11,7 @@ final class FakeControlAPI: ControlAPIClient {
         case workflows
         case signalRegistry
         case sendSignal(namespace: String, workflowId: String, body: SignalRequestBody)
-        case agentAction(agentName: String, action: AgentAction)
+        case agentAction(agentName: String, action: AgentAction, newSession: Bool = false)
         case closedRuns(hours: Int)
         case runHistory(namespace: String, workflowId: String, runId: String)
         case eventValue(EventValueRequest)
@@ -218,9 +218,10 @@ extension FakeControlAPI {
     func performAgentAction(
         _ connection: ControlConnection,
         agentName: String,
-        action: AgentAction
+        action: AgentAction,
+        newSession: Bool
     ) async throws {
-        record(.agentAction(agentName: agentName, action: action), connection)
+        record(.agentAction(agentName: agentName, action: action, newSession: newSession), connection)
         onAgentAction?()
         try agentActionResult.get()
     }

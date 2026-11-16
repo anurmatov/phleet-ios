@@ -47,6 +47,39 @@ final class ControlActionsTests: XCTestCase {
         )
     }
 
+    func testOnlyAReprovisionThatAsksForANewSessionCarriesAQuery() {
+        XCTAssertEqual(
+            ControlRequest.agentActionQuery(action: .reprovision, newSession: true),
+            [URLQueryItem(name: "session", value: "fresh")]
+        )
+        XCTAssertEqual(ControlRequest.agentActionQuery(action: .reprovision, newSession: false), [])
+        // The choice belongs to a reprovision. No other action can carry it.
+        for action in AgentAction.allCases where action != .reprovision {
+            XCTAssertEqual(
+                ControlRequest.agentActionQuery(action: action, newSession: true),
+                [],
+                "\(action)"
+            )
+        }
+    }
+
+    func testAReprovisionWithANewSessionSaysSoInTheURL() throws {
+        let request = try ControlRequest.make(
+            connection: .fixture,
+            method: "POST",
+            percentEncodedPath: ControlRequest.agentActionPath(
+                agentName: "builder",
+                action: .reprovision
+            ),
+            query: ControlRequest.agentActionQuery(action: .reprovision, newSession: true)
+        )
+        XCTAssertEqual(
+            request.url?.absoluteString,
+            "https://fleet.example.invalid/api/agents/builder/reprovision?session=fresh"
+        )
+        XCTAssertNil(request.httpBody)
+    }
+
     func testCancellingARunNamesTheRunAndCarriesNoSecretInTheURL() throws {
         let request = try ControlRequest.make(
             connection: .fixture,
@@ -112,6 +145,35 @@ final class ControlActionsTests: XCTestCase {
     }
 
     // MARK: - Performing
+
+    func testANewSessionIsSentWithAReprovisionAndWithNothingElse() async {
+        let api = FakeControlAPI()
+        api.agentsResult = .success([FleetAgent(agentName: "planner", effectiveStatus: "idle")])
+        let model = makeModel(api)
+        await model.refresh()
+
+        await model.perform(.reprovision, on: "planner", newSession: true)
+        await model.perform(.restart, on: "planner", newSession: true)
+        await model.perform(.reprovision, on: "planner")
+
+        XCTAssertEqual(
+            api.count(of: .agentAction(agentName: "planner", action: .reprovision, newSession: true)),
+            1
+        )
+        XCTAssertEqual(
+            api.count(of: .agentAction(agentName: "planner", action: .restart, newSession: false)),
+            1
+        )
+        XCTAssertEqual(
+            api.count(of: .agentAction(agentName: "planner", action: .restart, newSession: true)),
+            0
+        )
+        // Left alone, a reprovision keeps the session.
+        XCTAssertEqual(
+            api.count(of: .agentAction(agentName: "planner", action: .reprovision, newSession: false)),
+            1
+        )
+    }
 
     func testAnAcceptedActionIsRecordedAsRequestedAndTheFleetIsReadAgain() async {
         let api = FakeControlAPI()

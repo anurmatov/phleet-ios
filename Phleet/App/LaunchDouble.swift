@@ -689,7 +689,8 @@ final class ScriptedControlBackend: ControlAPIClient, ControlLiveStream, AgentLo
     func performAgentAction(
         _ connection: ControlConnection,
         agentName: String,
-        action: AgentAction
+        action: AgentAction,
+        newSession: Bool
     ) async throws {
         guard agentName == "scripted-planner" else { return }
         switch action {

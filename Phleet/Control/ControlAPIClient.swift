@@ -42,11 +42,16 @@ protocol ControlAPIClient {
         body: SignalRequestBody
     ) async throws
 
-    /// `POST /api/agents/{name}/{start|stop|restart|cancel}`
+    /// `POST /api/agents/{name}/{start|stop|restart|cancel|reprovision}`
+    ///
+    /// `newSession` matters to a reprovision only: it asks the orchestrator to remove the agent's
+    /// saved session first, so the agent starts without its earlier conversation. Every other
+    /// action ignores it.
     func performAgentAction(
         _ connection: ControlConnection,
         agentName: String,
-        action: AgentAction
+        action: AgentAction,
+        newSession: Bool
     ) async throws
 
     /// `GET /api/workflows/completed?hours=` — runs that closed in the window, **however** they
@@ -290,6 +295,14 @@ enum ControlRequest {
 
     static func agentActionPath(agentName: String, action: AgentAction) -> String {
         "/api/agents/" + escaped(agentName) + "/" + action.rawValue
+    }
+
+    /// The query of an agent action. Only a reprovision that asks for a new session has one; an
+    /// orchestrator that does not know the word ignores it and reprovisions as it always did.
+    static func agentActionQuery(action: AgentAction, newSession: Bool) -> [URLQueryItem] {
+        action == .reprovision && newSession
+            ? [URLQueryItem(name: "session", value: "fresh")]
+            : []
     }
 
     static func runHistoryPath(namespace: String, workflowId: String) -> String {

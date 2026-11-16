@@ -124,7 +124,8 @@ final class URLSessionControlAPIClient: ControlAPIClient {
     func performAgentAction(
         _ connection: ControlConnection,
         agentName: String,
-        action: AgentAction
+        action: AgentAction,
+        newSession: Bool
     ) async throws {
         let request = try ControlRequest.make(
             connection: connection,
@@ -132,7 +133,8 @@ final class URLSessionControlAPIClient: ControlAPIClient {
             percentEncodedPath: ControlRequest.agentActionPath(
                 agentName: agentName,
                 action: action
-            )
+            ),
+            query: ControlRequest.agentActionQuery(action: action, newSession: newSession)
         )
         _ = try await perform(request)
     }
