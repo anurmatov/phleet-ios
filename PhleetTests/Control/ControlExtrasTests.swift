@@ -70,6 +70,34 @@ final class ControlExtrasTests: XCTestCase {
         )
     }
 
+    func testARunWithBothLinksToItsPullRequestAndItsIssue() {
+        let both = RunLinks.targets(for: run(repo: "example/project", pr: 42, issue: 7))
+        XCTAssertEqual(both.map(\.kind), [.pullRequest, .issue], "the pull request comes first")
+        XCTAssertEqual(both.map(\.number), [42, 7])
+        XCTAssertEqual(both.map(\.url.absoluteString), [
+            "https://github.com/example/project/pull/42",
+            "https://github.com/example/project/issues/7"
+        ])
+
+        let issueOnly = RunLinks.targets(for: run(repo: "example/project", issue: 7))
+        XCTAssertEqual(issueOnly.map(\.kind), [.issue])
+        let pullRequestOnly = RunLinks.targets(for: run(repo: "example/project", pr: 42))
+        XCTAssertEqual(pullRequestOnly.map(\.kind), [.pullRequest])
+    }
+
+    func testARunAboutAPullRequestAloneListsItOnce() {
+        // The same number in both places is one page, not two.
+        let same = RunLinks.targets(for: run(repo: "example/project", pr: 42, issue: 42))
+        XCTAssertEqual(same.map(\.kind), [.pullRequest])
+    }
+
+    func testARunWithoutAUsableRepositoryHasNoTargets() {
+        XCTAssertTrue(RunLinks.targets(for: run(repo: "example/project")).isEmpty)
+        XCTAssertTrue(RunLinks.targets(for: run(repo: nil, pr: 42, issue: 7)).isEmpty)
+        XCTAssertTrue(RunLinks.targets(for: run(repo: "example/../other", pr: 42, issue: 7)).isEmpty)
+        XCTAssertTrue(RunLinks.targets(for: run(repo: "example/project", pr: 0, issue: -1)).isEmpty)
+    }
+
     func testARunWithNoNumberOrNoRepositoryHasNoLink() {
         XCTAssertNil(RunLinks.webURL(for: run(repo: "example/project")))
         XCTAssertNil(RunLinks.webURL(for: run(repo: nil, pr: 42)))

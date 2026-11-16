@@ -425,21 +425,41 @@ struct RunEventRow: View {
     }
 }
 
-/// A row that opens the run's pull request or issue in the browser. Nothing when it has neither.
+/// Rows that open the run's pull request and its issue in the browser, each when the run has
+/// one. Nothing when it has neither.
 struct RunWebLinkRow: View {
 
     let run: WorkflowRun
 
     var body: some View {
-        if let url = RunLinks.webURL(for: run) {
-            Link(destination: url) {
+        let targets = RunLinks.targets(for: run)
+        ForEach(Array(targets.enumerated()), id: \.offset) { index, target in
+            Link(destination: target.url) {
                 Label {
-                    Text(run.prNumber != nil ? "run.open.pullRequest" : "run.open.issue")
+                    Text(verbatim: Self.title(for: target))
                 } icon: {
-                    Image(systemName: "arrow.up.right.square")
+                    Image(systemName: Self.symbolName(for: target.kind))
                 }
             }
-            .accessibilityIdentifier(AccessibilityIdentifier.runWebLink.identifier)
+            // The first is the page a run is most about, and keeps the name it always had.
+            .accessibilityIdentifier(
+                (index == 0 ? AccessibilityIdentifier.runWebLink : AccessibilityIdentifier.runSecondWebLink).identifier
+            )
+        }
+    }
+
+    static func symbolName(for kind: RunLinks.Target.Kind) -> String {
+        switch kind {
+        case .pullRequest: return "arrow.triangle.pull"
+        case .issue: return "circle.circle"
+        }
+    }
+
+    /// The number is an identifier, not a quantity: it is written as text, never grouped.
+    static func title(for target: RunLinks.Target) -> String {
+        switch target.kind {
+        case .pullRequest: return String(localized: "run.open.pullRequest \(String(target.number))")
+        case .issue: return String(localized: "run.open.issue \(String(target.number))")
         }
     }
 }

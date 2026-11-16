@@ -1377,6 +1377,18 @@
         }
       }
     },
+    "a11y.run.secondWebLink" : {
+      "comment" : "Spoken label for a run's second link to GitHub: its issue, when it also has a pull request.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open on GitHub"
+          }
+        }
+      }
+    },
     "a11y.run.status" : {
       "comment" : "Spoken label for a run's state.",
       "extractionState" : "manual",
@@ -5419,26 +5431,26 @@
         }
       }
     },
-    "run.open.issue" : {
-      "comment" : "Link from a run to its issue.",
+    "run.open.issue %@" : {
+      "comment" : "Link from a run to its issue. The argument is the issue's number.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open the issue on GitHub"
+            "value" : "Open issue #%@ on GitHub"
           }
         }
       }
     },
-    "run.open.pullRequest" : {
-      "comment" : "Link from a run to its pull request.",
+    "run.open.pullRequest %@" : {
+      "comment" : "Link from a run to its pull request. The argument is the pull request's number.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Open the pull request on GitHub"
+            "value" : "Open pull request #%@ on GitHub"
           }
         }
       }

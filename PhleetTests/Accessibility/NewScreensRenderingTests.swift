@@ -207,6 +207,32 @@ final class NewScreensRenderingTests: XCTestCase {
         assertRenders(RunWebLinkRow(run: run), "the pull request link")
     }
 
+    func testARunWithAPullRequestAndAnIssueRendersBothLinks() {
+        let run = WorkflowRun(
+            workflowId: "pr-42",
+            runId: "run-1",
+            workflowType: "T",
+            namespace: "fleet",
+            issueNumber: 7,
+            prNumber: 42,
+            repo: "example/project"
+        )
+        assertRenders(VStack { RunWebLinkRow(run: run) }, "the pull request and issue links")
+
+        let targets = RunLinks.targets(for: run)
+        XCTAssertEqual(targets.map(RunWebLinkRow.title(for:)), [
+            "Open pull request #42 on GitHub",
+            "Open issue #7 on GitHub"
+        ])
+        // An identifier, not a quantity: no grouping separator in a large number.
+        let large = RunLinks.Target(kind: .issue, number: 12345, url: targets[1].url)
+        XCTAssertEqual(RunWebLinkRow.title(for: large), "Open issue #12345 on GitHub")
+        // A symbol name the system does not have would draw nothing.
+        for kind in [RunLinks.Target.Kind.pullRequest, .issue] {
+            XCTAssertNotNil(UIImage(systemName: RunWebLinkRow.symbolName(for: kind)), "\(kind) has no symbol")
+        }
+    }
+
     func testEveryNewAgentActionHasATitleAndASymbol() {
         XCTAssertNotEqual(AgentAction.reprovision.localizedTitle, AgentAction.reprovision.titleKey)
         XCTAssertFalse(AgentAction.reprovision.symbolName.isEmpty)
