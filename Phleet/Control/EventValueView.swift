@@ -7,11 +7,12 @@ struct RunEventRoute: Hashable {
     let event: WorkflowEvent
 }
 
-/// One history event: its preview from the history, and its complete values read on request.
+/// One history event and its complete values.
 ///
-/// Opening the screen reads nothing. Each field has its own explicit read, its own way to stop
-/// it, and says plainly when the server has no value, cannot show it, or does not offer complete
-/// values at all.
+/// Opening the screen reads the event's fields: the person asked for this event by opening it.
+/// Each field is read on its own, can be stopped, and says plainly when the server has no value,
+/// cannot show it, or does not offer complete values at all. The history's preview stands in
+/// until the complete value is there, and whenever it is not.
 struct RunEventView: View {
 
     @State private var model: EventValuesModel
@@ -46,21 +47,33 @@ struct RunEventView: View {
         }
         .navigationTitle(Text(verbatim: model.event.title))
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            model.loadPending()
+        }
         .onDisappear {
-            model.stopAll()
+            model.pause()
         }
     }
 }
 
-/// One field of an event: the history's preview, and the complete value once it is asked for.
+/// One field of an event: the complete value once it has been read, the history's preview until
+/// then and when there is none to show.
 struct EventFieldSection: View {
 
     let model: EventValuesModel
     let field: EventValueField
 
+    /// Whether the history's preview belongs on screen: always, except beside the complete
+    /// value, which it would only repeat in a worse form.
+    static func showsPreview(in state: EventValuesModel.State) -> Bool {
+        if case .loaded(.complete) = state { return false }
+        return true
+    }
+
     var body: some View {
         Section {
-            if let preview = model.event.preview(of: field), !preview.isEmpty {
+            if Self.showsPreview(in: model.state(of: field)),
+               let preview = model.event.preview(of: field), !preview.isEmpty {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("event.value.preview")
                         .font(.caption)
@@ -163,24 +176,79 @@ struct EventValueResultRows: View {
 
     @ViewBuilder
     private func valueRow(_ value: EventPayloadText, index: Int, count: Int) -> some View {
-        let title = heading(index: index, count: count)
         if value.text.isEmpty {
             // Stored, and empty: a different fact from no value at all.
             stated("event.value.emptyText", symbol: "text.alignleft")
         } else {
-            NavigationLink {
-                EventValueReaderView(value: value, title: title)
+            EventValueExcerptRow(
+                value: value,
+                title: heading(index: index, count: count),
+                // One value needs no name; several are told apart by their place.
+                position: count == 1 ? nil : heading(index: index, count: count)
+            )
+        }
+    }
+}
+
+/// A complete value on the event's own screen: its beginning in the most readable form, and what
+/// it is. The row opens the reader, which has all of it; a long press copies the original.
+struct EventValueExcerptRow: View {
+
+    /// How many lines of a value a row shows.
+    static let lines = 10
+
+    let value: EventPayloadText
+    let title: String
+    let position: String?
+
+    /// `nil` until the JSON has been read, and for a value that is not JSON-encoded.
+    @State private var reading: JSONReading?
+
+    var body: some View {
+        let excerpt = EventValueExcerpt(value, reading: reading)
+
+        NavigationLink {
+            EventValueReaderView(value: value, title: title, reading: reading)
+        } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(verbatim: excerpt.text)
+                    .font(excerpt.isCode ? Font.footnote.monospaced() : Font.subheadline)
+                    .lineLimit(Self.lines)
+                Text(verbatim: facts)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .accessibilityIdentifier(AccessibilityIdentifier.eventValueOpen.identifier)
+        .contextMenu {
+            Button {
+                EventValueCopy.copy(value)
+                AccessibilityNotification.Announcement(String(localized: "eventReader.copied"))
+                    .post()
             } label: {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: title)
-                    Text(verbatim: value.encoding + " · "
-                        + String(localized: "event.value.characters \(value.text.count)"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                Label {
+                    Text("eventReader.copy")
+                } icon: {
+                    Image(systemName: "doc.on.doc")
                 }
             }
-            .accessibilityIdentifier(AccessibilityIdentifier.eventValueOpen.identifier)
+            .accessibilityIdentifier(AccessibilityIdentifier.eventValueCopy.identifier)
         }
+        .task {
+            guard value.isJSONEncoded, reading == nil else { return }
+            let text = value.text
+            reading = await Task.detached(priority: .userInitiated) {
+                JSONReading.read(text)
+            }.value
+        }
+    }
+
+    /// Which value this is when there are several, how it is stored, and how long it is.
+    private var facts: String {
+        ([position].compactMap { $0 } + [
+            value.encoding,
+            String(localized: "event.value.characters \(value.text.count)")
+        ]).joined(separator: " · ")
     }
 }
 
@@ -228,9 +296,24 @@ struct EventValueReaderView: View {
     @State private var reading: JSONReading?
     @State private var mode: Mode?
     @State private var copied = false
+    @State private var textView = TextViewHandle()
 
     private let copyKey: LocalizedStringKey = "eventReader.copy"
     private let copiedKey: LocalizedStringKey = "eventReader.copied"
+
+    /// `reading` is the value's JSON when the screen before this one has already read it.
+    init(value: EventPayloadText, title: String, reading: JSONReading? = nil) {
+        self.value = value
+        self.title = title
+        _reading = State(initialValue: reading)
+    }
+
+    /// Whether the value is on screen as text, which the system's find bar can search. An
+    /// outline is a list of rows, and has no text view to search.
+    private var showsText: Bool {
+        if value.isJSONEncoded, reading == nil { return false }
+        return resolvedMode(in: Self.modes(for: reading)) != .outline
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -270,6 +353,11 @@ struct EventValueReaderView: View {
         .navigationTitle(Text(verbatim: title))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            if showsText {
+                ToolbarItem(placement: .topBarTrailing) {
+                    FindInTextButton(textView: textView)
+                }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
                     EventValueCopy.copy(value)
@@ -317,11 +405,11 @@ struct EventValueReaderView: View {
                 JSONOutlineList(root: root)
             }
         case (.text, .outline(let outline)?):
-            SelectableTextView(text: outline.root?.value ?? value.text, monospaced: false)
+            SelectableTextView(text: outline.root?.value ?? value.text, monospaced: false, handle: textView)
         case (.pretty, .outline(let outline)?):
-            SelectableTextView(text: outline.pretty, monospaced: true)
+            SelectableTextView(text: outline.pretty, monospaced: true, handle: textView)
         default:
-            SelectableTextView(text: value.text, monospaced: value.isJSONEncoded)
+            SelectableTextView(text: value.text, monospaced: value.isJSONEncoded, handle: textView)
         }
     }
 
@@ -462,25 +550,66 @@ struct JSONStringReaderView: View {
     let title: String
     let text: String
 
+    @State private var textView = TextViewHandle()
+
     var body: some View {
-        SelectableTextView(text: text, monospaced: false)
+        SelectableTextView(text: text, monospaced: false, handle: textView)
             .navigationTitle(Text(verbatim: title))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    FindInTextButton(textView: textView)
+                }
+            }
+    }
+}
+
+/// The text view on screen, held so a toolbar button can open the system's find bar in it.
+@MainActor
+final class TextViewHandle {
+    weak var view: UITextView?
+
+    func find() {
+        view?.findInteraction?.presentFindNavigator(showingReplace: false)
+    }
+}
+
+/// Opens the system's find bar over the value: search, a count of matches, next and previous.
+struct FindInTextButton: View {
+
+    let textView: TextViewHandle
+
+    var body: some View {
+        Button {
+            textView.find()
+        } label: {
+            Label {
+                Text("eventReader.find")
+            } icon: {
+                Image(systemName: "magnifyingglass")
+            }
+        }
+        .accessibilityIdentifier(AccessibilityIdentifier.eventReaderFind.identifier)
+        .accessibilityLabel(AccessibilityIdentifier.eventReaderFind.localizedLabel)
     }
 }
 
 /// The system text view, read-only: it scrolls, lays out long text lazily, follows Dynamic Type,
-/// and gives VoiceOver its own text navigation. Selection, Select All and Copy are the system's.
+/// and gives VoiceOver its own text navigation. Selection, Select All, Copy and the find bar are
+/// the system's.
 ///
 /// No data detectors: a stored value is data, and nothing in it becomes a link or an action.
 struct SelectableTextView: UIViewRepresentable {
 
     let text: String
     let monospaced: Bool
+    /// Told which text view is on screen, for the find button.
+    var handle: TextViewHandle?
 
     func makeUIView(context: Context) -> UITextView {
         let view = UITextView()
         Self.configure(view, text: text, monospaced: monospaced)
+        handle?.view = view
         return view
     }
 
@@ -488,12 +617,14 @@ struct SelectableTextView: UIViewRepresentable {
         if !(view.text ?? "").unicodeScalars.elementsEqual(text.unicodeScalars) {
             view.text = text
         }
+        handle?.view = view
     }
 
     static func configure(_ view: UITextView, text: String, monospaced: Bool) {
         view.isEditable = false
         view.isSelectable = true
         view.isScrollEnabled = true
+        view.isFindInteractionEnabled = true
         view.dataDetectorTypes = []
         view.adjustsFontForContentSizeCategory = true
         view.font = monospaced

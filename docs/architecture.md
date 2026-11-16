@@ -665,14 +665,26 @@ sent as an empty string, so a workflow that tests "was this given" is not told y
 ### A complete value is read on request, from that run
 
 The history is a summary: the orchestrator cuts each value to 2,000 characters and joins
-several payloads into one. The history row keeps that preview and says it opens in full; the
-event's screen reads nothing until a person asks for one field, with
+several payloads into one. The history row keeps a three-line preview and opens the event; the
+history list itself never reads a complete value. Opening an event is the asking: its screen
+reads each of that event's fields, one request per field, with
 `GET /api/workflows/{ns}/event-value/{workflowId}?runId=&eventId=&field=`, as the companion
 server contract defines it ([phleet#584](https://github.com/anurmatov/phleet/issues/584)). Built
 and tested against synthetic answers in that shape; it has not been run against a server that
-serves the route. The history itself is read with the run's identifier, because
-event numbers are read back by that run and the latest run of the same workflow numbers its
-events differently.
+serves the route. The history itself is read with the run's identifier, because event numbers
+are read back by that run and the latest run of the same workflow numbers its events
+differently.
+
+A read can be stopped, and a stopped or failed one waits to be asked for again. Leaving the
+screen cancels reads in flight and returns them to not asked for (`EventValuesModel.pause`), so
+coming back from the reader reads them again instead of showing a stop nobody pressed. The
+history's preview stays on screen until the complete value replaces it, and whenever nothing
+does: an older server, a value too large or not text.
+
+A complete value is shown where it was asked for as its beginning (`EventValueExcerpt`, at most
+600 characters and ten lines): a JSON string as the text it stands for, an object or a list
+indented, anything else as stored. The row opens the reader, and a long press copies the
+original. A megabyte value is never one row's text, on screen or in the accessibility tree.
 
 `EventValueEnvelope.checked(against:)` refuses an answer that names another namespace, workflow,
 run, event or field — compared scalar by scalar, since Swift's `==` equates canonically
@@ -688,7 +700,7 @@ text, member order and duplicates, and stops at a nesting and entry bound rather
 Truncated or malformed JSON is shown raw with a note, never as a partial object. The reader is
 the system text view (`SelectableTextView`), so selection, Select All, Dynamic Type and
 VoiceOver's text navigation are the platform's own; Copy takes the original text whichever way
-it is shown. A read can be stopped, and leaving the screen stops it.
+it is shown, and the find button opens the system's own find bar over the text.
 
 ### Decoding is forgiving, addressing is strict
 

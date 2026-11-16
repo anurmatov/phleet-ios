@@ -769,6 +769,18 @@
         }
       }
     },
+    "a11y.eventReader.find" : {
+      "comment" : "Spoken label for the button that opens the system's find bar over a complete value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find in this text"
+          }
+        }
+      }
+    },
     "a11y.eventReader.mode" : {
       "comment" : "Spoken label for the choice of how a complete value is shown.",
       "extractionState" : "manual",
@@ -813,6 +825,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Value text"
+          }
+        }
+      }
+    },
+    "a11y.eventValue.copy" : {
+      "comment" : "Spoken label for the long-press action that copies a complete value exactly as stored, from the event screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy the original value"
           }
         }
       }
@@ -4089,6 +4113,18 @@
         }
       }
     },
+    "eventReader.find" : {
+      "comment" : "Title of the button that opens the system's find bar over a complete value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find"
+          }
+        }
+      }
+    },
     "eventReader.mode.outline" : {
       "comment" : "Shows a JSON value as an outline that opens object by object.",
       "extractionState" : "manual",
@@ -5307,18 +5343,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Closed"
-          }
-        }
-      }
-    },
-    "run.event.readFull" : {
-      "comment" : "Under a history entry whose values can be read in full on its own screen.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Read in full"
           }
         }
       }
