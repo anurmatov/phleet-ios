@@ -10,6 +10,9 @@ struct AgentActionsSection: View {
     let agent: FleetAgent
 
     @State private var chosen: AgentAction?
+    /// The reprovision's own choice. Off each time an action is chosen: forgetting a
+    /// conversation is never the default.
+    @State private var newSession = false
     @Environment(\.confirmOwner) private var confirmOwner
 
     private var state: ControlPlaneModel.AgentActionState? {
@@ -33,6 +36,7 @@ struct AgentActionsSection: View {
                 ForEach(actions, id: \.self) { action in
                     Button {
                         model.clearAgentActionState(for: agent.agentName)
+                        newSession = false
                         chosen = action
                     } label: {
                         Label {
@@ -81,6 +85,17 @@ struct AgentActionsSection: View {
         .accessibilityLabel(AccessibilityIdentifier.agentActionCancel.localizedLabel)
 
         if action == .reprovision {
+            Toggle(isOn: $newSession) {
+                Text("agentAction.reprovision.newSession")
+            }
+            .disabled(isSending)
+            .accessibilityIdentifier(AccessibilityIdentifier.agentActionNewSession.identifier)
+            .accessibilityLabel(AccessibilityIdentifier.agentActionNewSession.localizedLabel)
+
+            Text("agentAction.reprovision.newSession.help")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
             Text("agentAction.reprovision.help")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -108,8 +123,9 @@ struct AgentActionsSection: View {
                     return
                 }
             }
-            await model.perform(action, on: agent.agentName)
+            await model.perform(action, on: agent.agentName, newSession: newSession)
             chosen = nil
+            newSession = false
         }
     }
 }

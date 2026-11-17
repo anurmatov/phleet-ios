@@ -66,7 +66,8 @@ What Fleet does:
 - **agents** — every agent, the ones that are down or late first, with its current task
 - **agent actions** — restart, stop, start, reprovision, or cancel the task in hand; which are
   offered follows the agent's state, each takes two taps, and the agent's own state afterwards is
-  the evidence. An agent with chat on links to its thread
+  the evidence. A reprovision can ask for a new session, which starts the agent without its
+  earlier conversation. An agent with chat on links to its thread
 - **logs** — the tail of an agent's container log, followed while the screen is open
 - **runs** — in progress, stopped without finishing, and finished in the last day or the last
   three; a run's history, read from that run, with any event's complete input, output or failure

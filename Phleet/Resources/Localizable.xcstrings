@@ -37,6 +37,18 @@
         }
       }
     },
+    "a11y.agentAction.newSession" : {
+      "comment" : "Spoken label for the switch that makes a reprovision start a new session.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New session"
+          }
+        }
+      }
+    },
     "a11y.agentAction.notice" : {
       "comment" : "Spoken label for a notice explaining why no agent action is offered.",
       "extractionState" : "manual",
@@ -2069,6 +2081,30 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Reprovisioning recreates the agent’s container from its saved settings, which is what a changed model or instruction waits for. Whatever it is doing is interrupted, and it can take a minute to come back."
+          }
+        }
+      }
+    },
+    "agentAction.reprovision.newSession" : {
+      "comment" : "Switch in the reprovision confirmation: start the agent without its earlier conversation.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New session"
+          }
+        }
+      }
+    },
+    "agentAction.reprovision.newSession.help" : {
+      "comment" : "Explains the new-session switch of a reprovision.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A new session forgets the conversation. Changed instructions always start a new session."
           }
         }
       }

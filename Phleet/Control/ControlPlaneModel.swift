@@ -457,13 +457,25 @@ final class ControlPlaneModel {
     /// "Accepted" means the orchestrator took the request, not that the agent has changed: a
     /// restart takes a while to show. The fleet is read again straight away, and the agent's
     /// own state is what says whether it worked.
+    ///
+    /// `newSession` is the reprovision's own choice: start the agent without its earlier
+    /// conversation. It is not sent with any other action.
     @discardableResult
-    func perform(_ action: AgentAction, on agentName: String) async -> Bool {
+    func perform(
+        _ action: AgentAction,
+        on agentName: String,
+        newSession: Bool = false
+    ) async -> Bool {
         if case .sending? = agentActionStates[agentName] { return false }
 
         agentActionStates[agentName] = .sending(action)
         do {
-            try await api.performAgentAction(connection, agentName: agentName, action: action)
+            try await api.performAgentAction(
+                connection,
+                agentName: agentName,
+                action: action,
+                newSession: action == .reprovision && newSession
+            )
         } catch {
             let failure = ActionFailure.from(error)
             agentActionStates[agentName] = .failed(action, failure)

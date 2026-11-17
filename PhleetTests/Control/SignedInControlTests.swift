@@ -42,7 +42,12 @@ final class SignedInControlTests: XCTestCase {
 
         _ = try await api.agents(.unsignedFixture)
         _ = try await api.chatAgents(.unsignedFixture)
-        try await api.performAgentAction(.unsignedFixture, agentName: "builder", action: .restart)
+        try await api.performAgentAction(
+            .unsignedFixture,
+            agentName: "builder",
+            action: .restart,
+            newSession: false
+        )
 
         XCTAssertEqual(
             signedTokens(base),

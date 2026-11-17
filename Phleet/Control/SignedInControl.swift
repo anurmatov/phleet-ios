@@ -66,10 +66,16 @@ final class SignedInControlAPI: ControlAPIClient {
     func performAgentAction(
         _ connection: ControlConnection,
         agentName: String,
-        action: AgentAction
+        action: AgentAction,
+        newSession: Bool
     ) async throws {
         try await signedIn(connection) {
-            try await base.performAgentAction($0, agentName: agentName, action: action)
+            try await base.performAgentAction(
+                $0,
+                agentName: agentName,
+                action: action,
+                newSession: newSession
+            )
         }
     }
 

@@ -623,6 +623,11 @@ and a restart is right for both.
 Reprovisioning is offered wherever there is a container to recreate. It can outlast the request
 that asked for it; that is reported as an outcome not known, and the agent's state says the rest.
 
+A reprovision keeps the agent's session unless its confirmation's "New session" switch is on. The
+switch is off every time the confirmation opens, and it is sent as `?session=fresh` on the
+reprovision route (`ControlRequest.agentActionQuery`); no other action carries it. An orchestrator
+that predates the choice ignores the query and reprovisions as before.
+
 ### A cancel names the run
 
 `cancelRun` sends the run identifier as well as the workflow identifier. A workflow restarted
