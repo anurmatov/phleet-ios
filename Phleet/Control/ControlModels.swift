@@ -195,6 +195,12 @@ struct WorkflowRun: Hashable, Sendable {
     let repo: String?
     let phase: String?
     let gateRef: String?
+    /// The run that started this one as a child workflow. `nil` for a run that stands alone, and
+    /// from an orchestrator older than the field.
+    let parentWorkflowId: String?
+    let parentRunId: String?
+    /// The run that waits for this one: a driver that started it without being its parent.
+    let waiterWorkflowId: String?
 
     /// The orchestrator's own spelling. Compared exactly, as the dashboard does.
     static let runningStatus = "Running"
@@ -236,7 +242,10 @@ struct WorkflowRun: Hashable, Sendable {
         prNumber: Int? = nil,
         repo: String? = nil,
         phase: String? = nil,
-        gateRef: String? = nil
+        gateRef: String? = nil,
+        parentWorkflowId: String? = nil,
+        parentRunId: String? = nil,
+        waiterWorkflowId: String? = nil
     ) {
         self.workflowId = workflowId
         self.runId = runId
@@ -250,6 +259,9 @@ struct WorkflowRun: Hashable, Sendable {
         self.repo = repo
         self.phase = phase
         self.gateRef = gateRef
+        self.parentWorkflowId = parentWorkflowId
+        self.parentRunId = parentRunId
+        self.waiterWorkflowId = waiterWorkflowId
     }
 }
 
@@ -258,6 +270,7 @@ extension WorkflowRun: Decodable {
     private enum CodingKeys: String, CodingKey {
         case workflowId, runId, workflowType, namespace, status, startTime, closeTime
         case issueNumber, prNumber, repo, phase, gateRef
+        case parentWorkflowId, parentRunId, waiterWorkflowId
     }
 
     init(from decoder: Decoder) throws {
@@ -276,7 +289,10 @@ extension WorkflowRun: Decodable {
             prNumber: container.lenient(Int.self, .prNumber),
             repo: container.lenient(String.self, .repo),
             phase: container.lenient(String.self, .phase),
-            gateRef: container.lenient(String.self, .gateRef)
+            gateRef: container.lenient(String.self, .gateRef),
+            parentWorkflowId: container.lenient(String.self, .parentWorkflowId),
+            parentRunId: container.lenient(String.self, .parentRunId),
+            waiterWorkflowId: container.lenient(String.self, .waiterWorkflowId)
         )
     }
 }

@@ -174,6 +174,39 @@ final class ControlRenderingTests: XCTestCase {
         XCTAssertEqual(WorkflowRun.Outcome.other("ContinuedAsNew").localizedLabel, "ContinuedAsNew")
     }
 
+    func testARunRowRendersNestedAndWithAnOwnerElsewhere() throws {
+        let driver = WorkflowRun(workflowId: "driver-1", runId: "r1", workflowType: "UweCarteBlancheWorkflow", namespace: "fleet")
+        let started = WorkflowRun(
+            workflowId: "pr-7", runId: "r2", workflowType: "UwePrImplementationWorkflow", namespace: "fleet",
+            waiterWorkflowId: "driver-1"
+        )
+        let review = WorkflowRun(
+            workflowId: "review-9", runId: "r3", workflowType: "ConsensusReviewWorkflow", namespace: "fleet",
+            parentWorkflowId: "pr-7", parentRunId: "r2"
+        )
+        let placed = RunTree.arrange([review, driver, started])
+        XCTAssertEqual(placed.map(\.depth), [0, 1, 2])
+        for entry in placed {
+            assertRenders(RunRow(run: entry.run, placement: entry), "a run row at depth \(entry.depth)")
+        }
+        XCTAssertNotNil(UIImage(systemName: RunRow.nestedSymbolName), "the elbow has no symbol")
+
+        // The indent is for the eye; VoiceOver is told in words.
+        XCTAssertTrue(RunRow.spokenLabel(for: started, placement: placed[1]).hasSuffix(". Started by the run above"))
+        XCTAssertTrue(RunRow.spokenLabel(for: review, placement: placed[2]).hasSuffix(". Child of the run above"))
+        XCTAssertEqual(RunRow.spokenLabel(for: driver, placement: placed[0]), RunRow.spokenLabel(for: driver))
+
+        // The owner is not in this list: said in a line of its own, by its identifier.
+        let alone = RunTree.arrange([started])
+        XCTAssertEqual(alone[0].elsewhere?.workflowId, "driver-1")
+        XCTAssertEqual(RunRow.ownerLine(for: try XCTUnwrap(alone[0].elsewhere)), "Started by driver-1")
+        assertRenders(RunRow(run: started, placement: alone[0]), "a run row whose owner is elsewhere")
+        XCTAssertTrue(RunRow.spokenLabel(for: started, placement: alone[0]).hasSuffix(". Started by driver-1"))
+
+        let orphan = RunTree.arrange([review])
+        XCTAssertEqual(RunRow.ownerLine(for: try XCTUnwrap(orphan[0].elsewhere)), "Child of pr-7")
+    }
+
     func testARunRowSaysThePhaseWhileRunningAndTheOutcomeOnceClosed() {
         let running = WorkflowRun(
             workflowId: "w1",

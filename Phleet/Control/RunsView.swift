@@ -23,7 +23,7 @@ struct RunsView: View {
                 }
             }
 
-            section("runs.running.title", empty: "runs.running.empty", runs: fleet.runningRuns)
+            section("runs.running.title", empty: "runs.running.empty", runs: fleet.runningRuns, asTree: true)
             section("runs.stopped.title", empty: "runs.stopped.empty", runs: runs.stopped)
             section("runs.finished.title", empty: "runs.finished.empty", runs: runs.finished)
 
@@ -114,12 +114,19 @@ struct RunsView: View {
         hours <= 24 ? "runs.window.day" : "runs.window.threeDays"
     }
 
+    /// - Parameter asTree: whether runs that belong together are nested. Runs in progress are;
+    ///   closed runs end at different times and land in different sections, so they stay flat.
     private func section(
         _ titleKey: LocalizedStringKey,
         empty emptyKey: LocalizedStringKey,
-        runs all: [WorkflowRun]
+        runs all: [WorkflowRun],
+        asTree: Bool = false
     ) -> some View {
         let listed = all.filter { ListSearch.matches($0, query: query) }
+        // A run whose owner the search left out still says whose it is, from the whole list.
+        let placed = asTree
+            ? RunTree.arrange(listed, everything: all)
+            : listed.map { RunTree.Placed(run: $0, depth: 0, link: nil, elsewhere: nil) }
         return Section {
             if listed.isEmpty {
                 // Nothing here at all, or nothing here that matches what was typed: two
@@ -128,12 +135,12 @@ struct RunsView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
             } else {
-                ForEach(listed, id: \.identity) { run in
-                    NavigationLink(value: run) {
-                        RunRow(run: run)
+                ForEach(placed) { entry in
+                    NavigationLink(value: entry.run) {
+                        RunRow(run: entry.run, placement: entry)
                     }
                     .accessibilityIdentifier(AccessibilityIdentifier.runsRun.identifier)
-                    .accessibilityLabel(RunRow.spokenLabel(for: run))
+                    .accessibilityLabel(RunRow.spokenLabel(for: entry.run, placement: entry))
                 }
             }
         } header: {
@@ -149,12 +156,27 @@ struct SchedulesRoute: Hashable {}
 struct RunRow: View {
 
     let run: WorkflowRun
+    /// Where the run sits among the runs it belongs with. `nil` in a list that is not a tree.
+    var placement: RunTree.Placed?
 
     /// One column for the outcome symbol, so the subjects beside them line up.
     @ScaledMetric(relativeTo: .body) private var symbolColumn: CGFloat = 24
+    /// How far each level of a tree moves a row in.
+    @ScaledMetric(relativeTo: .body) private var levelStep: CGFloat = 18
+
+    /// The elbow that ties a run to the one above it.
+    static let nestedSymbolName = "arrow.turn.down.right"
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
+            if let placement, placement.depth > 0 {
+                Image(systemName: Self.nestedSymbolName)
+                    .imageScale(.small)
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, CGFloat(placement.depth - 1) * levelStep)
+                    .accessibilityHidden(true)
+            }
+
             Image(systemName: run.outcome.symbolName)
                 .foregroundStyle(run.outcome.tint)
                 .frame(width: symbolColumn)
@@ -166,8 +188,23 @@ struct RunRow: View {
                 Text(verbatim: Self.caption(for: run))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
+                if let owner = placement?.elsewhere {
+                    Text(verbatim: Self.ownerLine(for: owner))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    /// Whose a run is, when that run has no row above it: its subject when it is known from
+    /// another list, its workflow identifier otherwise.
+    static func ownerLine(for owner: RunTree.Elsewhere) -> String {
+        let name = owner.run.map { RunSubject.text(for: $0) } ?? owner.workflowId
+        switch owner.link {
+        case .child: return String(localized: "runs.link.child \(name)")
+        case .started: return String(localized: "runs.link.started \(name)")
         }
     }
 
@@ -182,8 +219,19 @@ struct RunRow: View {
         return run.workflowType + " · " + state
     }
 
-    static func spokenLabel(for run: WorkflowRun) -> String {
-        RunSubject.text(for: run) + ". " + caption(for: run)
+    /// What VoiceOver says for a row. A nested run says how it is tied to the row above, which
+    /// the eye reads from the indent; a run whose owner is elsewhere says whose it is.
+    static func spokenLabel(for run: WorkflowRun, placement: RunTree.Placed? = nil) -> String {
+        var label = RunSubject.text(for: run) + ". " + caption(for: run)
+        if let placement, placement.depth > 0, let link = placement.link {
+            switch link {
+            case .child: label += ". " + String(localized: "runs.link.child.above")
+            case .started: label += ". " + String(localized: "runs.link.started.above")
+            }
+        } else if let owner = placement?.elsewhere {
+            label += ". " + ownerLine(for: owner)
+        }
+        return label
     }
 }
 
